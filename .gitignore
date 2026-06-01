@@ -4,3 +4,5 @@ __pycache__/
 *.pyc
 .pytest_cache/
 data/sessions/
+data/vector_store.json
+data/thesis.txt

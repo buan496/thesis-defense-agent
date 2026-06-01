@@ -1,0 +1,22 @@
+[
+  {
+    "query": "论文中的系统架构包括哪些模块？",
+    "expected_keywords": ["特征处理", "词表管理", "数据集构建", "模型定义", "训练控制", "推理封装", "流程调度"]
+  },
+  {
+    "query": "模型训练模块包括哪些训练流程？",
+    "expected_keywords": ["训练参数", "词表", "数据集", "batch", "损失", "反向传播", "验证", "保存"]
+  },
+  {
+  "query": "论文使用了哪些数据集？",
+  "expected_keywords": ["AISHELL-1", "LibriSpeech", "train-clean-100", "dev-clean", "test-clean"]
+  },
+  {
+  "query": "模型的语言感知前端包括哪些结构？",
+  "expected_keywords": ["LanguageAwareFrontend", "卷积层", "BiLSTM", "注意力池化", ["语言分类头", "语言分类项", "语言判别分支", "语言分类器", "语言分类损失", "预测语言"], "语言嵌入"]
+  },
+  {
+  "query": "论文中提到的后续改进方向有哪些？",
+  "expected_keywords": ["预训练微调", "流式识别", "数据扩展", "模型压缩"]
+  }
+]
