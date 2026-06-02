@@ -13,6 +13,8 @@ def create_embedding(text: str) -> list[float]:
     if not EMBEDDING_API_KEY:
         raise ValueError("EMBEDDING_API_KEY is not set")
 
+    text = text.encode("utf-8", errors="ignore").decode("utf-8")
+    
     client = OpenAI(
         api_key=EMBEDDING_API_KEY,
         base_url=EMBEDDING_BASE_URL,
