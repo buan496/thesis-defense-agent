@@ -1,5 +1,11 @@
+import logging
+import time
+
 from openai import OpenAI
 from app.config import EMBEDDING_API_KEY, EMBEDDING_BASE_URL, EMBEDDING_MODEL
+
+
+logger = logging.getLogger(__name__)
 
 def create_fake_embedding(text: str) -> list[float]:
     return [
@@ -20,9 +26,20 @@ def create_embedding(text: str) -> list[float]:
         base_url=EMBEDDING_BASE_URL,
     )
 
-    response = client.embeddings.create(
-        model=EMBEDDING_MODEL,
-        input=text,
-    )
+    max_retries = 3
+    
+    for attempt in range(1, max_retries + 1):
+        try:
+            response = client.embeddings.create(
+                model=EMBEDDING_MODEL,
+                input=text,
+            )
+            return response.data[0].embedding
 
-    return response.data[0].embedding
+        except Exception as error:
+            logger.warning("embedding 调用失败，第 %s 次重试: %s", attempt, error)
+
+            if attempt == max_retries:
+                raise
+
+            time.sleep(2)

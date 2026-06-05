@@ -11,6 +11,26 @@ LLM_MAX_TOKENS = int(os.getenv("LLM_MAX_TOKENS", "2048"))
 EMBEDDING_API_KEY = os.getenv("EMBEDDING_API_KEY")
 EMBEDDING_BASE_URL = os.getenv("EMBEDDING_BASE_URL", "https://api.siliconflow.cn/v1")
 EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "BAAI/bge-m3")
+RAG_TOP_K = int(os.getenv("RAG_TOP_K", "3"))
+RAG_BENCHMARK_PATH = os.getenv(
+    "RAG_BENCHMARK_PATH",
+    "data/rag_benchmark.json",
+)
+RAG_CHUNK_SIZE = int(os.getenv("RAG_CHUNK_SIZE", "800"))
+RAG_CHUNK_OVERLAP = int(os.getenv("RAG_CHUNK_OVERLAP", "100"))
+RAG_MIN_CHUNK_SIZE = int(os.getenv("RAG_MIN_CHUNK_SIZE", "30"))
+RAG_VECTOR_STORE_PATH = os.getenv(
+    "RAG_VECTOR_STORE_PATH", 
+    "data/vector_store.json"
+    )
+RAG_VECTOR_STORE_META_PATH = os.getenv(
+    "RAG_VECTOR_STORE_META_PATH",
+    "data/vector_store_meta.json",
+)
+QUERY_EMBEDDING_CACHE_PATH = os.getenv(
+    "QUERY_EMBEDDING_CACHE_PATH",
+    "data/query_embedding_cache.json",
+)
 
 if not DEEPSEEK_API_KEY:
     raise ValueError("DEEPSEEK_API_KEY is not set")

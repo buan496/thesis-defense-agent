@@ -7,7 +7,10 @@ def build_context_from_results(results: list[dict]) -> str:
 
     for result in results:
         context_parts.append(
-            f"来源：{result['source']}\n内容：{result['text']}"
+            f"Chunk ID：{result['id']}\n"
+            f"Score：{result['score']}\n"
+            f"来源：{result['source']}\n"
+            f"内容：{result['text']}"
         )
 
     return "\n\n---\n\n".join(context_parts)

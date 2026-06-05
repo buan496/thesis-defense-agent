@@ -1,20 +1,19 @@
-from pathlib import Path
-
-from app.vector_store_io import load_vector_store
-from app.vector_store import search_vector_store
+from app.config import RAG_TOP_K, RAG_VECTOR_STORE_PATH
+from app.defense_questions import generate_questions_from_context
 from app.embeddings import create_embedding
 from app.rag import build_context_from_results
-from app.defense_questions import generate_questions_from_context
+from app.vector_store import search_vector_store
+from app.vector_store_io import load_vector_store
 
 
-store = load_vector_store("data/vector_store.json")
+store = load_vector_store(RAG_VECTOR_STORE_PATH)
 
 query = "论文中的系统架构包括哪些模块？"
 
 results = search_vector_store(
     query,
     store,
-    top_k=3,
+    top_k=RAG_TOP_K,
     embedding_fn=create_embedding,
 )
 

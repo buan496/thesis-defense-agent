@@ -1,6 +1,6 @@
+from app.config import RAG_CHUNK_OVERLAP,RAG_CHUNK_SIZE
 
-
-def split_text(text: str,chunk_size: int = 500,overlap: int = 50) -> list[str]:
+def split_text(text: str,chunk_size = RAG_CHUNK_SIZE,overlap = RAG_CHUNK_OVERLAP) -> list[str]:
     chunks = []
     start = 0
     
@@ -25,8 +25,8 @@ def split_text(text: str,chunk_size: int = 500,overlap: int = 50) -> list[str]:
 def split_text_with_metadata(
     text: str,
     source: str,
-    chunk_size: int = 500,
-    overlap: int = 50,
+    chunk_size=RAG_CHUNK_SIZE,
+    overlap=RAG_CHUNK_OVERLAP,
 ) -> list[dict]:
     if chunk_size <= 0:
         raise ValueError("chunk_size must be greater than 0")

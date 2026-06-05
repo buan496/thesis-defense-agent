@@ -1,5 +1,9 @@
 import math
+import logging
+
 from app.embeddings import create_fake_embedding
+
+logger = logging.getLogger(__name__)
 
 def dot_product(a: list[float],b: list[float]) -> float:
     if len(a) != len(b):
@@ -38,8 +42,10 @@ def cosine_similarity(a: list[float],b: list[float]) ->float:
 
 def build_vector_store(chunks: list[dict], embedding_fn=create_fake_embedding) -> list[dict]:
     store = []
-
-    for chunk in chunks:
+    total = len(chunks)
+    for index,chunk in enumerate(chunks,start=1):
+        logger.info("正在生成 embedding: %s/%s", index, total)
+        
         item = {
             "id": chunk["id"],
             "text": chunk["text"],

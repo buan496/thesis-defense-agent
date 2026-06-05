@@ -7,3 +7,6 @@ data/sessions/
 data/vector_store.json
 data/thesis.txt
 data/*.pdf
+data/query_embedding_cache.json
+data/vector_store_meta.json
+data/reports/
