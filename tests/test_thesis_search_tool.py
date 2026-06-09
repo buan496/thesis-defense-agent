@@ -50,3 +50,10 @@ def test_search_thesis(tmp_path):
 def test_search_thesis_empty_query():
     with pytest.raises(ValueError):
         search_thesis(query="   ")
+        
+def test_search_thesis_rejects_large_top_k():
+    with pytest.raises(ValueError, match="top_k 必须在 1 到 10 之间"):
+        search_thesis(
+            query="系统架构",
+            top_k=100,
+        )

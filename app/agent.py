@@ -1,3 +1,5 @@
+import time
+
 from collections.abc import Callable
 from typing import Any
 
@@ -86,15 +88,18 @@ def run_agent(
         messages.append(
             assistant_message.model_dump(exclude_none=True)
         )
+        
 
         for tool_call in assistant_message.tool_calls:
+            start_time = time.perf_counter()
             try:
                 tool_result = tool_executor(tool_call)
                 tool_success = True
             except Exception as error:
                 tool_result = f"{type(error).__name__}: {error}"
                 tool_success = False
-
+            duration_ms = (time.perf_counter() - start_time) * 1000
+            
             tool_traces.append(
                 ToolTrace(
                     step=step,
@@ -102,6 +107,7 @@ def run_agent(
                     arguments=tool_call.function.arguments,
                     result=tool_result,
                     success=tool_success,
+                    duration_ms=duration_ms,
                 )
             )
 

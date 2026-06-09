@@ -61,6 +61,8 @@ def test_run_agent_executes_tool_then_returns_answer():
     assert len(result.tool_traces) == 1
     assert result.tool_traces[0].tool_name == "search_thesis"
     assert result.tool_traces[0].success is True
+    assert result.tool_traces[0].duration_ms >= 0
+
     
     
 def test_run_agent_recovers_from_tool_error():
@@ -102,6 +104,7 @@ def test_run_agent_recovers_from_tool_error():
     assert trace.tool_name == "search_thesis"
     assert "RuntimeError" in trace.result
     assert "向量库不可用" in trace.result
+    assert trace.duration_ms >= 0
     
 def test_run_agent_stops_after_max_steps():
     call_count = {"value": 0}
@@ -155,3 +158,4 @@ def test_run_agent_returns_direct_answer_without_tool():
     assert result.final_output == "你好，我可以帮助你准备论文答辩。"
     assert result.steps == 1
     assert result.tool_traces == []
+    

@@ -10,3 +10,6 @@ data/*.pdf
 data/query_embedding_cache.json
 data/vector_store_meta.json
 data/reports/
+data/traces/
+docs/.obsidian/
+docs/.trash/

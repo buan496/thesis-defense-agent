@@ -15,8 +15,8 @@ def search_thesis(
     if not query.strip():
         raise ValueError("query 不能为空")
 
-    if top_k <= 0:
-        raise ValueError("top_k 必须大于 0")
+    if not 1 <= top_k <= 10:
+        raise ValueError("top_k 必须在 1 到 10 之间")
 
     store = load_vector_store(vector_store_path)
 

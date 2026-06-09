@@ -15,6 +15,7 @@ THESIS_SEARCH_TOOL = {
                     "description": "需要返回的论文片段数量",
                     "default": 3,
                     "minimum": 1,
+                    "maximum": 10,
                 },
             },
             "required": ["query"],

@@ -9,3 +9,15 @@ def test_thesis_search_tool_definition():
     assert function["name"] == "search_thesis"
     assert "query" in parameters["properties"]
     assert "query" in parameters["required"]
+    
+    
+def test_thesis_search_tool_limits_top_k():
+    top_k_schema = (
+        THESIS_SEARCH_TOOL["function"]
+        ["parameters"]
+        ["properties"]
+        ["top_k"]
+    )
+
+    assert top_k_schema["minimum"] == 1
+    assert top_k_schema["maximum"] == 10

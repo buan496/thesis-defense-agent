@@ -8,6 +8,7 @@ class ToolTrace:
     arguments: str
     result: str
     success: bool
+    duration_ms: float
 
 
 @dataclass
