@@ -2,14 +2,28 @@ import json
 from pathlib import Path
 
 
-def load_embedding_cache(file_path: str) -> dict:
+def load_embedding_cache(file_path: str,
+        embedding_model: str,
+        ) -> dict:
     path = Path(file_path)
 
+    empty_cache = {
+            "embedding_model": embedding_model,
+            "items": {},
+        }
+    
     if not path.exists():
-        return {}
+        return empty_cache
 
-    return json.loads(path.read_text(encoding="utf-8"))
+    cache = json.loads(path.read_text(encoding="utf-8"))
 
+    if cache.get("embedding_model") != embedding_model:
+        return empty_cache
+
+    if not isinstance(cache.get("items"), dict):
+        return empty_cache
+
+    return cache
 
 def save_embedding_cache(file_path: str, cache: dict) -> None:
     path = Path(file_path)
@@ -25,4 +39,4 @@ def get_cached_embedding(
     text: str,
     cache: dict,
 ) -> list[float] | None:
-    return cache.get(text)
+    return cache["items"].get(text)

@@ -125,6 +125,8 @@ def main():
 
         print("TOP_K:", report["top_k"])
         print("AVERAGE SCORE:", report["average_score"])
+        print("CACHE HITS:", report["embedding_cache"]["hits"])
+        print("CACHE MISSES:", report["embedding_cache"]["misses"])
         if args.min_score is not None:
             if report["average_score"] >= args.min_score:
                 print("EVALUATION STATUS: PASS")

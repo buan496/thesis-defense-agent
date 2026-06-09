@@ -1,7 +1,8 @@
 import json
+from collections.abc import Callable
 from pathlib import Path
 
-from app.config import RAG_VECTOR_STORE_META_PATH,QUERY_EMBEDDING_CACHE_PATH
+from app.config import QUERY_EMBEDDING_CACHE_PATH, RAG_VECTOR_STORE_META_PATH,EMBEDDING_MODEL
 from app.vector_store_metadata import load_vector_store_metadata
 from app.embeddings import create_embedding
 from app.vector_store import search_vector_store
@@ -17,19 +18,31 @@ def evaluate_retrieval(
     benchmark_path: str,
     vector_store_path: str,
     top_k: int,
+    embedding_fn: Callable[[str], list[float]] = create_embedding,
+    embedding_cache_path: str = QUERY_EMBEDDING_CACHE_PATH,
+    embedding_model: str = EMBEDDING_MODEL,
 ) -> dict:
     store = load_vector_store(vector_store_path)
-    embedding_cache = load_embedding_cache(QUERY_EMBEDDING_CACHE_PATH)
+    embedding_cache = load_embedding_cache(
+        embedding_cache_path,
+        embedding_model,
+    )
+    cache_stats = {
+        "hits": 0,
+        "misses": 0,
+    }
     
     def cached_embedding_fn(text: str) -> list[float]:
         cached_embedding = get_cached_embedding(text, embedding_cache)
 
         if cached_embedding is not None:
+            cache_stats["hits"] += 1
             return cached_embedding
 
-        embedding = create_embedding(text)
-        embedding_cache[text] = embedding
-        save_embedding_cache(QUERY_EMBEDDING_CACHE_PATH, embedding_cache)
+        cache_stats["misses"] += 1
+        embedding = embedding_fn(text)
+        embedding_cache["items"][text] = embedding
+        save_embedding_cache(embedding_cache_path, embedding_cache)
 
         return embedding
 
@@ -93,6 +106,11 @@ def evaluate_retrieval(
         "benchmark_path": benchmark_path,
         "vector_store_path": vector_store_path,
         "vector_store_metadata": vector_store_metadata,
+        "embedding_cache": {
+            "model": embedding_model,
+            "hits": cache_stats["hits"],
+            "misses": cache_stats["misses"],
+        },
         "top_k": top_k,
         "average_score": average_score,
         "results": results,
