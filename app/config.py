@@ -31,6 +31,10 @@ QUERY_EMBEDDING_CACHE_PATH = os.getenv(
     "QUERY_EMBEDDING_CACHE_PATH",
     "data/query_embedding_cache.json",
 )
+AGENT_TRACE_PATH = os.getenv(
+    "AGENT_TRACE_PATH",
+    "data/traces/agent_trace.jsonl",
+)
 
 if not DEEPSEEK_API_KEY:
     raise ValueError("DEEPSEEK_API_KEY is not set")

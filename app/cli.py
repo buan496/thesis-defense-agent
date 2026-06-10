@@ -14,7 +14,10 @@ from app.config import (
     RAG_MIN_CHUNK_SIZE,
     RAG_TOP_K,
     RAG_VECTOR_STORE_PATH,
+    AGENT_TRACE_PATH,
 )
+
+from app.agent_trace_analyzer import analyze_agent_traces
 
 def main():
     parser = argparse.ArgumentParser(
@@ -85,6 +88,17 @@ def main():
         default=None,
         help="Minimum average score required to pass evaluation",
     )
+    trace_parser = subparsers.add_parser(
+        "analyze-traces",
+        help="Analyze Agent JSONL traces",
+    )
+
+    trace_parser.add_argument(
+        "--file",
+        type=str,
+        default=AGENT_TRACE_PATH,
+        help="Agent trace JSONL file path",
+    )
     
     mock_parser = subparsers.add_parser("mock-defense")
     mock_parser.add_argument(
@@ -153,6 +167,22 @@ def main():
             )
 
             print("REPORT SAVED:", output_path)
+    elif args.command == "analyze-traces":
+        report = analyze_agent_traces(args.file)
+
+        print("AGENT RUNS:", report["run_count"])
+        print("TOOL CALLS:", report["tool_call_count"])
+        print("SUCCESS COUNT:", report["success_count"])
+        print("FAILURE COUNT:", report["failure_count"])
+        print("SUCCESS RATE:", report["success_rate"])
+        print(
+            "AVERAGE DURATION MS:",
+            round(report["average_duration_ms"], 2),
+        )
+        print("TOOL COUNTS:")
+
+        for tool_name, count in report["tool_counts"].items():
+            print(f"  {tool_name}: {count}")
     
     elif args.command == "mock-defense":
         run_mock_defense(training_query=args.topic)
