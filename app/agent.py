@@ -5,9 +5,15 @@ from typing import Any
 
 from app.config import LLM_MAX_TOKENS, LLM_TEMPERATURE
 from app.llm import get_llm_client
-from app.tools import THESIS_SEARCH_TOOL
+from app.tools import DEFENSE_QUESTION_TOOL, THESIS_SEARCH_TOOL
 from app.tool_executor import execute_tool_call
 from app.agent_models import AgentResult, ToolTrace
+
+AGENT_TOOLS = [
+    THESIS_SEARCH_TOOL,
+    DEFENSE_QUESTION_TOOL,
+]
+
 
 def request_tool_call(user_message: str):
     client, model = get_llm_client()
@@ -27,7 +33,7 @@ def request_tool_call(user_message: str):
                 "content": user_message,
             },
         ],
-        tools=[THESIS_SEARCH_TOOL],
+        tools=AGENT_TOOLS,
         tool_choice="auto",
         temperature=LLM_TEMPERATURE,
         max_tokens=LLM_MAX_TOKENS,
@@ -51,7 +57,7 @@ def run_agent(
             response = client.chat.completions.create(
                 model=model,
                 messages=messages,
-                tools=[THESIS_SEARCH_TOOL],
+                tools=AGENT_TOOLS,
                 tool_choice="auto",
                 temperature=LLM_TEMPERATURE,
                 max_tokens=LLM_MAX_TOKENS,

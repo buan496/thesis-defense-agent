@@ -2,7 +2,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from app.tool_executor import execute_tool_call
+from app.tool_executor import TOOL_REGISTRY, execute_tool_call
 
 
 def create_tool_call(name: str, arguments: str):
@@ -32,3 +32,7 @@ def test_execute_tool_call_rejects_invalid_json():
 
     with pytest.raises(ValueError, match="工具参数不是合法 JSON"):
         execute_tool_call(tool_call)
+
+
+def test_tool_registry_contains_defense_question_tool():
+    assert "create_defense_questions" in TOOL_REGISTRY

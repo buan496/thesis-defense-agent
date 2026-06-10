@@ -1,4 +1,4 @@
-from app.tools import THESIS_SEARCH_TOOL
+from app.tools import DEFENSE_QUESTION_TOOL, THESIS_SEARCH_TOOL
 
 
 def test_thesis_search_tool_definition():
@@ -21,3 +21,16 @@ def test_thesis_search_tool_limits_top_k():
 
     assert top_k_schema["minimum"] == 1
     assert top_k_schema["maximum"] == 10
+
+
+def test_defense_question_tool_definition():
+    function = DEFENSE_QUESTION_TOOL["function"]
+    parameters = function["parameters"]
+    context_schema = parameters["properties"]["context"]
+
+    assert DEFENSE_QUESTION_TOOL["type"] == "function"
+    assert function["name"] == "create_defense_questions"
+    assert parameters["required"] == ["context"]
+    assert parameters["additionalProperties"] is False
+    assert context_schema["type"] == "string"
+    assert context_schema["maxLength"] == 12000
