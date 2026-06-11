@@ -63,8 +63,7 @@ def test_run_agent_executes_tool_then_returns_answer():
     assert result.tool_traces[0].success is True
     assert result.tool_traces[0].duration_ms >= 0
 
-    
-    
+
 def test_run_agent_recovers_from_tool_error():
     tool_call = SimpleNamespace(
         id="call_1",
@@ -105,7 +104,8 @@ def test_run_agent_recovers_from_tool_error():
     assert "RuntimeError" in trace.result
     assert "向量库不可用" in trace.result
     assert trace.duration_ms >= 0
-    
+
+
 def test_run_agent_stops_after_max_steps():
     call_count = {"value": 0}
 
@@ -158,4 +158,63 @@ def test_run_agent_returns_direct_answer_without_tool():
     assert result.final_output == "你好，我可以帮助你准备论文答辩。"
     assert result.steps == 1
     assert result.tool_traces == []
-    
+
+
+def test_run_agent_chains_search_and_question_generation_tools():
+    search_tool_call = SimpleNamespace(
+        id="call_search",
+        function=SimpleNamespace(
+            name="search_thesis",
+            arguments='{"query": "系统架构"}',
+        ),
+    )
+    question_tool_call = SimpleNamespace(
+        id="call_questions",
+        function=SimpleNamespace(
+            name="create_defense_questions",
+            arguments='{"context": "系统包括特征处理、模型训练和推理模块。"}',
+        ),
+    )
+
+    responses = [
+        FakeMessage(tool_calls=[search_tool_call]),
+        FakeMessage(tool_calls=[question_tool_call]),
+        FakeMessage(
+            content="答辩问题：系统各模块之间是如何协作的？",
+            tool_calls=None,
+        ),
+    ]
+    executed_tools = []
+
+    def fake_llm_call(messages):
+        return responses.pop(0)
+
+    def fake_tool_executor(tool_call):
+        executed_tools.append(tool_call.function.name)
+
+        if tool_call.function.name == "search_thesis":
+            return (
+                '{"text": "系统包括特征处理、模型训练和推理模块。"}'
+            )
+
+        if tool_call.function.name == "create_defense_questions":
+            return '["系统各模块之间是如何协作的？"]'
+
+        raise AssertionError("执行了未预期的工具")
+
+    result = run_agent(
+        user_message="请根据论文中的系统架构生成答辩问题。",
+        llm_call=fake_llm_call,
+        tool_executor=fake_tool_executor,
+    )
+
+    assert result.final_output == "答辩问题：系统各模块之间是如何协作的？"
+    assert result.steps == 3
+    assert executed_tools == [
+        "search_thesis",
+        "create_defense_questions",
+    ]
+    assert len(result.tool_traces) == 2
+    assert result.tool_traces[0].tool_name == "search_thesis"
+    assert result.tool_traces[1].tool_name == "create_defense_questions"
+    assert all(trace.success for trace in result.tool_traces)

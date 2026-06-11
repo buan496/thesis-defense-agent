@@ -8,15 +8,17 @@ from app.mock_defense import run_mock_defense
 from app.retrieval_evaluator import evaluate_retrieval
 from app.vector_store_builder import build_pdf_vector_store
 from app.config import (
+    AGENT_ROUTING_BENCHMARK_PATH,
+    AGENT_TRACE_PATH,
     RAG_BENCHMARK_PATH,
     RAG_CHUNK_OVERLAP,
     RAG_CHUNK_SIZE,
     RAG_MIN_CHUNK_SIZE,
     RAG_TOP_K,
     RAG_VECTOR_STORE_PATH,
-    AGENT_TRACE_PATH,
 )
 
+from app.agent_routing_evaluator import evaluate_agent_routing
 from app.agent_trace_analyzer import analyze_agent_traces
 
 def main():
@@ -98,6 +100,23 @@ def main():
         type=str,
         default=AGENT_TRACE_PATH,
         help="Agent trace JSONL file path",
+    )
+
+    routing_parser = subparsers.add_parser(
+        "evaluate-agent-routing",
+        help="Evaluate Agent tool routing accuracy",
+    )
+    routing_parser.add_argument(
+        "--benchmark",
+        type=str,
+        default=AGENT_ROUTING_BENCHMARK_PATH,
+        help="Agent routing benchmark JSON file path",
+    )
+    routing_parser.add_argument(
+        "--min-accuracy",
+        type=float,
+        default=None,
+        help="Minimum routing accuracy required to pass evaluation",
     )
     
     mock_parser = subparsers.add_parser("mock-defense")
@@ -183,7 +202,35 @@ def main():
 
         for tool_name, count in report["tool_counts"].items():
             print(f"  {tool_name}: {count}")
-    
+
+    elif args.command == "evaluate-agent-routing":
+        report = evaluate_agent_routing(
+            benchmark_path=args.benchmark,
+        )
+
+        for item in report["results"]:
+            print("USER MESSAGE:", item["user_message"])
+            print("EXPECTED TOOLS:", item["expected_tools"])
+            print("ACTUAL TOOLS:", item["actual_tools"])
+            print("PASSED:", item["passed"])
+
+            if item["error"] is not None:
+                print("ERROR:", item["error"])
+
+            print("-" * 40)
+
+        print("TOTAL:", report["total"])
+        print("PASSED:", report["passed"])
+        print("FAILED:", report["failed"])
+        print("TOOL ROUTING ACCURACY:", report["accuracy"])
+
+        if args.min_accuracy is not None:
+            if report["accuracy"] >= args.min_accuracy:
+                print("EVALUATION STATUS: PASS")
+            else:
+                print("EVALUATION STATUS: FAIL")
+                raise SystemExit(1)
+
     elif args.command == "mock-defense":
         run_mock_defense(training_query=args.topic)
     else:

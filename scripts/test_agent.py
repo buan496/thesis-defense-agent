@@ -2,7 +2,7 @@ from app.agent import run_agent
 from app.agent_trace_logger import save_agent_trace
 
 
-user_message = "请根据我的论文说明系统架构包含哪些模块。"
+user_message = "请根据论文中的系统架构生成5个答辩问题。"
 
 result = run_agent(user_message)
 

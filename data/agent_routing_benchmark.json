@@ -1,0 +1,19 @@
+[
+  {
+    "user_message": "你好",
+    "expected_tools": []
+  },
+  {
+    "user_message": "论文使用了哪些数据集？",
+    "expected_tools": [
+      "search_thesis"
+    ]
+  },
+  {
+    "user_message": "请根据论文中的系统架构生成5个答辩问题。",
+    "expected_tools": [
+      "search_thesis",
+      "create_defense_questions"
+    ]
+  }
+]
