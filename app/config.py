@@ -39,6 +39,10 @@ AGENT_ROUTING_BENCHMARK_PATH = os.getenv(
     "AGENT_ROUTING_BENCHMARK_PATH",
     "data/agent_routing_benchmark.json",
 )
+FAITHFULNESS_BENCHMARK_PATH = os.getenv(
+    "FAITHFULNESS_BENCHMARK_PATH",
+    "data/faithfulness_benchmark.json",
+)
 
 if not DEEPSEEK_API_KEY:
     raise ValueError("DEEPSEEK_API_KEY is not set")

@@ -3,7 +3,7 @@ tags:
   - roadmap
   - agent-engineering
 status: active
-updated: 2026-06-09
+updated: 2026-06-11
 ---
 
 # Agent 完整学习路线
@@ -130,12 +130,12 @@ updated: 2026-06-09
 
 ## 阶段 6：Agent 评估
 
-- [ ] Tool selection accuracy
-- [ ] Tool argument accuracy
-- [ ] Task completion rate
-- [ ] Groundedness
-- [ ] Faithfulness
-- [ ] LLM-as-Judge
+- [x] Tool selection accuracy
+- [x] Tool argument accuracy
+- [x] Task completion rate
+- [x] Groundedness
+- [x] Faithfulness
+- [x] LLM-as-Judge
 - [ ] 人工盲评
 - [ ] Trace 回放
 - [ ] 回归数据集
@@ -215,4 +215,3 @@ updated: 2026-06-09
 - 能实现 Agent Trace、LLM-as-Judge 和反馈闭环
 - 能将 Agent 通过 API、数据库、容器和监控交付
 - 能使用 LangGraph、MCP 和 Sub-Agent，但不被框架绑架
-
