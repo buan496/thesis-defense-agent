@@ -1,5 +1,7 @@
 # Thesis Defense Agent
 
+[![CI](https://github.com/buan496/thesis-defense-agent/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/buan496/thesis-defense-agent/actions/workflows/ci.yml)
+
 ## 项目目标
 
 本项目目标是从零搭建一个面向答辩学生本人的论文答辩训练 Agent。通过完整实现 LLM 调用、Prompt Engineering、RAG、工具调用、会话记忆、评估闭环、API 服务和工程化部署，系统性掌握 AI Agent 从原型到可交付产品的核心能力。
@@ -60,6 +62,35 @@
 - BAAI/bge-m3
 - pytest
 - Markdown / JSON 本地文件存储
+
+## 质量保障
+
+项目使用 pytest、评估 benchmark 和 GitHub Actions 组成多层质量门禁：
+
+- `100` 个离线单元测试覆盖 Agent、工具调用、RAG 和评估模块
+- Faithfulness benchmark 检查 LLM Judge 的语义判断
+- 多轮稳定性评估统计一致率、全票一致率和多数投票准确率
+- 评估报告回归对比检测指标下降、预测翻转和稳定性退化
+- GitHub Actions 在 Push 和 Pull Request 时自动运行离线质量门禁
+- `main` 分支要求 `Offline tests and quality gate` 检查通过后才能合并
+- 在线评估仅允许手动触发，并通过 GitHub Secret 使用模型 API
+
+本地运行离线测试：
+
+```powershell
+uv sync --frozen --all-groups
+uv run --frozen pytest
+```
+
+比较两份评估报告：
+
+```powershell
+python -m app.cli compare-evaluation-reports `
+  --baseline data/reports/baseline.json `
+  --current data/reports/current.json `
+  --fail-on-regression `
+  --markdown-output data/reports/comparison.md
+```
 
 ## 计划引入的技术栈
 
