@@ -23,3 +23,26 @@ THESIS_SEARCH_TOOL = {
         },
     },
 }
+
+DEFENSE_QUESTION_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "create_defense_questions",
+        "description": (
+            "根据已经检索到的论文片段生成中文论文答辩问题。"
+            "调用前应先通过 search_thesis 获取论文内容。"
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "context": {
+                    "type": "string",
+                    "description": "用于生成答辩问题的论文原文片段",
+                    "maxLength": 12000,
+                },
+            },
+            "required": ["context"],
+            "additionalProperties": False,
+        },
+    },
+}

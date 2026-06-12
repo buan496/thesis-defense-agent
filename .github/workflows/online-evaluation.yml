@@ -1,0 +1,153 @@
+---
+name: Online Evaluation
+
+"on":
+  workflow_dispatch:
+    inputs:
+      run_stability:
+        description: Run repeated Faithfulness stability evaluation
+        required: true
+        default: true
+        type: boolean
+      repeat_count:
+        description: Stability repetitions when enabled
+        required: true
+        default: "2"
+        type: choice
+        options:
+          - "2"
+          - "3"
+      min_accuracy:
+        description: Minimum Faithfulness benchmark accuracy
+        required: true
+        default: "1.0"
+        type: choice
+        options:
+          - "0.75"
+          - "1.0"
+      min_average_agreement:
+        description: Minimum average stability agreement
+        required: true
+        default: "1.0"
+        type: choice
+        options:
+          - "0.75"
+          - "1.0"
+      min_unanimous_rate:
+        description: Minimum unanimous prediction rate
+        required: true
+        default: "1.0"
+        type: choice
+        options:
+          - "0.75"
+          - "1.0"
+      min_majority_accuracy:
+        description: Minimum majority-vote accuracy
+        required: true
+        default: "1.0"
+        type: choice
+        options:
+          - "0.75"
+          - "1.0"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: online-evaluation-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  online-faithfulness:
+    name: Online Faithfulness evaluation
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    env:
+      DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+      DEEPSEEK_BASE_URL: https://api.deepseek.com
+      DEEPSEEK_MODEL: deepseek-v4-flash
+      LLM_TEMPERATURE: "0.3"
+      LLM_MAX_TOKENS: "2048"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Verify required secret
+        shell: bash
+        run: |
+          if [ -z "$DEEPSEEK_API_KEY" ]; then
+            echo "::error::Missing repository secret DEEPSEEK_API_KEY"
+            exit 1
+          fi
+
+      - name: Install uv and Python
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b
+        with:
+          python-version: "3.13"
+          enable-cache: true
+
+      - name: Install locked dependencies
+        run: uv sync --frozen --all-groups
+
+      - name: Prepare report directory
+        run: mkdir -p data/reports
+
+      - name: Evaluate Faithfulness benchmark
+        id: faithfulness
+        continue-on-error: true
+        run: |
+          uv run --frozen python -m app.cli evaluate-faithfulness \
+            --min-accuracy "${{ inputs.min_accuracy }}" \
+            --output data/reports/online_faithfulness.json
+
+      - name: Evaluate Faithfulness stability
+        id: stability
+        if: >-
+          ${{
+            always()
+            && inputs.run_stability
+            && steps.faithfulness.outcome != 'skipped'
+          }}
+        continue-on-error: true
+        run: |
+          uv run --frozen python -m app.cli \
+            evaluate-faithfulness-stability \
+            --repeat-count "${{ inputs.repeat_count }}" \
+            --min-average-agreement \
+            "${{ inputs.min_average_agreement }}" \
+            --min-unanimous-rate \
+            "${{ inputs.min_unanimous_rate }}" \
+            --min-majority-accuracy \
+            "${{ inputs.min_majority_accuracy }}" \
+            --output data/reports/online_faithfulness_stability.json
+
+      - name: Upload online evaluation reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: online-faithfulness-reports-${{ github.run_number }}
+          path: data/reports/
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Enforce online quality gate
+        if: always()
+        shell: bash
+        run: |
+          faithfulness_outcome="${{ steps.faithfulness.outcome }}"
+          stability_outcome="${{ steps.stability.outcome }}"
+
+          if [ "$faithfulness_outcome" != "success" ]; then
+            echo "::error::Faithfulness benchmark failed"
+            exit 1
+          fi
+
+          if [ "${{ inputs.run_stability }}" = "true" ] \
+            && [ "$stability_outcome" != "success" ]; then
+            echo "::error::Faithfulness stability evaluation failed"
+            exit 1
+          fi
+
+          echo "Online quality gate passed"

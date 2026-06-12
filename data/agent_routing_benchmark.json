@@ -1,0 +1,130 @@
+[
+  {
+    "user_message": "你好",
+    "expected_tools": [],
+    "argument_rules": [],
+    "completion_rules": {
+      "non_empty": true
+    }
+  },
+  {
+    "user_message": "论文使用了哪些数据集？",
+    "expected_tools": [
+      "search_thesis"
+    ],
+    "argument_rules": [
+      {
+        "tool_name": "search_thesis",
+        "required_fields": [
+          "query"
+        ],
+        "required_keywords": [
+          [
+            "数据集",
+            "数据"
+          ]
+        ],
+        "integer_ranges": {
+          "top_k": {
+            "minimum": 1,
+            "maximum": 10
+          }
+        }
+      }
+    ],
+    "completion_rules": {
+      "non_empty": true,
+      "required_keywords": [
+        [
+          "AISHELL-1",
+          "AISHELL"
+        ],
+        "LibriSpeech"
+      ]
+    },
+    "grounding_rules": {
+      "required_claims": [
+        {
+          "claim": "AISHELL",
+          "answer_keywords": [
+            [
+              "AISHELL-1",
+              "AISHELL"
+            ]
+          ],
+          "evidence_keywords": [
+            [
+              "AISHELL-1",
+              "AISHELL"
+            ]
+          ]
+        },
+        {
+          "claim": "LibriSpeech",
+          "evidence_keywords": [
+            "LibriSpeech"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "user_message": "请根据论文中的系统架构生成5个答辩问题。",
+    "expected_tools": [
+      "search_thesis",
+      "create_defense_questions"
+    ],
+    "argument_rules": [
+      {
+        "tool_name": "search_thesis",
+        "required_fields": [
+          "query"
+        ],
+        "required_keywords": [
+          "系统架构"
+        ],
+        "integer_ranges": {
+          "top_k": {
+            "minimum": 1,
+            "maximum": 10
+          }
+        }
+      },
+      {
+        "tool_name": "create_defense_questions",
+        "required_fields": [
+          "context"
+        ],
+        "context_from_tool": {
+          "tool_name": "search_thesis",
+          "field": "context",
+          "minimum_length": 20
+        }
+      }
+    ],
+    "completion_rules": {
+      "non_empty": true,
+      "minimum_question_count": 5
+    }
+  },
+    {
+    "user_message": "系统是否已经实现流式识别？",
+    "expected_tools": [
+      "search_thesis"
+    ],
+    "argument_rules": [
+      {
+        "tool_name": "search_thesis",
+        "required_fields": ["query"],
+        "required_keywords": ["流式识别"]
+      }
+    ],
+    "completion_rules": {
+      "non_empty": true
+    },
+    "faithfulness_rules": {
+      "enabled": true,
+      "minimum_score": 0.8
+    }
+  }
+]

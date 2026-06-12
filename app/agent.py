@@ -5,9 +5,26 @@ from typing import Any
 
 from app.config import LLM_MAX_TOKENS, LLM_TEMPERATURE
 from app.llm import get_llm_client
-from app.tools import THESIS_SEARCH_TOOL
+from app.tools import DEFENSE_QUESTION_TOOL, THESIS_SEARCH_TOOL
 from app.tool_executor import execute_tool_call
 from app.agent_models import AgentResult, ToolTrace
+
+AGENT_TOOLS = [
+    THESIS_SEARCH_TOOL,
+    DEFENSE_QUESTION_TOOL,
+]
+
+AGENT_SYSTEM_PROMPT = """
+你是论文答辩助手。
+
+工具使用规则：
+1. 普通问候不需要调用工具。
+2. 回答论文事实问题时，调用 search_thesis。
+3. 根据论文生成答辩问题时，必须先调用 search_thesis。
+4. 获得论文片段后，将片段作为 context 调用 create_defense_questions。
+5. 不得编造论文中不存在的信息。
+"""
+
 
 def request_tool_call(user_message: str):
     client, model = get_llm_client()
@@ -17,17 +34,14 @@ def request_tool_call(user_message: str):
         messages=[
             {
                 "role": "system",
-                "content": (
-                    "你是论文答辩助手。"
-                    "当问题需要依据论文内容回答时，调用 search_thesis 工具。"
-                ),
+                "content": AGENT_SYSTEM_PROMPT,
             },
             {
                 "role": "user",
                 "content": user_message,
             },
         ],
-        tools=[THESIS_SEARCH_TOOL],
+        tools=AGENT_TOOLS,
         tool_choice="auto",
         temperature=LLM_TEMPERATURE,
         max_tokens=LLM_MAX_TOKENS,
@@ -51,7 +65,7 @@ def run_agent(
             response = client.chat.completions.create(
                 model=model,
                 messages=messages,
-                tools=[THESIS_SEARCH_TOOL],
+                tools=AGENT_TOOLS,
                 tool_choice="auto",
                 temperature=LLM_TEMPERATURE,
                 max_tokens=LLM_MAX_TOKENS,
@@ -62,11 +76,7 @@ def run_agent(
     messages = [
         {
             "role": "system",
-            "content": (
-                "你是论文答辩助手。"
-                "需要依据论文回答时，必须调用 search_thesis。"
-                "最终回答只能依据工具返回的论文片段。"
-            ),
+            "content": AGENT_SYSTEM_PROMPT,
         },
         {
             "role": "user",

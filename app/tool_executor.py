@@ -1,9 +1,10 @@
 import json
 
-from app.tools import search_thesis
+from app.tools import create_defense_questions, search_thesis
 
 
 TOOL_REGISTRY = {
+    "create_defense_questions": create_defense_questions,
     "search_thesis": search_thesis,
 }
 
