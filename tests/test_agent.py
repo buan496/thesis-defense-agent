@@ -352,3 +352,64 @@ def test_run_agent_stores_tool_messages_in_session():
     assert session.messages[2]["tool_call_id"] == (
         "call_session_tool"
     )
+    
+def test_run_agent_limits_llm_context_but_keeps_full_session():
+    session = AgentSession(
+        session_id="limited-history-session",
+    )
+
+    for turn_number in range(1, 4):
+        session.add_message(
+            role="user",
+            content=f"第{turn_number}轮问题",
+        )
+        session.add_message(
+            role="assistant",
+            content=f"第{turn_number}轮回答",
+        )
+
+    received_messages = []
+
+    def fake_llm_call(messages):
+        received_messages.extend(messages)
+
+        return FakeMessage(
+            content="第四轮回答",
+            tool_calls=None,
+        )
+
+    run_agent(
+        user_message="第四轮问题",
+        session=session,
+        max_history_turns=2,
+        llm_call=fake_llm_call,
+    )
+
+    assert received_messages[0]["role"] == "system"
+
+    assert received_messages[1:] == [
+        {
+            "role": "user",
+            "content": "第3轮问题",
+        },
+        {
+            "role": "assistant",
+            "content": "第3轮回答",
+        },
+        {
+            "role": "user",
+            "content": "第四轮问题",
+        },
+    ]
+
+    assert len(session.messages) == 8
+
+    assert session.messages[0] == {
+        "role": "user",
+        "content": "第1轮问题",
+    }
+
+    assert session.messages[-1] == {
+        "role": "assistant",
+        "content": "第四轮回答",
+    }
