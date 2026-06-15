@@ -1,6 +1,9 @@
 from types import SimpleNamespace
+
 import pytest
+
 from app.agent import run_agent
+from app.session_models import AgentSession
 
 
 class FakeMessage:
@@ -218,3 +221,134 @@ def test_run_agent_chains_search_and_question_generation_tools():
     assert result.tool_traces[0].tool_name == "search_thesis"
     assert result.tool_traces[1].tool_name == "create_defense_questions"
     assert all(trace.success for trace in result.tool_traces)
+
+
+def test_run_agent_stores_conversation_in_session():
+    session = AgentSession(session_id="session-memory-test")
+
+    def fake_llm_call(messages):
+        return FakeMessage(
+            content="第一轮回答",
+            tool_calls=None,
+        )
+
+    result = run_agent(
+        user_message="第一轮问题",
+        session=session,
+        llm_call=fake_llm_call,
+    )
+
+    assert result.final_output == "第一轮回答"
+    assert session.messages == [
+        {
+            "role": "user",
+            "content": "第一轮问题",
+        },
+        {
+            "role": "assistant",
+            "content": "第一轮回答",
+        },
+    ]
+
+
+def test_run_agent_uses_previous_session_messages():
+    session = AgentSession(session_id="session-history-test")
+
+    session.add_message(
+        role="user",
+        content="我的论文研究语音识别。",
+    )
+    session.add_message(
+        role="assistant",
+        content="好的，我已经记住了。",
+    )
+
+    received_messages = []
+
+    def fake_llm_call(messages):
+        received_messages.extend(messages)
+
+        return FakeMessage(
+            content="你的论文研究方向是语音识别。",
+            tool_calls=None,
+        )
+
+    run_agent(
+        user_message="我的论文研究方向是什么？",
+        session=session,
+        llm_call=fake_llm_call,
+    )
+
+    assert received_messages[0]["role"] == "system"
+
+    assert received_messages[1:] == [
+        {
+            "role": "user",
+            "content": "我的论文研究语音识别。",
+        },
+        {
+            "role": "assistant",
+            "content": "好的，我已经记住了。",
+        },
+        {
+            "role": "user",
+            "content": "我的论文研究方向是什么？",
+        },
+    ]
+
+    assert session.messages[-1] == {
+        "role": "assistant",
+        "content": "你的论文研究方向是语音识别。",
+    }
+
+
+def test_run_agent_stores_tool_messages_in_session():
+    session = AgentSession(session_id="session-tool-test")
+
+    tool_call = SimpleNamespace(
+        id="call_session_tool",
+        function=SimpleNamespace(
+            name="search_thesis",
+            arguments='{"query": "系统架构"}',
+        ),
+    )
+
+    responses = [
+        FakeMessage(
+            content="",
+            tool_calls=[tool_call],
+        ),
+        FakeMessage(
+            content="系统包括特征处理和模型训练模块。",
+            tool_calls=None,
+        ),
+    ]
+
+    def fake_llm_call(messages):
+        return responses.pop(0)
+
+    def fake_tool_executor(received_tool_call):
+        return '{"text": "系统包括特征处理和模型训练模块。"}'
+
+    run_agent(
+        user_message="系统架构包括什么？",
+        session=session,
+        llm_call=fake_llm_call,
+        tool_executor=fake_tool_executor,
+    )
+
+    roles = [
+        message["role"]
+        for message in session.messages
+    ]
+
+    assert roles == [
+        "user",
+        "assistant",
+        "tool",
+        "assistant",
+    ]
+
+    assert session.messages[2]["tool_call_id"] == (
+        "call_session_tool"
+    )

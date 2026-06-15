@@ -8,6 +8,7 @@ from app.llm import get_llm_client
 from app.tools import DEFENSE_QUESTION_TOOL, THESIS_SEARCH_TOOL
 from app.tool_executor import execute_tool_call
 from app.agent_models import AgentResult, ToolTrace
+from app.session_models import AgentSession
 
 AGENT_TOOLS = [
     THESIS_SEARCH_TOOL,
@@ -52,9 +53,13 @@ def request_tool_call(user_message: str):
 def run_agent(
         user_message: str,
         max_steps: int = 5,
+        session: AgentSession | None = None,
         llm_call: Callable[[list[dict]], Any] | None = None,
         tool_executor: Callable[[Any], str] = execute_tool_call,
     ) -> AgentResult:
+    
+    if session is None:
+        session = AgentSession()
     
     tool_traces = []
     
@@ -73,15 +78,17 @@ def run_agent(
 
             return response.choices[0].message
 
+    session.add_message(
+        role="user",
+        content=user_message,
+    )
+
     messages = [
         {
             "role": "system",
             "content": AGENT_SYSTEM_PROMPT,
         },
-        {
-            "role": "user",
-            "content": user_message,
-        },
+        *session.messages,
     ]
 
 
@@ -89,15 +96,25 @@ def run_agent(
         assistant_message = llm_call(messages)
 
         if not assistant_message.tool_calls:
+            final_output = assistant_message.content or ""
+
+            session.add_message(
+                role="assistant",
+                content=final_output,
+            )
+
             return AgentResult(
-                final_output=assistant_message.content or "",
+                final_output=final_output,
                 steps=step,
                 tool_traces=tool_traces,
             )
 
-        messages.append(
-            assistant_message.model_dump(exclude_none=True)
+        assistant_message_data = assistant_message.model_dump(
+            exclude_none=True
         )
+
+        messages.append(assistant_message_data)
+        session.messages.append(assistant_message_data)
         
 
         for tool_call in assistant_message.tool_calls:
@@ -121,13 +138,14 @@ def run_agent(
                 )
             )
 
-            messages.append(
-                {
-                    "role": "tool",
-                    "tool_call_id": tool_call.id,
-                    "content": tool_result,
-                }
-            )
+            tool_message = {
+                "role": "tool",
+                "tool_call_id": tool_call.id,
+                "content": tool_result,
+            }
+
+            messages.append(tool_message)
+            session.messages.append(tool_message)
 
     raise RuntimeError(
         f"Agent 执行超过最大步数：{max_steps}"
