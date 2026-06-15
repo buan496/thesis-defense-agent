@@ -37,6 +37,7 @@ from app.config import (
 
 from app.agent_routing_evaluator import evaluate_agent_routing
 from app.agent_trace_analyzer import analyze_agent_traces
+from app.session_service import run_agent_session
 
 def main():
     parser = argparse.ArgumentParser(
@@ -295,6 +296,25 @@ def main():
         type=str,
         default=None,
         help="Path to save a Markdown comparison summary",
+    )
+    
+    chat_parser = subparsers.add_parser(
+        "chat",
+        help="Run one persistent Agent conversation turn",
+    )
+
+    chat_parser.add_argument(
+        "--message",
+        type=str,
+        default=None,
+        help="User message sent to the Agent",
+    )
+
+    chat_parser.add_argument(
+        "--session-id",
+        type=str,
+        default=None,
+        help="Existing session ID used to resume a conversation",
     )
     
     mock_parser = subparsers.add_parser("mock-defense")
@@ -791,6 +811,33 @@ def main():
                 raise SystemExit(1)
 
             print("REGRESSION STATUS: PASS")
+
+    elif args.command == "chat":
+        user_message = args.message
+
+        if user_message is None:
+            user_message = input("USER: ")
+
+        if not user_message.strip():
+            raise ValueError("用户消息不能为空")
+
+        try:
+            result, session, session_path = run_agent_session(
+                user_message=user_message,
+                session_id=args.session_id,
+            )
+        except FileNotFoundError as error:
+            print(f"SESSION ERROR: {error}")
+            raise SystemExit(1) from error
+
+        print("\nASSISTANT:")
+        print(result.final_output)
+
+        print("\nSESSION ID:")
+        print(session.session_id)
+
+        print("\nSESSION SAVED:")
+        print(session_path)
 
     elif args.command == "mock-defense":
         run_mock_defense(training_query=args.topic)
