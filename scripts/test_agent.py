@@ -1,6 +1,11 @@
 from app.agent import run_agent
 from app.agent_trace_logger import save_agent_trace
-
+from app.config import (
+    LLM_INPUT_PRICE_PER_1M_TOKENS,
+    LLM_OUTPUT_PRICE_PER_1M_TOKENS,
+    LLM_PRICE_CURRENCY,
+)
+from app.cost_estimator import estimate_llm_cost
 
 user_message = "请根据论文中的系统架构生成5个答辩问题。"
 
@@ -25,7 +30,21 @@ for trace in result.tool_traces:
     print("-" * 40)
     print("SUCCESS:", trace.success)
     print("DURATION_MS:", round(trace.duration_ms, 2))
-    print("\nToken 使用量：")
-    print("PROMPT TOKENS:", result.token_usage.prompt_tokens)
-    print("COMPLETION TOKENS:", result.token_usage.completion_tokens)
-    print("TOTAL TOKENS:", result.token_usage.total_tokens)
+    
+print("\nToken 使用量：")
+print("PROMPT TOKENS:", result.token_usage.prompt_tokens)
+print("COMPLETION TOKENS:", result.token_usage.completion_tokens)
+print("TOTAL TOKENS:", result.token_usage.total_tokens)
+
+cost_estimate = estimate_llm_cost(
+        token_usage=result.token_usage,
+        input_price_per_1m_tokens=LLM_INPUT_PRICE_PER_1M_TOKENS,
+        output_price_per_1m_tokens=LLM_OUTPUT_PRICE_PER_1M_TOKENS,
+        currency=LLM_PRICE_CURRENCY,
+    )
+
+print("\n成本估算：")
+print("INPUT COST:", round(cost_estimate.input_cost, 6))
+print("OUTPUT COST:", round(cost_estimate.output_cost, 6))
+print("TOTAL COST:", round(cost_estimate.total_cost, 6))
+print("CURRENCY:", cost_estimate.currency)
