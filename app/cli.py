@@ -34,10 +34,10 @@ from app.config import (
     RAG_TOP_K,
     RAG_VECTOR_STORE_PATH,
 )
-
 from app.agent_routing_evaluator import evaluate_agent_routing
 from app.agent_trace_analyzer import analyze_agent_traces
 from app.session_service import run_agent_session
+from app.budget_guard import BudgetExceededError
 
 def main():
     parser = argparse.ArgumentParser(
@@ -329,6 +329,13 @@ def main():
         type=int,
         default=12000,
         help="Maximum number of recent message characters sent to the LLM",
+    )
+    
+    chat_parser.add_argument(
+        "--max-run-cost",
+        type=float,
+        default=None,
+        help="Maximum allowed cost for this Agent run",
     )
     
     mock_parser = subparsers.add_parser("mock-defense")
@@ -878,15 +885,24 @@ def main():
             print("ARGUMENT ERROR: --max-history-characters 必须大于 0")
             raise SystemExit(2)
         
+        if args.max_run_cost is not None and args.max_run_cost < 0:
+            print("ARGUMENT ERROR: --max-run-cost 不能小于 0")
+            raise SystemExit(2)
+        
         try:
             result, session, session_path = run_agent_session(
                 user_message=user_message,
                 session_id=args.session_id,
                 max_history_turns=args.max_history_turns,
                 max_history_characters=args.max_history_characters,
+                max_run_cost=args.max_run_cost,
             )
         except FileNotFoundError as error:
             print(f"SESSION ERROR: {error}")
+            raise SystemExit(1) from error
+        
+        except BudgetExceededError as error:
+            print(f"BUDGET ERROR: {error}")
             raise SystemExit(1) from error
 
         print("\nASSISTANT:")

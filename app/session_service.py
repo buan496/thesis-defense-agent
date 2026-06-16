@@ -11,6 +11,7 @@ from app.session_store import (
     save_agent_session,
 )
 from app.tool_executor import execute_tool_call
+from app.budget_guard import raise_if_cost_exceeded
 
 
 def run_agent_session(
@@ -20,6 +21,7 @@ def run_agent_session(
     max_steps: int = 5,
     max_history_turns: int = 6,
     max_history_characters: int = 12000,
+    max_run_cost: float | None = None,
     llm_call: Callable[[list[dict]], Any] | None = None,
     tool_executor: Callable[[Any], str] = execute_tool_call,
 ) -> tuple[AgentResult, AgentSession, Path]:
@@ -40,6 +42,11 @@ def run_agent_session(
         llm_call=llm_call,
         tool_executor=tool_executor,
     )
+    if max_run_cost is not None:
+        raise_if_cost_exceeded(
+            cost_estimate=result.cost_estimate,
+            max_cost=max_run_cost,
+        )
 
     session_path = save_agent_session(
         session=session,
