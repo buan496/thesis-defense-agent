@@ -486,3 +486,112 @@ def test_run_agent_limits_context_by_character_budget():
         "role": "assistant",
         "content": "最新回答",
     }
+    
+    
+class FakeResponse:
+    def __init__(
+        self,
+        message,
+        prompt_tokens=0,
+        completion_tokens=0,
+        total_tokens=0,
+    ):
+        self.choices = [
+            SimpleNamespace(message=message)
+        ]
+
+        self.usage = SimpleNamespace(
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            total_tokens=total_tokens,
+        )
+
+
+def test_run_agent_collects_token_usage_from_response():
+    def fake_llm_call(messages):
+        return FakeResponse(
+            message=FakeMessage(
+                content="测试回答",
+                tool_calls=None,
+            ),
+            prompt_tokens=10,
+            completion_tokens=5,
+            total_tokens=15,
+        )
+
+    result = run_agent(
+        user_message="测试问题",
+        llm_call=fake_llm_call,
+    )
+
+    assert result.final_output == "测试回答"
+    assert result.token_usage.prompt_tokens == 10
+    assert result.token_usage.completion_tokens == 5
+    assert result.token_usage.total_tokens == 15
+
+
+def test_run_agent_accumulates_token_usage_across_steps():
+    tool_call = SimpleNamespace(
+        id="call_usage",
+        function=SimpleNamespace(
+            name="search_thesis",
+            arguments='{"query": "系统架构"}',
+        ),
+    )
+
+    responses = [
+        FakeResponse(
+            message=FakeMessage(
+                content="",
+                tool_calls=[tool_call],
+            ),
+            prompt_tokens=20,
+            completion_tokens=3,
+            total_tokens=23,
+        ),
+        FakeResponse(
+            message=FakeMessage(
+                content="系统包括特征处理模块。",
+                tool_calls=None,
+            ),
+            prompt_tokens=30,
+            completion_tokens=8,
+            total_tokens=38,
+        ),
+    ]
+
+    def fake_llm_call(messages):
+        return responses.pop(0)
+
+    def fake_tool_executor(received_tool_call):
+        return '{"text": "系统包括特征处理模块。"}'
+
+    result = run_agent(
+        user_message="系统架构包括什么？",
+        llm_call=fake_llm_call,
+        tool_executor=fake_tool_executor,
+    )
+
+    assert result.final_output == "系统包括特征处理模块。"
+    assert result.steps == 2
+    assert result.token_usage.prompt_tokens == 50
+    assert result.token_usage.completion_tokens == 11
+    assert result.token_usage.total_tokens == 61
+
+
+def test_run_agent_defaults_token_usage_to_zero_for_message_only_fake():
+    def fake_llm_call(messages):
+        return FakeMessage(
+            content="没有 usage 的回答",
+            tool_calls=None,
+        )
+
+    result = run_agent(
+        user_message="测试问题",
+        llm_call=fake_llm_call,
+    )
+
+    assert result.final_output == "没有 usage 的回答"
+    assert result.token_usage.prompt_tokens == 0
+    assert result.token_usage.completion_tokens == 0
+    assert result.token_usage.total_tokens == 0

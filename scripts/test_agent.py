@@ -25,3 +25,7 @@ for trace in result.tool_traces:
     print("-" * 40)
     print("SUCCESS:", trace.success)
     print("DURATION_MS:", round(trace.duration_ms, 2))
+    print("\nToken 使用量：")
+    print("PROMPT TOKENS:", result.token_usage.prompt_tokens)
+    print("COMPLETION TOKENS:", result.token_usage.completion_tokens)
+    print("TOTAL TOKENS:", result.token_usage.total_tokens)

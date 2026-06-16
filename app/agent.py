@@ -7,7 +7,7 @@ from app.config import LLM_MAX_TOKENS, LLM_TEMPERATURE
 from app.llm import get_llm_client
 from app.tools import DEFENSE_QUESTION_TOOL, THESIS_SEARCH_TOOL
 from app.tool_executor import execute_tool_call
-from app.agent_models import AgentResult, ToolTrace
+from app.agent_models import AgentResult, ToolTrace ,TokenUsage
 from app.session_models import AgentSession
 from app.conversation_memory import select_context_messages
 
@@ -51,6 +51,27 @@ def request_tool_call(user_message: str):
 
     return response.choices[0].message
 
+def extract_token_usage(response) -> TokenUsage:
+    usage = getattr(response, "usage", None)
+
+    if usage is None:
+        return TokenUsage()
+
+    return TokenUsage(
+        prompt_tokens=getattr(usage, "prompt_tokens", 0) or 0,
+        completion_tokens=getattr(usage, "completion_tokens", 0) or 0,
+        total_tokens=getattr(usage, "total_tokens", 0) or 0,
+    )
+
+
+def extract_assistant_message(response):
+    choices = getattr(response, "choices", None)
+
+    if choices:
+        return response.choices[0].message
+
+    return response
+
 def run_agent(
         user_message: str,
         max_steps: int = 5,
@@ -66,11 +87,13 @@ def run_agent(
     
     tool_traces = []
     
+    token_usage = TokenUsage()
+    
     if llm_call is None:
         client, model = get_llm_client()
 
         def llm_call(messages: list[dict]):
-            response = client.chat.completions.create(
+            return client.chat.completions.create(
                 model=model,
                 messages=messages,
                 tools=AGENT_TOOLS,
@@ -78,8 +101,6 @@ def run_agent(
                 temperature=LLM_TEMPERATURE,
                 max_tokens=LLM_MAX_TOKENS,
             )
-
-            return response.choices[0].message
 
     session.add_message(
         role="user",
@@ -102,7 +123,9 @@ def run_agent(
 
 
     for step in range(1,max_steps + 1):
-        assistant_message = llm_call(messages)
+        llm_response = llm_call(messages)
+        token_usage.add(extract_token_usage(llm_response))
+        assistant_message = extract_assistant_message(llm_response)
 
         if not assistant_message.tool_calls:
             final_output = assistant_message.content or ""
@@ -116,6 +139,7 @@ def run_agent(
                 final_output=final_output,
                 steps=step,
                 tool_traces=tool_traces,
+                token_usage=token_usage,
             )
 
         assistant_message_data = assistant_message.model_dump(
