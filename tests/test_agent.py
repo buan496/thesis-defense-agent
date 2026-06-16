@@ -4,7 +4,7 @@ import pytest
 
 from app.agent import run_agent
 from app.session_models import AgentSession
-
+from app.conversation_memory import count_message_characters
 
 class FakeMessage:
     def __init__(self, content="", tool_calls=None):
@@ -412,4 +412,77 @@ def test_run_agent_limits_llm_context_but_keeps_full_session():
     assert session.messages[-1] == {
         "role": "assistant",
         "content": "第四轮回答",
+    }
+    
+def test_run_agent_limits_context_by_character_budget():
+    session = AgentSession(
+        session_id="character-budget-session",
+    )
+
+    session.add_message(
+        role="user",
+        content="很长的旧问题" * 100,
+    )
+    session.add_message(
+        role="assistant",
+        content="很长的旧回答" * 100,
+    )
+    session.add_message(
+        role="user",
+        content="较新的问题",
+    )
+    session.add_message(
+        role="assistant",
+        content="较新的回答",
+    )
+
+    received_messages = []
+
+    def fake_llm_call(messages):
+        received_messages.extend(messages)
+
+        return FakeMessage(
+            content="最新回答",
+            tool_calls=None,
+        )
+
+    current_user_message = {
+        "role": "user",
+        "content": "最新问题",
+    }
+
+    recent_messages = [
+        {
+            "role": "user",
+            "content": "较新的问题",
+        },
+        {
+            "role": "assistant",
+            "content": "较新的回答",
+        },
+        current_user_message,
+    ]
+
+    character_budget = sum(
+        count_message_characters(message)
+        for message in recent_messages
+    )
+
+    run_agent(
+        user_message="最新问题",
+        session=session,
+        max_history_turns=10,
+        max_history_characters=character_budget,
+        llm_call=fake_llm_call,
+    )
+
+    assert received_messages[0]["role"] == "system"
+    assert received_messages[1:] == recent_messages
+
+    assert session.messages[0]["content"].startswith(
+        "很长的旧问题"
+    )
+    assert session.messages[-1] == {
+        "role": "assistant",
+        "content": "最新回答",
     }

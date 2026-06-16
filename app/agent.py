@@ -9,7 +9,7 @@ from app.tools import DEFENSE_QUESTION_TOOL, THESIS_SEARCH_TOOL
 from app.tool_executor import execute_tool_call
 from app.agent_models import AgentResult, ToolTrace
 from app.session_models import AgentSession
-from app.conversation_memory import select_recent_turns
+from app.conversation_memory import select_context_messages
 
 AGENT_TOOLS = [
     THESIS_SEARCH_TOOL,
@@ -55,6 +55,7 @@ def run_agent(
         user_message: str,
         max_steps: int = 5,
         max_history_turns: int = 6,
+        max_history_characters: int = 12000,
         session: AgentSession | None = None,
         llm_call: Callable[[list[dict]], Any] | None = None,
         tool_executor: Callable[[Any], str] = execute_tool_call,
@@ -85,9 +86,10 @@ def run_agent(
         content=user_message,
     )
 
-    context_messages = select_recent_turns(
+    context_messages = select_context_messages(
         messages=session.messages,
         max_turns=max_history_turns,
+        max_characters=max_history_characters,
     )
 
     messages = [

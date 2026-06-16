@@ -19,6 +19,7 @@ def run_agent_session(
     directory: str | Path = DEFAULT_SESSION_DIRECTORY,
     max_steps: int = 5,
     max_history_turns: int = 6,
+    max_history_characters: int = 12000,
     llm_call: Callable[[list[dict]], Any] | None = None,
     tool_executor: Callable[[Any], str] = execute_tool_call,
 ) -> tuple[AgentResult, AgentSession, Path]:
@@ -34,6 +35,7 @@ def run_agent_session(
         user_message=user_message,
         max_steps=max_steps,
         max_history_turns=max_history_turns,
+        max_history_characters=max_history_characters,
         session=session,
         llm_call=llm_call,
         tool_executor=tool_executor,
