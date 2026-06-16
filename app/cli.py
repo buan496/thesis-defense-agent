@@ -324,6 +324,13 @@ def main():
         help="Maximum number of recent conversation turns sent to the LLM",
     )
     
+    chat_parser.add_argument(
+        "--max-history-characters",
+        type=int,
+        default=12000,
+        help="Maximum number of recent message characters sent to the LLM",
+    )
+    
     mock_parser = subparsers.add_parser("mock-defense")
     mock_parser.add_argument(
         "--topic",
@@ -831,12 +838,17 @@ def main():
         if args.max_history_turns <= 0:
             print("ARGUMENT ERROR: --max-history-turns 必须大于 0")
             raise SystemExit(2)
-
+        
+        if args.max_history_characters <= 0:
+            print("ARGUMENT ERROR: --max-history-characters 必须大于 0")
+            raise SystemExit(2)
+        
         try:
             result, session, session_path = run_agent_session(
                 user_message=user_message,
                 session_id=args.session_id,
                 max_history_turns=args.max_history_turns,
+                max_history_characters=args.max_history_characters,
             )
         except FileNotFoundError as error:
             print(f"SESSION ERROR: {error}")
