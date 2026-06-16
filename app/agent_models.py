@@ -27,8 +27,17 @@ class TokenUsage:
 
 
 @dataclass
+class CostEstimate:
+    input_cost: float = 0
+    output_cost: float = 0
+    total_cost: float = 0
+    currency: str = "CNY"
+
+
+@dataclass
 class AgentResult:
     final_output: str
     steps: int
     tool_traces: list[ToolTrace] = field(default_factory=list)
     token_usage: TokenUsage = field(default_factory=TokenUsage)
+    cost_estimate: CostEstimate = field(default_factory=CostEstimate)

@@ -5,7 +5,6 @@ import pytest
 from app.agent import run_agent
 from app.session_models import AgentSession
 from app.conversation_memory import count_message_characters
-
 class FakeMessage:
     def __init__(self, content="", tool_calls=None):
         self.content = content
@@ -528,6 +527,7 @@ def test_run_agent_collects_token_usage_from_response():
     assert result.token_usage.prompt_tokens == 10
     assert result.token_usage.completion_tokens == 5
     assert result.token_usage.total_tokens == 15
+    assert result.cost_estimate.currency == "CNY"
 
 
 def test_run_agent_accumulates_token_usage_across_steps():
@@ -595,3 +595,25 @@ def test_run_agent_defaults_token_usage_to_zero_for_message_only_fake():
     assert result.token_usage.prompt_tokens == 0
     assert result.token_usage.completion_tokens == 0
     assert result.token_usage.total_tokens == 0
+    
+def test_run_agent_returns_cost_estimate():
+    def fake_llm_call(messages):
+        return FakeResponse(
+            message=FakeMessage(
+                content="成本测试回答",
+                tool_calls=None,
+            ),
+            prompt_tokens=1000,
+            completion_tokens=500,
+            total_tokens=1500,
+        )
+
+    result = run_agent(
+        user_message="测试成本结构",
+        llm_call=fake_llm_call,
+    )
+
+    assert result.cost_estimate.input_cost >= 0
+    assert result.cost_estimate.output_cost >= 0
+    assert result.cost_estimate.total_cost >= 0
+    assert result.cost_estimate.currency

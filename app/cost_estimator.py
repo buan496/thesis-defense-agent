@@ -1,15 +1,6 @@
 from dataclasses import dataclass
 
-from app.agent_models import TokenUsage
-
-
-@dataclass
-class CostEstimate:
-    input_cost: float
-    output_cost: float
-    total_cost: float
-    currency: str
-
+from app.agent_models import CostEstimate, TokenUsage
 
 def estimate_llm_cost(
     token_usage: TokenUsage,

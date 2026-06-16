@@ -3,11 +3,18 @@ import time
 from collections.abc import Callable
 from typing import Any
 
-from app.config import LLM_MAX_TOKENS, LLM_TEMPERATURE
+from app.config import (
+    LLM_INPUT_PRICE_PER_1M_TOKENS,
+    LLM_MAX_TOKENS,
+    LLM_OUTPUT_PRICE_PER_1M_TOKENS,
+    LLM_PRICE_CURRENCY,
+    LLM_TEMPERATURE,
+)
+from app.cost_estimator import estimate_llm_cost
 from app.llm import get_llm_client
 from app.tools import DEFENSE_QUESTION_TOOL, THESIS_SEARCH_TOOL
 from app.tool_executor import execute_tool_call
-from app.agent_models import AgentResult, ToolTrace ,TokenUsage
+from app.agent_models import AgentResult, TokenUsage ,ToolTrace 
 from app.session_models import AgentSession
 from app.conversation_memory import select_context_messages
 
@@ -134,12 +141,20 @@ def run_agent(
                 role="assistant",
                 content=final_output,
             )
+            
+            cost_estimate = estimate_llm_cost(
+                token_usage=token_usage,
+                input_price_per_1m_tokens=LLM_INPUT_PRICE_PER_1M_TOKENS,
+                output_price_per_1m_tokens=LLM_OUTPUT_PRICE_PER_1M_TOKENS,
+                currency=LLM_PRICE_CURRENCY,
+            )
 
             return AgentResult(
                 final_output=final_output,
                 steps=step,
                 tool_traces=tool_traces,
                 token_usage=token_usage,
+                cost_estimate=cost_estimate,
             )
 
         assistant_message_data = assistant_message.model_dump(
