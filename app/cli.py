@@ -410,6 +410,41 @@ def main():
             "AVERAGE DURATION MS:",
             round(report["average_duration_ms"], 2),
         )
+        print("TOTAL PROMPT TOKENS:", report["total_prompt_tokens"])
+        print(
+            "TOTAL COMPLETION TOKENS:",
+            report["total_completion_tokens"],
+        )
+        print("TOTAL TOKENS:", report["total_tokens"])
+        print(
+            "AVERAGE TOKENS PER RUN:",
+            round(report["average_total_tokens_per_run"], 2),
+        )
+        print("TOTAL COST:", round(report["total_cost"], 6))
+        print(
+            "AVERAGE COST PER RUN:",
+            round(report["average_cost_per_run"], 6),
+        )
+        print("CURRENCY:", report["currency"])
+
+        if report["most_expensive_run"] is not None:
+            print("MOST EXPENSIVE RUN:")
+            print(
+                "  LINE:",
+                report["most_expensive_run"]["line_number"],
+            )
+            print(
+                "  COST:",
+                round(report["most_expensive_run"]["total_cost"], 6),
+            )
+            print(
+                "  TOKENS:",
+                report["most_expensive_run"]["total_tokens"],
+            )
+            print(
+                "  MESSAGE:",
+                report["most_expensive_run"]["user_message"],
+            )
         print("TOOL COUNTS:")
 
         for tool_name, count in report["tool_counts"].items():
