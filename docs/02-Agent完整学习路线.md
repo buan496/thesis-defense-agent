@@ -3,7 +3,7 @@ tags:
   - roadmap
   - agent-engineering
 status: active
-updated: 2026-06-11
+updated: 2026-06-17
 ---
 
 # Agent 完整学习路线
@@ -36,8 +36,10 @@ updated: 2026-06-11
 - [x] Prompt Engineering
 - [x] 结构化 JSON 输出
 - [x] 输出清洗和异常处理
+- [x] token 使用量和成本统计
+- [x] 调用后预算上限
+- [x] 调用前预算预检
 - [ ] 流式输出
-- [ ] token 使用量和成本统计
 
 基础知识：
 
@@ -81,7 +83,9 @@ updated: 2026-06-11
 - [x] 执行轨迹
 - [x] 工具耗时
 - [x] 离线 Harness 测试
-- [ ] Trace 持久化
+- [x] Trace 持久化
+- [x] Trace 分析
+- [x] 工具调用成功 / 失败记录
 - [ ] 工具超时
 - [ ] 工具重试策略
 - [ ] 工具结果长度限制
@@ -99,10 +103,15 @@ updated: 2026-06-11
 
 ## 阶段 4：Session 与 Memory
 
-- [ ] Session ID
-- [ ] 多轮消息历史
-- [ ] 会话持久化
-- [ ] 短期工作记忆
+- [x] Session ID
+- [x] 多轮消息历史
+- [x] 会话持久化
+- [x] 会话恢复
+- [x] 短期工作记忆
+- [x] 历史轮数限制
+- [x] 历史字符预算
+- [x] session metadata
+- [x] token / cost 写入 session metadata
 - [ ] 长期用户记忆
 - [ ] 记忆写入策略
 - [ ] 记忆检索与遗忘
@@ -117,8 +126,8 @@ updated: 2026-06-11
 
 ## 阶段 5：多工具和 Skill
 
-- [ ] 论文检索工具
-- [ ] 答辩问题生成工具
+- [x] 论文检索工具
+- [x] 答辩问题生成工具
 - [ ] 回答评分工具
 - [ ] 追问工具
 - [ ] 训练记录查询工具
@@ -136,9 +145,16 @@ updated: 2026-06-11
 - [x] Groundedness
 - [x] Faithfulness
 - [x] LLM-as-Judge
+- [x] Faithfulness benchmark
+- [x] 多轮稳定性评估
+- [x] 评估报告生成
+- [x] 评估报告回归对比
+- [x] 指标下降检测
+- [x] 预测翻转检测
+- [x] 稳定性退化检测
 - [ ] 人工盲评
 - [ ] Trace 回放
-- [ ] 回归数据集
+- [x] 回归数据集
 - [ ] 反馈闭环
 
 ## 阶段 7：异步与长任务
@@ -148,9 +164,10 @@ updated: 2026-06-11
 - [ ] 并发限制
 - [ ] 超时和取消
 - [ ] 后台任务
-- [ ] checkpoint
+- [x] 向量库构建 checkpoint
+- [x] 向量库构建断点恢复
 - [ ] 幂等性
-- [ ] 任务恢复
+- [ ] Agent 任务恢复
 
 基础知识：
 
@@ -195,16 +212,40 @@ updated: 2026-06-11
 
 ## 阶段 11：可观测与交付
 
-- [ ] 结构化日志
+- [x] 结构化日志
+- [x] Agent trace JSONL
+- [x] token / cost 审计
 - [ ] Langfuse
 - [ ] Prometheus 指标
 - [ ] 错误告警
 - [ ] Docker
-- [ ] CI
+- [x] CI
+- [x] GitHub Actions 离线质量门禁
+- [x] CI 失败诊断和修复
 - [ ] PostgreSQL
 - [ ] Qdrant / Milvus
 - [ ] K8s 基础部署
 - [ ] 私有化配置和密钥管理
+
+## 当前阶段：Task State / 可恢复任务型 Agent
+
+当前项目已经完成 RAG 原型、手写 Agent Harness、Tool Calling、Session、短期记忆、成本审计和离线评估门禁。下一阶段不是继续堆新框架，而是把 `mock-defense` 从线性脚本升级为可恢复、可审计、可评估的任务型 Agent。
+
+重点任务：
+
+- [x] 设计 `DefenseTask` 数据结构
+- [x] 设计 `TaskStep` 数据结构
+- [x] 定义提问、回答、评价、改写、追问、总结的状态流转
+- [x] 实现任务 JSON 保存和加载
+- [x] 实现任务推进 service
+- [x] 接入 Task CLI
+- [x] 为任务模型、存储、状态推进、服务层和 CLI 补 pytest
+- [ ] 将每一步的输入、输出、证据、工具调用、token 和 cost 写入任务记录
+- [ ] 支持任务中断后 resume
+- [ ] 支持任务级 trace 汇总
+- [ ] 将任务步骤接入真实 RAG 和 LLM
+
+这一阶段对应企业级 Agent 中的 `Task / Workspace / Session / Trace` 边界，是从“能回答问题的 Agent”走向“能执行稳定流程的 Agent”的关键一步。
 
 ## 最终简历能力目标
 

@@ -3,11 +3,20 @@ import time
 from collections.abc import Callable
 from typing import Any
 
-from app.config import LLM_MAX_TOKENS, LLM_TEMPERATURE
+from app.config import (
+    LLM_INPUT_PRICE_PER_1M_TOKENS,
+    LLM_MAX_TOKENS,
+    LLM_OUTPUT_PRICE_PER_1M_TOKENS,
+    LLM_PRICE_CURRENCY,
+    LLM_TEMPERATURE,
+)
+from app.cost_estimator import estimate_llm_cost
 from app.llm import get_llm_client
 from app.tools import DEFENSE_QUESTION_TOOL, THESIS_SEARCH_TOOL
 from app.tool_executor import execute_tool_call
-from app.agent_models import AgentResult, ToolTrace
+from app.agent_models import AgentResult, TokenUsage ,ToolTrace 
+from app.session_models import AgentSession
+from app.conversation_memory import select_context_messages
 
 AGENT_TOOLS = [
     THESIS_SEARCH_TOOL,
@@ -49,20 +58,69 @@ def request_tool_call(user_message: str):
 
     return response.choices[0].message
 
+def extract_token_usage(response) -> TokenUsage:
+    usage = getattr(response, "usage", None)
+
+    if usage is None:
+        return TokenUsage()
+
+    return TokenUsage(
+        prompt_tokens=getattr(usage, "prompt_tokens", 0) or 0,
+        completion_tokens=getattr(usage, "completion_tokens", 0) or 0,
+        total_tokens=getattr(usage, "total_tokens", 0) or 0,
+    )
+
+
+def extract_assistant_message(response):
+    choices = getattr(response, "choices", None)
+
+    if choices:
+        return response.choices[0].message
+
+    return response
+
+def build_agent_messages(
+    session: AgentSession,
+    max_history_turns: int,
+    max_history_characters: int,
+) -> list[dict]:
+    context_messages = select_context_messages(
+        messages=session.messages,
+        max_turns=max_history_turns,
+        max_characters=max_history_characters,
+    )
+
+    return [
+        {
+            "role": "system",
+            "content": AGENT_SYSTEM_PROMPT,
+        },
+        *context_messages,
+    ]
+
 def run_agent(
         user_message: str,
         max_steps: int = 5,
+        max_history_turns: int = 6,
+        max_history_characters: int = 12000,
+        append_user_message: bool = True,
+        session: AgentSession | None = None,
         llm_call: Callable[[list[dict]], Any] | None = None,
         tool_executor: Callable[[Any], str] = execute_tool_call,
     ) -> AgentResult:
     
+    if session is None:
+        session = AgentSession()
+    
     tool_traces = []
+    
+    token_usage = TokenUsage()
     
     if llm_call is None:
         client, model = get_llm_client()
 
         def llm_call(messages: list[dict]):
-            response = client.chat.completions.create(
+            return client.chat.completions.create(
                 model=model,
                 messages=messages,
                 tools=AGENT_TOOLS,
@@ -71,33 +129,53 @@ def run_agent(
                 max_tokens=LLM_MAX_TOKENS,
             )
 
-            return response.choices[0].message
+    if append_user_message:
+        session.add_message(
+            role="user",
+            content=user_message,
+        )
 
-    messages = [
-        {
-            "role": "system",
-            "content": AGENT_SYSTEM_PROMPT,
-        },
-        {
-            "role": "user",
-            "content": user_message,
-        },
-    ]
+    messages = build_agent_messages(
+        session=session,
+        max_history_turns=max_history_turns,
+        max_history_characters=max_history_characters,
+    )
 
 
     for step in range(1,max_steps + 1):
-        assistant_message = llm_call(messages)
+        llm_response = llm_call(messages)
+        token_usage.add(extract_token_usage(llm_response))
+        assistant_message = extract_assistant_message(llm_response)
 
         if not assistant_message.tool_calls:
-            return AgentResult(
-                final_output=assistant_message.content or "",
-                steps=step,
-                tool_traces=tool_traces,
+            final_output = assistant_message.content or ""
+
+            session.add_message(
+                role="assistant",
+                content=final_output,
+            )
+            
+            cost_estimate = estimate_llm_cost(
+                token_usage=token_usage,
+                input_price_per_1m_tokens=LLM_INPUT_PRICE_PER_1M_TOKENS,
+                output_price_per_1m_tokens=LLM_OUTPUT_PRICE_PER_1M_TOKENS,
+                currency=LLM_PRICE_CURRENCY,
             )
 
-        messages.append(
-            assistant_message.model_dump(exclude_none=True)
+            return AgentResult(
+                final_output=final_output,
+                steps=step,
+                tool_traces=tool_traces,
+                token_usage=token_usage,
+                cost_estimate=cost_estimate,
+            )
+
+        assistant_message_data = assistant_message.model_dump(
+            exclude_none=True
         )
+
+        messages.append(assistant_message_data)
+        session.messages.append(assistant_message_data)
         
 
         for tool_call in assistant_message.tool_calls:
@@ -121,13 +199,14 @@ def run_agent(
                 )
             )
 
-            messages.append(
-                {
-                    "role": "tool",
-                    "tool_call_id": tool_call.id,
-                    "content": tool_result,
-                }
-            )
+            tool_message = {
+                "role": "tool",
+                "tool_call_id": tool_call.id,
+                "content": tool_result,
+            }
+
+            messages.append(tool_message)
+            session.messages.append(tool_message)
 
     raise RuntimeError(
         f"Agent 执行超过最大步数：{max_steps}"

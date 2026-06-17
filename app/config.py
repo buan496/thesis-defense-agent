@@ -8,6 +8,13 @@ DEEPSEEK_BASE_URL = os.getenv("DEEPSEEK_BASE_URL","https://api.deepseek.com")
 DEEPSEEK_MODEL = os.getenv("DEEPSEEK_MODEL","deepseek-v4-flash")
 LLM_TEMPERATURE = float(os.getenv("LLM_TEMPERATURE", "0.3"))
 LLM_MAX_TOKENS = int(os.getenv("LLM_MAX_TOKENS", "2048"))
+LLM_INPUT_PRICE_PER_1M_TOKENS = float(
+    os.getenv("LLM_INPUT_PRICE_PER_1M_TOKENS", "0")
+)
+LLM_OUTPUT_PRICE_PER_1M_TOKENS = float(
+    os.getenv("LLM_OUTPUT_PRICE_PER_1M_TOKENS", "0")
+)
+LLM_PRICE_CURRENCY = os.getenv("LLM_PRICE_CURRENCY", "CNY")
 EMBEDDING_API_KEY = os.getenv("EMBEDDING_API_KEY")
 EMBEDDING_BASE_URL = os.getenv("EMBEDDING_BASE_URL", "https://api.siliconflow.cn/v1")
 EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "BAAI/bge-m3")

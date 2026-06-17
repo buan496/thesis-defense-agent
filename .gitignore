@@ -13,3 +13,5 @@ data/reports/
 data/traces/
 docs/.obsidian/
 docs/.trash/
+data/agent_sessions/
+data/defense_tasks/

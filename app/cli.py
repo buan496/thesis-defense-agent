@@ -34,9 +34,39 @@ from app.config import (
     RAG_TOP_K,
     RAG_VECTOR_STORE_PATH,
 )
-
 from app.agent_routing_evaluator import evaluate_agent_routing
 from app.agent_trace_analyzer import analyze_agent_traces
+from app.session_service import run_agent_session
+from app.budget_guard import (
+    BudgetExceededError ,
+    PreflightBudgetExceededError,
+)
+from app.task_service import (
+    complete_task_step,
+    create_defense_task,
+    get_defense_task,
+    start_next_task_step,
+)
+from app.task_store import DEFAULT_TASK_DIRECTORY
+
+
+def parse_json_argument(
+    value: str,
+    argument_name: str,
+) -> dict:
+    try:
+        data = json.loads(value)
+    except json.JSONDecodeError as error:
+        raise ValueError(
+            f"{argument_name} 必须是合法 JSON"
+        ) from error
+
+    if not isinstance(data, dict):
+        raise ValueError(
+            f"{argument_name} 必须是 JSON 对象"
+        )
+
+    return data
 
 def main():
     parser = argparse.ArgumentParser(
@@ -297,12 +327,133 @@ def main():
         help="Path to save a Markdown comparison summary",
     )
     
+    chat_parser = subparsers.add_parser(
+        "chat",
+        help="Run one persistent Agent conversation turn",
+    )
+
+    chat_parser.add_argument(
+        "--message",
+        type=str,
+        default=None,
+        help="User message sent to the Agent",
+    )
+
+    chat_parser.add_argument(
+        "--session-id",
+        type=str,
+        default=None,
+        help="Existing session ID used to resume a conversation",
+    )
+    
+    chat_parser.add_argument(
+        "--max-history-turns",
+        type=int,
+        default=6,
+        help="Maximum number of recent conversation turns sent to the LLM",
+    )
+    
+    chat_parser.add_argument(
+        "--max-history-characters",
+        type=int,
+        default=12000,
+        help="Maximum number of recent message characters sent to the LLM",
+    )
+    
+    chat_parser.add_argument(
+        "--max-run-cost",
+        type=float,
+        default=None,
+        help="Maximum allowed cost for this Agent run",
+    )
+    
+    chat_parser.add_argument(
+        "--preflight-max-run-cost",
+        type=float,
+        default=None,
+        help="Maximum estimated cost allowed before calling the LLM",
+    )
+    
     mock_parser = subparsers.add_parser("mock-defense")
     mock_parser.add_argument(
         "--topic",
         type=str,
         default=None,
         help="Training topic for this mock defense round",
+    )
+
+    create_task_parser = subparsers.add_parser(
+        "create-task",
+        help="Create a defense workflow task",
+    )
+    create_task_parser.add_argument(
+        "--topic",
+        required=True,
+        help="Defense task topic",
+    )
+    create_task_parser.add_argument(
+        "--directory",
+        type=str,
+        default=str(DEFAULT_TASK_DIRECTORY),
+        help="Directory used to store defense task JSON files",
+    )
+
+    start_task_step_parser = subparsers.add_parser(
+        "start-task-step",
+        help="Start the next defense task step",
+    )
+    start_task_step_parser.add_argument(
+        "--task-id",
+        required=True,
+        help="Defense task ID",
+    )
+    start_task_step_parser.add_argument(
+        "--input",
+        default="{}",
+        help="JSON object used as the next step input",
+    )
+    start_task_step_parser.add_argument(
+        "--directory",
+        type=str,
+        default=str(DEFAULT_TASK_DIRECTORY),
+        help="Directory used to store defense task JSON files",
+    )
+
+    complete_task_step_parser = subparsers.add_parser(
+        "complete-task-step",
+        help="Complete the current defense task step",
+    )
+    complete_task_step_parser.add_argument(
+        "--task-id",
+        required=True,
+        help="Defense task ID",
+    )
+    complete_task_step_parser.add_argument(
+        "--output",
+        default="{}",
+        help="JSON object used as the current step output",
+    )
+    complete_task_step_parser.add_argument(
+        "--directory",
+        type=str,
+        default=str(DEFAULT_TASK_DIRECTORY),
+        help="Directory used to store defense task JSON files",
+    )
+
+    show_task_parser = subparsers.add_parser(
+        "show-task",
+        help="Show defense task status and steps",
+    )
+    show_task_parser.add_argument(
+        "--task-id",
+        required=True,
+        help="Defense task ID",
+    )
+    show_task_parser.add_argument(
+        "--directory",
+        type=str,
+        default=str(DEFAULT_TASK_DIRECTORY),
+        help="Directory used to store defense task JSON files",
     )
     
     args = parser.parse_args()
@@ -376,6 +527,41 @@ def main():
             "AVERAGE DURATION MS:",
             round(report["average_duration_ms"], 2),
         )
+        print("TOTAL PROMPT TOKENS:", report["total_prompt_tokens"])
+        print(
+            "TOTAL COMPLETION TOKENS:",
+            report["total_completion_tokens"],
+        )
+        print("TOTAL TOKENS:", report["total_tokens"])
+        print(
+            "AVERAGE TOKENS PER RUN:",
+            round(report["average_total_tokens_per_run"], 2),
+        )
+        print("TOTAL COST:", round(report["total_cost"], 6))
+        print(
+            "AVERAGE COST PER RUN:",
+            round(report["average_cost_per_run"], 6),
+        )
+        print("CURRENCY:", report["currency"])
+
+        if report["most_expensive_run"] is not None:
+            print("MOST EXPENSIVE RUN:")
+            print(
+                "  LINE:",
+                report["most_expensive_run"]["line_number"],
+            )
+            print(
+                "  COST:",
+                round(report["most_expensive_run"]["total_cost"], 6),
+            )
+            print(
+                "  TOKENS:",
+                report["most_expensive_run"]["total_tokens"],
+            )
+            print(
+                "  MESSAGE:",
+                report["most_expensive_run"]["user_message"],
+            )
         print("TOOL COUNTS:")
 
         for tool_name, count in report["tool_counts"].items():
@@ -792,8 +978,169 @@ def main():
 
             print("REGRESSION STATUS: PASS")
 
+    elif args.command == "chat":
+        user_message = args.message
+
+        if user_message is None:
+            user_message = input("USER: ")
+
+        if not user_message.strip():
+            raise ValueError("用户消息不能为空")
+        
+        if args.max_history_turns <= 0:
+            print("ARGUMENT ERROR: --max-history-turns 必须大于 0")
+            raise SystemExit(2)
+        
+        if args.max_history_characters <= 0:
+            print("ARGUMENT ERROR: --max-history-characters 必须大于 0")
+            raise SystemExit(2)
+        
+        if args.max_run_cost is not None and args.max_run_cost < 0:
+            print("ARGUMENT ERROR: --max-run-cost 不能小于 0")
+            raise SystemExit(2)
+        
+        if (
+            args.preflight_max_run_cost is not None
+            and args.preflight_max_run_cost < 0
+        ):
+            print("ARGUMENT ERROR: --preflight-max-run-cost 不能小于 0")
+            raise SystemExit(2)
+        
+        try:
+            result, session, session_path = run_agent_session(
+                user_message=user_message,
+                session_id=args.session_id,
+                max_history_turns=args.max_history_turns,
+                max_history_characters=args.max_history_characters,
+                max_run_cost=args.max_run_cost,
+                preflight_max_run_cost=args.preflight_max_run_cost,
+            )
+        except FileNotFoundError as error:
+            print(f"SESSION ERROR: {error}")
+            raise SystemExit(1) from error
+        
+        except BudgetExceededError as error:
+            print(f"BUDGET ERROR: {error}")
+            raise SystemExit(1) from error
+
+        except PreflightBudgetExceededError as error:
+            print(f"PREFLIGHT BUDGET ERROR: {error}")
+            raise SystemExit(1) from error
+        
+        print("\nASSISTANT:")
+        print(result.final_output)
+
+        print("\nTOKEN USAGE:")
+        print("PROMPT TOKENS:", result.token_usage.prompt_tokens)
+        print(
+            "COMPLETION TOKENS:",
+            result.token_usage.completion_tokens,
+        )
+        print("TOTAL TOKENS:", result.token_usage.total_tokens)
+
+        print("\nCOST ESTIMATE:")
+        print("INPUT COST:", round(result.cost_estimate.input_cost, 6))
+        print("OUTPUT COST:", round(result.cost_estimate.output_cost, 6))
+        print("TOTAL COST:", round(result.cost_estimate.total_cost, 6))
+        print("CURRENCY:", result.cost_estimate.currency)
+
+        print("\nSESSION ID:")
+        print(session.session_id)
+
+        print("\nSESSION SAVED:")
+        print(session_path)
+
     elif args.command == "mock-defense":
         run_mock_defense(training_query=args.topic)
+    elif args.command == "create-task":
+        task, task_path = create_defense_task(
+            topic=args.topic,
+            directory=args.directory,
+        )
+
+        print("TASK CREATED")
+        print(f"TASK ID: {task.task_id}")
+        print(f"TOPIC: {task.topic}")
+        print(f"STATUS: {task.status}")
+        print(f"SAVED: {task_path}")
+
+    elif args.command == "start-task-step":
+        try:
+            step_input = parse_json_argument(
+                args.input,
+                "--input",
+            )
+        except ValueError as error:
+            print(f"ARGUMENT ERROR: {error}")
+            raise SystemExit(2) from error
+
+        task, step, task_path = start_next_task_step(
+            task_id=args.task_id,
+            directory=args.directory,
+            input=step_input,
+        )
+
+        print("TASK UPDATED")
+        print(f"TASK ID: {task.task_id}")
+        print(f"STATUS: {task.status}")
+
+        if step is None:
+            print("STEP: None")
+            print("REASON: 当前步骤尚未完成，不能开始下一步")
+        else:
+            print(f"STEP ID: {step.step_id}")
+            print(f"STEP TYPE: {step.step_type}")
+            print(f"STEP STATUS: {step.status}")
+
+        print(f"SAVED: {task_path}")
+
+    elif args.command == "complete-task-step":
+        try:
+            step_output = parse_json_argument(
+                args.output,
+                "--output",
+            )
+        except ValueError as error:
+            print(f"ARGUMENT ERROR: {error}")
+            raise SystemExit(2) from error
+
+        try:
+            task, step, task_path = complete_task_step(
+                task_id=args.task_id,
+                directory=args.directory,
+                output=step_output,
+            )
+        except ValueError as error:
+            print(f"TASK ERROR: {error}")
+            raise SystemExit(1) from error
+
+        print("TASK STEP COMPLETED")
+        print(f"TASK ID: {task.task_id}")
+        print(f"STATUS: {task.status}")
+        print(f"STEP ID: {step.step_id}")
+        print(f"STEP TYPE: {step.step_type}")
+        print(f"STEP STATUS: {step.status}")
+        print(f"SAVED: {task_path}")
+
+    elif args.command == "show-task":
+        task = get_defense_task(
+            task_id=args.task_id,
+            directory=args.directory,
+        )
+
+        print("TASK")
+        print(f"TASK ID: {task.task_id}")
+        print(f"TOPIC: {task.topic}")
+        print(f"STATUS: {task.status}")
+        print(f"CURRENT STEP ID: {task.current_step_id}")
+        print(f"STEP COUNT: {len(task.steps)}")
+
+        for index, step in enumerate(task.steps, start=1):
+            print("-" * 40)
+            print(f"STEP {index}")
+            print(f"STEP ID: {step.step_id}")
+            print(f"STEP TYPE: {step.step_type}")
+            print(f"STEP STATUS: {step.status}")
     else:
         parser.print_help()
 

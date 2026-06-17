@@ -1,8 +1,10 @@
 from types import SimpleNamespace
+
 import pytest
+
 from app.agent import run_agent
-
-
+from app.session_models import AgentSession
+from app.conversation_memory import count_message_characters
 class FakeMessage:
     def __init__(self, content="", tool_calls=None):
         self.content = content
@@ -218,3 +220,442 @@ def test_run_agent_chains_search_and_question_generation_tools():
     assert result.tool_traces[0].tool_name == "search_thesis"
     assert result.tool_traces[1].tool_name == "create_defense_questions"
     assert all(trace.success for trace in result.tool_traces)
+
+
+def test_run_agent_stores_conversation_in_session():
+    session = AgentSession(session_id="session-memory-test")
+
+    def fake_llm_call(messages):
+        return FakeMessage(
+            content="第一轮回答",
+            tool_calls=None,
+        )
+
+    result = run_agent(
+        user_message="第一轮问题",
+        session=session,
+        llm_call=fake_llm_call,
+    )
+
+    assert result.final_output == "第一轮回答"
+    assert session.messages == [
+        {
+            "role": "user",
+            "content": "第一轮问题",
+        },
+        {
+            "role": "assistant",
+            "content": "第一轮回答",
+        },
+    ]
+
+
+def test_run_agent_uses_previous_session_messages():
+    session = AgentSession(session_id="session-history-test")
+
+    session.add_message(
+        role="user",
+        content="我的论文研究语音识别。",
+    )
+    session.add_message(
+        role="assistant",
+        content="好的，我已经记住了。",
+    )
+
+    received_messages = []
+
+    def fake_llm_call(messages):
+        received_messages.extend(messages)
+
+        return FakeMessage(
+            content="你的论文研究方向是语音识别。",
+            tool_calls=None,
+        )
+
+    run_agent(
+        user_message="我的论文研究方向是什么？",
+        session=session,
+        llm_call=fake_llm_call,
+    )
+
+    assert received_messages[0]["role"] == "system"
+
+    assert received_messages[1:] == [
+        {
+            "role": "user",
+            "content": "我的论文研究语音识别。",
+        },
+        {
+            "role": "assistant",
+            "content": "好的，我已经记住了。",
+        },
+        {
+            "role": "user",
+            "content": "我的论文研究方向是什么？",
+        },
+    ]
+
+    assert session.messages[-1] == {
+        "role": "assistant",
+        "content": "你的论文研究方向是语音识别。",
+    }
+
+
+def test_run_agent_stores_tool_messages_in_session():
+    session = AgentSession(session_id="session-tool-test")
+
+    tool_call = SimpleNamespace(
+        id="call_session_tool",
+        function=SimpleNamespace(
+            name="search_thesis",
+            arguments='{"query": "系统架构"}',
+        ),
+    )
+
+    responses = [
+        FakeMessage(
+            content="",
+            tool_calls=[tool_call],
+        ),
+        FakeMessage(
+            content="系统包括特征处理和模型训练模块。",
+            tool_calls=None,
+        ),
+    ]
+
+    def fake_llm_call(messages):
+        return responses.pop(0)
+
+    def fake_tool_executor(received_tool_call):
+        return '{"text": "系统包括特征处理和模型训练模块。"}'
+
+    run_agent(
+        user_message="系统架构包括什么？",
+        session=session,
+        llm_call=fake_llm_call,
+        tool_executor=fake_tool_executor,
+    )
+
+    roles = [
+        message["role"]
+        for message in session.messages
+    ]
+
+    assert roles == [
+        "user",
+        "assistant",
+        "tool",
+        "assistant",
+    ]
+
+    assert session.messages[2]["tool_call_id"] == (
+        "call_session_tool"
+    )
+    
+def test_run_agent_limits_llm_context_but_keeps_full_session():
+    session = AgentSession(
+        session_id="limited-history-session",
+    )
+
+    for turn_number in range(1, 4):
+        session.add_message(
+            role="user",
+            content=f"第{turn_number}轮问题",
+        )
+        session.add_message(
+            role="assistant",
+            content=f"第{turn_number}轮回答",
+        )
+
+    received_messages = []
+
+    def fake_llm_call(messages):
+        received_messages.extend(messages)
+
+        return FakeMessage(
+            content="第四轮回答",
+            tool_calls=None,
+        )
+
+    run_agent(
+        user_message="第四轮问题",
+        session=session,
+        max_history_turns=2,
+        llm_call=fake_llm_call,
+    )
+
+    assert received_messages[0]["role"] == "system"
+
+    assert received_messages[1:] == [
+        {
+            "role": "user",
+            "content": "第3轮问题",
+        },
+        {
+            "role": "assistant",
+            "content": "第3轮回答",
+        },
+        {
+            "role": "user",
+            "content": "第四轮问题",
+        },
+    ]
+
+    assert len(session.messages) == 8
+
+    assert session.messages[0] == {
+        "role": "user",
+        "content": "第1轮问题",
+    }
+
+    assert session.messages[-1] == {
+        "role": "assistant",
+        "content": "第四轮回答",
+    }
+    
+def test_run_agent_limits_context_by_character_budget():
+    session = AgentSession(
+        session_id="character-budget-session",
+    )
+
+    session.add_message(
+        role="user",
+        content="很长的旧问题" * 100,
+    )
+    session.add_message(
+        role="assistant",
+        content="很长的旧回答" * 100,
+    )
+    session.add_message(
+        role="user",
+        content="较新的问题",
+    )
+    session.add_message(
+        role="assistant",
+        content="较新的回答",
+    )
+
+    received_messages = []
+
+    def fake_llm_call(messages):
+        received_messages.extend(messages)
+
+        return FakeMessage(
+            content="最新回答",
+            tool_calls=None,
+        )
+
+    current_user_message = {
+        "role": "user",
+        "content": "最新问题",
+    }
+
+    recent_messages = [
+        {
+            "role": "user",
+            "content": "较新的问题",
+        },
+        {
+            "role": "assistant",
+            "content": "较新的回答",
+        },
+        current_user_message,
+    ]
+
+    character_budget = sum(
+        count_message_characters(message)
+        for message in recent_messages
+    )
+
+    run_agent(
+        user_message="最新问题",
+        session=session,
+        max_history_turns=10,
+        max_history_characters=character_budget,
+        llm_call=fake_llm_call,
+    )
+
+    assert received_messages[0]["role"] == "system"
+    assert received_messages[1:] == recent_messages
+
+    assert session.messages[0]["content"].startswith(
+        "很长的旧问题"
+    )
+    assert session.messages[-1] == {
+        "role": "assistant",
+        "content": "最新回答",
+    }
+    
+    
+class FakeResponse:
+    def __init__(
+        self,
+        message,
+        prompt_tokens=0,
+        completion_tokens=0,
+        total_tokens=0,
+    ):
+        self.choices = [
+            SimpleNamespace(message=message)
+        ]
+
+        self.usage = SimpleNamespace(
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            total_tokens=total_tokens,
+        )
+
+
+def test_run_agent_collects_token_usage_from_response():
+    def fake_llm_call(messages):
+        return FakeResponse(
+            message=FakeMessage(
+                content="测试回答",
+                tool_calls=None,
+            ),
+            prompt_tokens=10,
+            completion_tokens=5,
+            total_tokens=15,
+        )
+
+    result = run_agent(
+        user_message="测试问题",
+        llm_call=fake_llm_call,
+    )
+
+    assert result.final_output == "测试回答"
+    assert result.token_usage.prompt_tokens == 10
+    assert result.token_usage.completion_tokens == 5
+    assert result.token_usage.total_tokens == 15
+    assert result.cost_estimate.currency == "CNY"
+
+
+def test_run_agent_accumulates_token_usage_across_steps():
+    tool_call = SimpleNamespace(
+        id="call_usage",
+        function=SimpleNamespace(
+            name="search_thesis",
+            arguments='{"query": "系统架构"}',
+        ),
+    )
+
+    responses = [
+        FakeResponse(
+            message=FakeMessage(
+                content="",
+                tool_calls=[tool_call],
+            ),
+            prompt_tokens=20,
+            completion_tokens=3,
+            total_tokens=23,
+        ),
+        FakeResponse(
+            message=FakeMessage(
+                content="系统包括特征处理模块。",
+                tool_calls=None,
+            ),
+            prompt_tokens=30,
+            completion_tokens=8,
+            total_tokens=38,
+        ),
+    ]
+
+    def fake_llm_call(messages):
+        return responses.pop(0)
+
+    def fake_tool_executor(received_tool_call):
+        return '{"text": "系统包括特征处理模块。"}'
+
+    result = run_agent(
+        user_message="系统架构包括什么？",
+        llm_call=fake_llm_call,
+        tool_executor=fake_tool_executor,
+    )
+
+    assert result.final_output == "系统包括特征处理模块。"
+    assert result.steps == 2
+    assert result.token_usage.prompt_tokens == 50
+    assert result.token_usage.completion_tokens == 11
+    assert result.token_usage.total_tokens == 61
+
+
+def test_run_agent_defaults_token_usage_to_zero_for_message_only_fake():
+    def fake_llm_call(messages):
+        return FakeMessage(
+            content="没有 usage 的回答",
+            tool_calls=None,
+        )
+
+    result = run_agent(
+        user_message="测试问题",
+        llm_call=fake_llm_call,
+    )
+
+    assert result.final_output == "没有 usage 的回答"
+    assert result.token_usage.prompt_tokens == 0
+    assert result.token_usage.completion_tokens == 0
+    assert result.token_usage.total_tokens == 0
+    
+def test_run_agent_returns_cost_estimate():
+    def fake_llm_call(messages):
+        return FakeResponse(
+            message=FakeMessage(
+                content="成本测试回答",
+                tool_calls=None,
+            ),
+            prompt_tokens=1000,
+            completion_tokens=500,
+            total_tokens=1500,
+        )
+
+    result = run_agent(
+        user_message="测试成本结构",
+        llm_call=fake_llm_call,
+    )
+
+    assert result.cost_estimate.input_cost >= 0
+    assert result.cost_estimate.output_cost >= 0
+    assert result.cost_estimate.total_cost >= 0
+    assert result.cost_estimate.currency
+    
+def test_run_agent_can_skip_appending_user_message():
+    session = AgentSession(
+        session_id="pre-appended-user-session",
+    )
+
+    session.add_message(
+        role="user",
+        content="已经提前加入的问题",
+    )
+
+    received_messages = []
+
+    def fake_llm_call(messages):
+        received_messages.extend(messages)
+
+        return FakeMessage(
+            content="回答",
+            tool_calls=None,
+        )
+
+    run_agent(
+        user_message="已经提前加入的问题",
+        session=session,
+        append_user_message=False,
+        llm_call=fake_llm_call,
+    )
+
+    assert received_messages[1:] == [
+        {
+            "role": "user",
+            "content": "已经提前加入的问题",
+        },
+    ]
+
+    user_messages = [
+        message
+        for message in session.messages
+        if message["role"] == "user"
+    ]
+
+    assert len(user_messages) == 1
