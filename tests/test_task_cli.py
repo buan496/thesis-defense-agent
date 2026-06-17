@@ -1,4 +1,5 @@
 from app import cli
+from app.task_models import DefenseTask, TaskStep
 
 
 def extract_value(
@@ -225,3 +226,103 @@ def test_complete_task_step_rejects_non_object_json_output(
 
     assert "ARGUMENT ERROR" in output
     assert "--output 必须是 JSON 对象" in output
+
+
+def test_execute_task_step_command(
+    monkeypatch,
+    capsys,
+    tmp_path,
+):
+    task = DefenseTask(topic="系统架构", task_id="task-001")
+    step = TaskStep(
+        step_type="retrieve_context",
+        input={
+            "topic": "系统架构",
+        },
+    )
+    step.mark_completed(
+        output={
+            "query": "系统架构",
+            "context": "系统架构上下文",
+            "sources": [
+                {
+                    "id": 0,
+                    "source": "data/thesis.pdf",
+                    "score": 0.9,
+                },
+            ],
+        }
+    )
+
+    def fake_execute_current_task_step(
+        task_id,
+        directory,
+    ):
+        assert task_id == "task-001"
+        assert directory == str(tmp_path)
+        return task, step, tmp_path / "task-001.json"
+
+    monkeypatch.setattr(
+        cli,
+        "execute_current_task_step",
+        fake_execute_current_task_step,
+    )
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "app.cli",
+            "execute-task-step",
+            "--task-id",
+            "task-001",
+            "--directory",
+            str(tmp_path),
+        ],
+    )
+
+    cli.main()
+    output = capsys.readouterr().out
+
+    assert "TASK STEP EXECUTED" in output
+    assert "TASK ID: task-001" in output
+    assert "STEP TYPE: retrieve_context" in output
+    assert "STEP STATUS: completed" in output
+    assert "QUERY: 系统架构" in output
+    assert "SOURCE COUNT: 1" in output
+
+
+def test_execute_task_step_command_reports_task_error(
+    monkeypatch,
+    capsys,
+):
+    def fake_execute_current_task_step(
+        task_id,
+        directory,
+    ):
+        raise ValueError("当前任务没有可执行步骤")
+
+    monkeypatch.setattr(
+        cli,
+        "execute_current_task_step",
+        fake_execute_current_task_step,
+    )
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "app.cli",
+            "execute-task-step",
+            "--task-id",
+            "task-001",
+        ],
+    )
+
+    try:
+        cli.main()
+    except SystemExit as error:
+        assert error.code == 1
+    else:
+        raise AssertionError("任务执行错误应该让 CLI 以状态码 1 退出")
+
+    output = capsys.readouterr().out
+
+    assert "TASK ERROR" in output
+    assert "当前任务没有可执行步骤" in output

@@ -1,5 +1,6 @@
 from collections.abc import Callable
 
+from app.defense_questions import generate_questions_from_context
 from app.embeddings import create_embedding
 from app.rag import build_context_from_results
 from app.task_models import TaskStep
@@ -16,6 +17,10 @@ def execute_task_step(
     vector_store_path: str = RAG_VECTOR_STORE_PATH,
     top_k: int = RAG_TOP_K,
     embedding_fn: Callable[[str], list[float]] = create_embedding,
+    question_generator: Callable[
+        [str],
+        list[str],
+    ] = generate_questions_from_context,
 ) -> TaskStep:
     if step.step_type == "retrieve_context":
         return execute_retrieve_context_step(
@@ -23,6 +28,12 @@ def execute_task_step(
             vector_store_path=vector_store_path,
             top_k=top_k,
             embedding_fn=embedding_fn,
+        )
+
+    if step.step_type == "generate_question":
+        return execute_generate_question_step(
+            step=step,
+            question_generator=question_generator,
         )
 
     raise ValueError(
@@ -71,6 +82,38 @@ def execute_retrieve_context_step(
             "query": query,
             "context": context,
             "sources": sources,
+        }
+    )
+
+    return step
+
+
+def execute_generate_question_step(
+    step: TaskStep,
+    question_generator: Callable[
+        [str],
+        list[str],
+    ] = generate_questions_from_context,
+) -> TaskStep:
+    context = step.input.get("context")
+
+    if not context:
+        raise ValueError(
+            "generate_question 步骤需要 input.context"
+        )
+
+    step.mark_running()
+
+    questions = question_generator(context)
+
+    if not questions:
+        raise ValueError("生成的问题列表不能为空")
+
+    step.mark_completed(
+        output={
+            "question": questions[0],
+            "questions": questions,
+            "topic": step.input.get("topic"),
         }
     )
 

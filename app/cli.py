@@ -44,6 +44,7 @@ from app.budget_guard import (
 from app.task_service import (
     complete_task_step,
     create_defense_task,
+    execute_current_task_step,
     get_defense_task,
     start_next_task_step,
 )
@@ -434,6 +435,22 @@ def main():
         help="JSON object used as the current step output",
     )
     complete_task_step_parser.add_argument(
+        "--directory",
+        type=str,
+        default=str(DEFAULT_TASK_DIRECTORY),
+        help="Directory used to store defense task JSON files",
+    )
+
+    execute_task_step_parser = subparsers.add_parser(
+        "execute-task-step",
+        help="Execute the current defense task step",
+    )
+    execute_task_step_parser.add_argument(
+        "--task-id",
+        required=True,
+        help="Defense task ID",
+    )
+    execute_task_step_parser.add_argument(
         "--directory",
         type=str,
         default=str(DEFAULT_TASK_DIRECTORY),
@@ -1120,6 +1137,31 @@ def main():
         print(f"STEP ID: {step.step_id}")
         print(f"STEP TYPE: {step.step_type}")
         print(f"STEP STATUS: {step.status}")
+        print(f"SAVED: {task_path}")
+
+    elif args.command == "execute-task-step":
+        try:
+            task, step, task_path = execute_current_task_step(
+                task_id=args.task_id,
+                directory=args.directory,
+            )
+        except ValueError as error:
+            print(f"TASK ERROR: {error}")
+            raise SystemExit(1) from error
+
+        print("TASK STEP EXECUTED")
+        print(f"TASK ID: {task.task_id}")
+        print(f"STATUS: {task.status}")
+        print(f"STEP ID: {step.step_id}")
+        print(f"STEP TYPE: {step.step_type}")
+        print(f"STEP STATUS: {step.status}")
+
+        if "query" in step.output:
+            print(f"QUERY: {step.output['query']}")
+
+        if "sources" in step.output:
+            print(f"SOURCE COUNT: {len(step.output['sources'])}")
+
         print(f"SAVED: {task_path}")
 
     elif args.command == "show-task":

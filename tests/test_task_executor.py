@@ -1,6 +1,7 @@
 import pytest
 
 from app.task_executor import (
+    execute_generate_question_step,
     execute_retrieve_context_step,
     execute_task_step,
 )
@@ -14,6 +15,15 @@ def fake_embedding(text: str) -> list[float]:
         return [1.0, 0.0]
 
     return [0.0, 1.0]
+
+
+def fake_question_generator(context: str) -> list[str]:
+    assert "系统架构" in context
+
+    return [
+        "系统架构为什么要拆分为多个模块？",
+        "系统架构如何支持后续扩展？",
+    ]
 
 
 def test_execute_retrieve_context_step(tmp_path):
@@ -167,3 +177,66 @@ def test_execute_task_step_rejects_unknown_step_type():
         match="不支持的任务步骤类型",
     ):
         execute_task_step(step)
+
+
+def test_execute_generate_question_step():
+    step = TaskStep(
+        step_type="generate_question",
+        input={
+            "topic": "系统架构",
+            "context": "系统架构包括特征处理和训练模块。",
+        },
+    )
+
+    result_step = execute_generate_question_step(
+        step,
+        question_generator=fake_question_generator,
+    )
+
+    assert result_step.status == "completed"
+    assert result_step.output["topic"] == "系统架构"
+    assert result_step.output["question"] == (
+        "系统架构为什么要拆分为多个模块？"
+    )
+    assert result_step.output["questions"] == [
+        "系统架构为什么要拆分为多个模块？",
+        "系统架构如何支持后续扩展？",
+    ]
+
+
+def test_execute_generate_question_step_requires_context():
+    step = TaskStep(
+        step_type="generate_question",
+        input={
+            "topic": "系统架构",
+        },
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="input.context",
+    ):
+        execute_generate_question_step(
+            step,
+            question_generator=fake_question_generator,
+        )
+
+
+def test_execute_task_step_dispatches_generate_question():
+    step = TaskStep(
+        step_type="generate_question",
+        input={
+            "topic": "系统架构",
+            "context": "系统架构包括特征处理和训练模块。",
+        },
+    )
+
+    result_step = execute_task_step(
+        step,
+        question_generator=fake_question_generator,
+    )
+
+    assert result_step.status == "completed"
+    assert result_step.output["question"] == (
+        "系统架构为什么要拆分为多个模块？"
+    )
