@@ -49,7 +49,23 @@
 13. 支持真实 Embedding API 生成向量
 14. 支持内存向量库和余弦相似度检索
 15. 支持将向量库保存和加载为 JSON 文件
-16. 使用 pytest 覆盖文本切分、文档读取、JSON 清洗和向量相关逻辑
+16. 支持 PDF 论文读取、无效 Unicode 清理、目录过滤和 PDF 换行归一化
+17. 支持向量库 metadata、构建参数校验、断点恢复和增量跳过
+18. 支持 query embedding cache，减少重复评估时的 API 调用
+19. 支持 RAG benchmark，统计 Top-K 召回关键词覆盖率
+20. 支持基于检索上下文生成答辩问题和基于论文片段回答问题
+21. 支持 Tool Schema、工具注册、工具执行器和工具白名单
+22. 支持 `search_thesis` 和 `create_defense_questions` 两类 Agent 工具
+23. 支持 Agent Loop、多步工具调用、最大步数限制和工具异常恢复
+24. 支持 Agent tool trace，记录工具名称、参数、结果、成功状态和耗时
+25. 支持 Agent Session，保存多轮消息历史并支持恢复会话
+26. 支持短期记忆窗口，限制历史轮数和历史字符数
+27. 支持 chat CLI，包含 session id、历史窗口、预算上限和预算预检参数
+28. 支持 token usage、cost estimate，并将本轮 token / cost 写入 session metadata
+29. 支持 Agent trace JSONL 持久化和 trace 分析
+30. 支持 Agent routing、task completion、faithfulness 和稳定性评估
+31. 支持评估报告生成、回归对比、指标下降检测、预测翻转检测和稳定性退化检测
+32. 使用 pytest 覆盖文本切分、文档读取、JSON 清洗、向量检索、RAG、Agent、Session、Trace、预算控制和评估逻辑
 
 ## 当前技术栈
 
@@ -67,7 +83,9 @@
 
 项目使用 pytest、评估 benchmark 和 GitHub Actions 组成多层质量门禁：
 
-- `100` 个离线单元测试覆盖 Agent、工具调用、RAG 和评估模块
+- `178` 个离线单元测试覆盖 Agent、工具调用、RAG、Session、Memory、Trace、预算控制和评估模块
+- Retrieval benchmark 检查 RAG Top-K 召回效果
+- Agent routing benchmark 检查工具选择、参数生成和任务完成
 - Faithfulness benchmark 检查 LLM Judge 的语义判断
 - 多轮稳定性评估统计一致率、全票一致率和多数投票准确率
 - 评估报告回归对比检测指标下降、预测翻转和稳定性退化
@@ -123,17 +141,40 @@ app/config.py             读取环境变量和模型配置
 app/llm.py                封装 LLM 客户端和通用调用函数
 app/prompts.py            存放系统提示词
 app/document_loader.py    读取本地文本文件
+app/pdf_loader.py         读取 PDF 论文文本
+app/document_cleaner.py   清洗 PDF 文本、目录和非法 Unicode
 app/text_splitter.py      文本切分和 chunk metadata 构建
-app/embeddings.py         fake embedding 和真实 embedding 调用
+app/embeddings.py         真实 embedding 调用
+app/embedding_cache.py    query embedding 缓存
 app/vector_store.py       点积、向量长度、余弦相似度、内存向量检索
 app/vector_store_io.py    向量库 JSON 保存与加载
+app/vector_store_builder.py      构建 PDF 向量库，支持断点恢复
+app/vector_store_metadata.py     保存向量库构建参数和元信息
 app/rag.py                RAG 上下文拼接和基于上下文回答
+app/retrieval_evaluator.py       RAG 检索 benchmark
 app/defense_questions.py  生成答辩问题，支持 JSON 结构化输出
 app/evaluation.py         评价学生回答
 app/follow_up.py          生成追问
 app/answer_rewrite.py     改写学生回答
 app/mock_defense.py       组织一轮模拟答辩流程
 app/session_logger.py     保存训练记录
+app/agent.py              手写 Agent Harness、工具调用循环和 token / cost 统计
+app/agent_models.py       AgentResult、ToolTrace、TokenUsage、CostEstimate 数据结构
+app/tool_executor.py      工具调用分发与白名单执行
+app/session_models.py     AgentSession 和答辩训练记录模型
+app/session_store.py      Agent 会话 JSON 保存与加载
+app/session_service.py    chat 会话创建、恢复、预算控制和 metadata 写入
+app/conversation_memory.py        短期消息窗口选择
+app/agent_trace_logger.py         Agent trace JSONL 持久化
+app/agent_trace_analyzer.py       Trace 统计分析
+app/cost_estimator.py             LLM 成本估算
+app/budget_guard.py               调用后成本上限检查
+app/preflight_budget.py           调用前预算预估
+app/agent_routing_evaluator.py    Agent 工具路由评估
+app/faithfulness_evaluator.py     Faithfulness Judge
+app/evaluation_report.py          评估报告生成
+app/evaluation_report_comparator.py 评估报告回归对比
+app/cli.py                统一命令行入口
 ```
 
 ## 环境配置
@@ -147,10 +188,22 @@ DEEPSEEK_MODEL=deepseek-v4-flash
 
 LLM_TEMPERATURE=0.3
 LLM_MAX_TOKENS=2048
+LLM_INPUT_PRICE_PER_1M_TOKENS=0
+LLM_OUTPUT_PRICE_PER_1M_TOKENS=0
+LLM_PRICE_CURRENCY=CNY
 
 EMBEDDING_API_KEY=your_embedding_api_key_here
 EMBEDDING_BASE_URL=https://api.siliconflow.cn/v1
 EMBEDDING_MODEL=BAAI/bge-m3
+
+RAG_TOP_K=3
+RAG_CHUNK_SIZE=800
+RAG_CHUNK_OVERLAP=100
+RAG_MIN_CHUNK_SIZE=30
+RAG_VECTOR_STORE_PATH=data/vector_store.json
+RAG_VECTOR_STORE_META_PATH=data/vector_store_meta.json
+QUERY_EMBEDDING_CACHE_PATH=data/query_embedding_cache.json
+AGENT_TRACE_PATH=data/traces/agent_trace.jsonl
 ```
 
 `.env` 保存真实密钥，不提交到 Git；`.env.example` 保存配置模板，可以提交。
@@ -171,11 +224,40 @@ uv sync
 
 ## 运行方式
 
+构建 PDF 向量库：
+
+```powershell
+python -m app.cli build-store --file data/thesis.pdf
+```
+
+运行 RAG 召回评估：
+
+```powershell
+python -m app.cli evaluate-rag --min-score 0.9
+```
+
 运行一轮命令行模拟答辩：
 
 ```powershell
-python -m scripts.run_mock_defense
+python -m app.cli mock-defense --topic 系统架构
 ```
+
+运行多轮 chat 会话：
+
+```powershell
+python -m app.cli chat --message "请记住，我的论文研究方向是中英双语语音识别。"
+```
+
+创建并推进可恢复答辩任务：
+
+```powershell
+python -m app.cli create-task --topic 系统架构
+python -m app.cli start-task-step --task-id <TASK_ID> --input '{\"topic\":\"系统架构\"}'
+python -m app.cli complete-task-step --task-id <TASK_ID> --output '{\"context\":\"系统架构相关上下文\"}'
+python -m app.cli show-task --task-id <TASK_ID>
+```
+
+说明：PowerShell 会处理命令行引号，JSON 参数里的双引号需要写成 `\"`，否则 Python 收到的可能会变成 `{topic:系统架构}` 这类非法 JSON。
 
 运行 RAG 检索测试：
 
@@ -197,30 +279,28 @@ uv run pytest
 
 ## 当前学习重点
 
-当前项目已经进入 RAG 基础阶段，重点包括：
+当前项目已经从 RAG 原型阶段进入 Agent Harness 与 Session / Memory 工程化阶段，重点包括：
 
-1. 文档读取
-2. 文本切分
-3. chunk metadata
-4. embedding
-5. 向量相似度
-6. 内存向量库
-7. 向量库持久化
-8. 检索结果拼接为上下文
-9. 基于上下文生成回答
+1. 手写 Agent Loop，而不是只依赖框架
+2. Tool Schema、工具白名单、工具执行和工具轨迹
+3. Session 创建、恢复、消息历史和短期记忆窗口
+4. token usage、cost estimate、预算上限和预算预检
+5. Agent trace 持久化、trace 分析和工具耗时统计
+6. RAG / Agent / Faithfulness / Stability 评估
+7. CI 离线质量门禁和评估报告回归对比
+8. 将模拟答辩流程升级为可恢复、可审计的任务型 Agent
 
 ## 下一步计划
 
-1. 优化真实 embedding 检索效果
-2. 增加向量库缓存复用，避免重复调用 embedding API
-3. 支持从 PDF 中提取论文文本
-4. 增加文档清洗，过滤封面、目录、页眉页脚等低价值内容
-5. 增加基于论文原文的答辩问题生成
-6. 增加答案引用来源和 chunk 溯源
-7. 引入更正式的向量数据库，如 Qdrant 或 Milvus
-8. 增加 FastAPI 后端接口
-9. 增加 Web 页面或 Streamlit / Gradio 界面
-10. 引入 Agent 框架、工具调用、Session / Memory 和多 Agent 协作
+1. 将 `retrieve_context`、`generate_question`、`evaluate_answer` 等任务步骤接入真实 RAG 和 LLM
+2. 将每一步的输入、输出、证据、工具调用、成本和 trace 统一写入任务记录
+3. 增加任务级 resume，支持中断后从上一步继续
+4. 增加工具超时、工具重试和工具结果长度限制
+5. 增加长期记忆，沉淀学生论文方向、常错点和薄弱模块
+6. 增加混合检索 BM25 + Vector、reranker 和 query rewrite
+7. 增加 FastAPI 后端接口
+8. 增加 Web 页面或 Streamlit / Gradio 界面
+9. 后续迁移到 LangGraph、MCP 和 Sub-Agent 协作
 
 ## 学习记录
 
@@ -231,3 +311,9 @@ uv run pytest
 - 2026-05-27：实现命令行模拟答辩流程，并将训练记录保存为 Markdown 文件。
 - 2026-05-28：实现文本读取、段落切分、chunk metadata 和 pytest 测试。
 - 2026-06-01：实现真实 embedding 调用、内存向量检索和 RAG 问答原型。
+- 2026-06-05：实现 PDF 读取、文档清洗、向量库 metadata、断点恢复和 RAG 召回评估。
+- 2026-06-09：实现 Agent 工具调用、Tool Schema、Agent Loop、工具轨迹和工具耗时统计。
+- 2026-06-10：实现 Agent routing、task completion、faithfulness 和稳定性评估。
+- 2026-06-12：实现评估报告回归对比和 GitHub Actions 离线质量门禁。
+- 2026-06-17：实现 chat session、短期记忆窗口、token / cost 统计、预算预检和 session metadata 成本审计。
+- 2026-06-17：实现 DefenseTask / TaskStep、任务存储、状态推进、Task Service 和 Task CLI。

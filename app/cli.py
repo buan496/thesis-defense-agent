@@ -41,6 +41,32 @@ from app.budget_guard import (
     BudgetExceededError ,
     PreflightBudgetExceededError,
 )
+from app.task_service import (
+    complete_task_step,
+    create_defense_task,
+    get_defense_task,
+    start_next_task_step,
+)
+from app.task_store import DEFAULT_TASK_DIRECTORY
+
+
+def parse_json_argument(
+    value: str,
+    argument_name: str,
+) -> dict:
+    try:
+        data = json.loads(value)
+    except json.JSONDecodeError as error:
+        raise ValueError(
+            f"{argument_name} 必须是合法 JSON"
+        ) from error
+
+    if not isinstance(data, dict):
+        raise ValueError(
+            f"{argument_name} 必须是 JSON 对象"
+        )
+
+    return data
 
 def main():
     parser = argparse.ArgumentParser(
@@ -354,6 +380,80 @@ def main():
         type=str,
         default=None,
         help="Training topic for this mock defense round",
+    )
+
+    create_task_parser = subparsers.add_parser(
+        "create-task",
+        help="Create a defense workflow task",
+    )
+    create_task_parser.add_argument(
+        "--topic",
+        required=True,
+        help="Defense task topic",
+    )
+    create_task_parser.add_argument(
+        "--directory",
+        type=str,
+        default=str(DEFAULT_TASK_DIRECTORY),
+        help="Directory used to store defense task JSON files",
+    )
+
+    start_task_step_parser = subparsers.add_parser(
+        "start-task-step",
+        help="Start the next defense task step",
+    )
+    start_task_step_parser.add_argument(
+        "--task-id",
+        required=True,
+        help="Defense task ID",
+    )
+    start_task_step_parser.add_argument(
+        "--input",
+        default="{}",
+        help="JSON object used as the next step input",
+    )
+    start_task_step_parser.add_argument(
+        "--directory",
+        type=str,
+        default=str(DEFAULT_TASK_DIRECTORY),
+        help="Directory used to store defense task JSON files",
+    )
+
+    complete_task_step_parser = subparsers.add_parser(
+        "complete-task-step",
+        help="Complete the current defense task step",
+    )
+    complete_task_step_parser.add_argument(
+        "--task-id",
+        required=True,
+        help="Defense task ID",
+    )
+    complete_task_step_parser.add_argument(
+        "--output",
+        default="{}",
+        help="JSON object used as the current step output",
+    )
+    complete_task_step_parser.add_argument(
+        "--directory",
+        type=str,
+        default=str(DEFAULT_TASK_DIRECTORY),
+        help="Directory used to store defense task JSON files",
+    )
+
+    show_task_parser = subparsers.add_parser(
+        "show-task",
+        help="Show defense task status and steps",
+    )
+    show_task_parser.add_argument(
+        "--task-id",
+        required=True,
+        help="Defense task ID",
+    )
+    show_task_parser.add_argument(
+        "--directory",
+        type=str,
+        default=str(DEFAULT_TASK_DIRECTORY),
+        help="Directory used to store defense task JSON files",
     )
     
     args = parser.parse_args()
@@ -952,6 +1052,95 @@ def main():
 
     elif args.command == "mock-defense":
         run_mock_defense(training_query=args.topic)
+    elif args.command == "create-task":
+        task, task_path = create_defense_task(
+            topic=args.topic,
+            directory=args.directory,
+        )
+
+        print("TASK CREATED")
+        print(f"TASK ID: {task.task_id}")
+        print(f"TOPIC: {task.topic}")
+        print(f"STATUS: {task.status}")
+        print(f"SAVED: {task_path}")
+
+    elif args.command == "start-task-step":
+        try:
+            step_input = parse_json_argument(
+                args.input,
+                "--input",
+            )
+        except ValueError as error:
+            print(f"ARGUMENT ERROR: {error}")
+            raise SystemExit(2) from error
+
+        task, step, task_path = start_next_task_step(
+            task_id=args.task_id,
+            directory=args.directory,
+            input=step_input,
+        )
+
+        print("TASK UPDATED")
+        print(f"TASK ID: {task.task_id}")
+        print(f"STATUS: {task.status}")
+
+        if step is None:
+            print("STEP: None")
+            print("REASON: 当前步骤尚未完成，不能开始下一步")
+        else:
+            print(f"STEP ID: {step.step_id}")
+            print(f"STEP TYPE: {step.step_type}")
+            print(f"STEP STATUS: {step.status}")
+
+        print(f"SAVED: {task_path}")
+
+    elif args.command == "complete-task-step":
+        try:
+            step_output = parse_json_argument(
+                args.output,
+                "--output",
+            )
+        except ValueError as error:
+            print(f"ARGUMENT ERROR: {error}")
+            raise SystemExit(2) from error
+
+        try:
+            task, step, task_path = complete_task_step(
+                task_id=args.task_id,
+                directory=args.directory,
+                output=step_output,
+            )
+        except ValueError as error:
+            print(f"TASK ERROR: {error}")
+            raise SystemExit(1) from error
+
+        print("TASK STEP COMPLETED")
+        print(f"TASK ID: {task.task_id}")
+        print(f"STATUS: {task.status}")
+        print(f"STEP ID: {step.step_id}")
+        print(f"STEP TYPE: {step.step_type}")
+        print(f"STEP STATUS: {step.status}")
+        print(f"SAVED: {task_path}")
+
+    elif args.command == "show-task":
+        task = get_defense_task(
+            task_id=args.task_id,
+            directory=args.directory,
+        )
+
+        print("TASK")
+        print(f"TASK ID: {task.task_id}")
+        print(f"TOPIC: {task.topic}")
+        print(f"STATUS: {task.status}")
+        print(f"CURRENT STEP ID: {task.current_step_id}")
+        print(f"STEP COUNT: {len(task.steps)}")
+
+        for index, step in enumerate(task.steps, start=1):
+            print("-" * 40)
+            print(f"STEP {index}")
+            print(f"STEP ID: {step.step_id}")
+            print(f"STEP TYPE: {step.step_type}")
+            print(f"STEP STATUS: {step.status}")
     else:
         parser.print_help()
 
