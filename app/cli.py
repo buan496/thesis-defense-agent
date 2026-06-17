@@ -37,7 +37,10 @@ from app.config import (
 from app.agent_routing_evaluator import evaluate_agent_routing
 from app.agent_trace_analyzer import analyze_agent_traces
 from app.session_service import run_agent_session
-from app.budget_guard import BudgetExceededError
+from app.budget_guard import (
+    BudgetExceededError ,
+    PreflightBudgetExceededError,
+)
 
 def main():
     parser = argparse.ArgumentParser(
@@ -336,6 +339,13 @@ def main():
         type=float,
         default=None,
         help="Maximum allowed cost for this Agent run",
+    )
+    
+    chat_parser.add_argument(
+        "--preflight-max-run-cost",
+        type=float,
+        default=None,
+        help="Maximum estimated cost allowed before calling the LLM",
     )
     
     mock_parser = subparsers.add_parser("mock-defense")
@@ -889,6 +899,13 @@ def main():
             print("ARGUMENT ERROR: --max-run-cost 不能小于 0")
             raise SystemExit(2)
         
+        if (
+            args.preflight_max_run_cost is not None
+            and args.preflight_max_run_cost < 0
+        ):
+            print("ARGUMENT ERROR: --preflight-max-run-cost 不能小于 0")
+            raise SystemExit(2)
+        
         try:
             result, session, session_path = run_agent_session(
                 user_message=user_message,
@@ -896,6 +913,7 @@ def main():
                 max_history_turns=args.max_history_turns,
                 max_history_characters=args.max_history_characters,
                 max_run_cost=args.max_run_cost,
+                preflight_max_run_cost=args.preflight_max_run_cost,
             )
         except FileNotFoundError as error:
             print(f"SESSION ERROR: {error}")
@@ -905,6 +923,10 @@ def main():
             print(f"BUDGET ERROR: {error}")
             raise SystemExit(1) from error
 
+        except PreflightBudgetExceededError as error:
+            print(f"PREFLIGHT BUDGET ERROR: {error}")
+            raise SystemExit(1) from error
+        
         print("\nASSISTANT:")
         print(result.final_output)
 
