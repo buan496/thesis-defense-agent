@@ -79,11 +79,31 @@ def extract_assistant_message(response):
 
     return response
 
+def build_agent_messages(
+    session: AgentSession,
+    max_history_turns: int,
+    max_history_characters: int,
+) -> list[dict]:
+    context_messages = select_context_messages(
+        messages=session.messages,
+        max_turns=max_history_turns,
+        max_characters=max_history_characters,
+    )
+
+    return [
+        {
+            "role": "system",
+            "content": AGENT_SYSTEM_PROMPT,
+        },
+        *context_messages,
+    ]
+
 def run_agent(
         user_message: str,
         max_steps: int = 5,
         max_history_turns: int = 6,
         max_history_characters: int = 12000,
+        append_user_message: bool = True,
         session: AgentSession | None = None,
         llm_call: Callable[[list[dict]], Any] | None = None,
         tool_executor: Callable[[Any], str] = execute_tool_call,
@@ -109,24 +129,17 @@ def run_agent(
                 max_tokens=LLM_MAX_TOKENS,
             )
 
-    session.add_message(
-        role="user",
-        content=user_message,
-    )
+    if append_user_message:
+        session.add_message(
+            role="user",
+            content=user_message,
+        )
 
-    context_messages = select_context_messages(
-        messages=session.messages,
-        max_turns=max_history_turns,
-        max_characters=max_history_characters,
+    messages = build_agent_messages(
+        session=session,
+        max_history_turns=max_history_turns,
+        max_history_characters=max_history_characters,
     )
-
-    messages = [
-        {
-            "role": "system",
-            "content": AGENT_SYSTEM_PROMPT,
-        },
-        *context_messages,
-    ]
 
 
     for step in range(1,max_steps + 1):

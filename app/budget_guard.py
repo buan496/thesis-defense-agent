@@ -61,3 +61,23 @@ def raise_if_cost_exceeded(
             max_cost=result.max_cost,
             currency=result.currency,
         )
+        
+class PreflightBudgetExceededError(RuntimeError):
+    def __init__(
+        self,
+        estimated_cost: float,
+        max_cost: float,
+        currency: str,
+        estimated_total_tokens: int,
+    ):
+        self.estimated_cost = estimated_cost
+        self.max_cost = max_cost
+        self.currency = currency
+        self.estimated_total_tokens = estimated_total_tokens
+
+        super().__init__(
+            f"调用前预算预估超限："
+            f"{estimated_cost:.6f} {currency} > "
+            f"{max_cost:.6f} {currency}，"
+            f"预计 tokens：{estimated_total_tokens}"
+        )
