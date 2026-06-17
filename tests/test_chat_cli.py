@@ -8,6 +8,24 @@ from app.budget_guard import (
     PreflightBudgetExceededError,
 )
 
+def build_fake_agent_result(
+    final_output: str,
+):
+    return SimpleNamespace(
+        final_output=final_output,
+        token_usage=SimpleNamespace(
+            prompt_tokens=100,
+            completion_tokens=20,
+            total_tokens=120,
+        ),
+        cost_estimate=SimpleNamespace(
+            input_cost=0.001,
+            output_cost=0.002,
+            total_cost=0.003,
+            currency="CNY",
+        ),
+    )
+
 def test_chat_command_creates_new_session(
     monkeypatch,
     capsys,
@@ -36,9 +54,9 @@ def test_chat_command_creates_new_session(
             preflight_max_run_cost
         )
         
-        result = SimpleNamespace(
-            final_output="我已经记住你的研究方向。",
-        )
+        result = build_fake_agent_result(
+            "我已经记住你的研究方向。"
+        )   
         session = SimpleNamespace(
             session_id="new-session-001",
         )
@@ -78,6 +96,15 @@ def test_chat_command_creates_new_session(
     }
 
     assert "我已经记住你的研究方向。" in output
+    assert "TOKEN USAGE" in output
+    assert "PROMPT TOKENS: 100" in output
+    assert "COMPLETION TOKENS: 20" in output
+    assert "TOTAL TOKENS: 120" in output
+    assert "COST ESTIMATE" in output
+    assert "INPUT COST: 0.001" in output
+    assert "OUTPUT COST: 0.002" in output
+    assert "TOTAL COST: 0.003" in output
+    assert "CURRENCY: CNY" in output
     assert "new-session-001" in output
     assert "new-session-001.json" in output
 
@@ -111,9 +138,9 @@ def test_chat_command_resumes_existing_session(
         )
                 
         
-        result = SimpleNamespace(
-            final_output="你的论文研究语音识别。",
-        )
+        result = build_fake_agent_result(
+            "你的论文研究语音识别。"
+        )   
         session = SimpleNamespace(
             session_id="existing-session",
         )
@@ -175,7 +202,7 @@ def test_chat_command_reads_interactive_input(
         assert session_id is None
 
         return (
-            SimpleNamespace(final_output="交互回答"),
+            build_fake_agent_result("交互回答"),
             SimpleNamespace(session_id="interactive-session"),
             tmp_path / "interactive-session.json",
         )
@@ -283,7 +310,7 @@ def test_chat_command_passes_max_history_turns(
         )
 
         return (
-            SimpleNamespace(final_output="测试回答"),
+            build_fake_agent_result("测试回答"),
             SimpleNamespace(session_id="window-session"),
             tmp_path / "window-session.json",
         )
@@ -383,7 +410,7 @@ def test_chat_command_passes_max_history_characters(
         )
         
         return (
-            SimpleNamespace(final_output="字符预算测试回答"),
+            build_fake_agent_result("字符预算测试回答"),
             SimpleNamespace(session_id="character-session"),
             tmp_path / "character-session.json",
         )
@@ -482,7 +509,7 @@ def test_chat_command_passes_max_run_cost(
         )
         
         return (
-            SimpleNamespace(final_output="预算测试回答"),
+            build_fake_agent_result("预算测试回答"),
             SimpleNamespace(session_id="budget-session"),
             tmp_path / "budget-session.json",
         )
@@ -627,7 +654,7 @@ def test_chat_command_passes_preflight_max_run_cost(
         )
 
         return (
-            SimpleNamespace(final_output="预检预算测试回答"),
+            build_fake_agent_result("预检预算测试回答"),
             SimpleNamespace(session_id="preflight-session"),
             tmp_path / "preflight-session.json",
         )

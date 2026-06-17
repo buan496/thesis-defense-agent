@@ -930,6 +930,20 @@ def main():
         print("\nASSISTANT:")
         print(result.final_output)
 
+        print("\nTOKEN USAGE:")
+        print("PROMPT TOKENS:", result.token_usage.prompt_tokens)
+        print(
+            "COMPLETION TOKENS:",
+            result.token_usage.completion_tokens,
+        )
+        print("TOTAL TOKENS:", result.token_usage.total_tokens)
+
+        print("\nCOST ESTIMATE:")
+        print("INPUT COST:", round(result.cost_estimate.input_cost, 6))
+        print("OUTPUT COST:", round(result.cost_estimate.output_cost, 6))
+        print("TOTAL COST:", round(result.cost_estimate.total_cost, 6))
+        print("CURRENCY:", result.cost_estimate.currency)
+
         print("\nSESSION ID:")
         print(session.session_id)
 
