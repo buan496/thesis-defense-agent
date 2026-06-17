@@ -1,5 +1,6 @@
 from app.task_models import DefenseTask, TaskStep
 from app.task_runner import (
+    build_next_step_input,
     complete_current_step,
     create_next_step,
     get_next_step_type,
@@ -54,6 +55,74 @@ def test_completed_step_allows_next_step():
 
     assert next_step is not None
     assert next_step.step_type == "generate_question"
+
+
+def test_build_next_step_input_inherits_completed_step_output():
+    task = DefenseTask(topic="系统架构")
+    first_step = create_next_step(task)
+    assert first_step is not None
+    first_step.mark_completed(
+        output={
+            "query": "系统架构",
+            "context": "系统架构相关论文片段",
+            "sources": [
+                {
+                    "source": "data/thesis.pdf",
+                },
+            ],
+        }
+    )
+
+    next_input = build_next_step_input(task)
+
+    assert next_input["query"] == "系统架构"
+    assert next_input["context"] == "系统架构相关论文片段"
+    assert next_input["sources"] == [
+        {
+            "source": "data/thesis.pdf",
+        },
+    ]
+
+
+def test_build_next_step_input_allows_user_input_override():
+    task = DefenseTask(topic="系统架构")
+    first_step = create_next_step(task)
+    assert first_step is not None
+    first_step.mark_completed(
+        output={
+            "context": "旧上下文",
+            "query": "系统架构",
+        }
+    )
+
+    next_input = build_next_step_input(
+        task,
+        input={
+            "context": "人工修正后的上下文",
+            "topic": "系统架构",
+        },
+    )
+
+    assert next_input["query"] == "系统架构"
+    assert next_input["context"] == "人工修正后的上下文"
+    assert next_input["topic"] == "系统架构"
+
+
+def test_create_next_step_inherits_completed_step_output():
+    task = DefenseTask(topic="系统架构")
+    first_step = create_next_step(task)
+    assert first_step is not None
+    first_step.mark_completed(
+        output={
+            "context": "系统架构相关论文片段",
+        }
+    )
+
+    next_step = create_next_step(task)
+
+    assert next_step is not None
+    assert next_step.step_type == "generate_question"
+    assert next_step.input["context"] == "系统架构相关论文片段"
 
 
 def test_complete_current_step_updates_output():

@@ -37,6 +37,22 @@ def get_next_step_type(task: DefenseTask) -> str | None:
     return DEFENSE_TASK_STEP_ORDER[next_index]
 
 
+def build_next_step_input(
+    task: DefenseTask,
+    input: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    next_input = {}
+    current_step = task.get_current_step()
+
+    if current_step is not None and current_step.status == "completed":
+        next_input.update(current_step.output)
+
+    if input is not None:
+        next_input.update(input)
+
+    return next_input
+
+
 def create_next_step(
     task: DefenseTask,
     input: dict[str, Any] | None = None,
@@ -48,7 +64,10 @@ def create_next_step(
 
     step = TaskStep(
         step_type=next_step_type,
-        input=input or {},
+        input=build_next_step_input(
+            task,
+            input=input,
+        ),
     )
 
     task.add_step(step)

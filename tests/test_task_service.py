@@ -175,13 +175,11 @@ def test_task_service_can_advance_two_steps(tmp_path):
     updated_task, second_step, _ = start_next_task_step(
         task_id=task.task_id,
         directory=tmp_path,
-        input={
-            "context": "系统架构上下文",
-        },
     )
 
     assert second_step is not None
     assert second_step.step_type == "generate_question"
+    assert second_step.input["context"] == "系统架构上下文"
     assert len(updated_task.steps) == 2
 
 
@@ -263,10 +261,6 @@ def test_execute_current_task_step_runs_generate_question_step(
     start_next_task_step(
         task_id=task.task_id,
         directory=tmp_path,
-        input={
-            "topic": "系统架构",
-            "context": "系统架构上下文",
-        },
     )
 
     updated_task, step, task_path = execute_current_task_step(
