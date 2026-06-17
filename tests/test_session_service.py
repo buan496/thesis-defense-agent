@@ -209,7 +209,17 @@ def test_failed_agent_run_does_not_overwrite_session(
 
 def test_run_agent_session_does_not_save_when_cost_exceeded(
     tmp_path,
+    monkeypatch,
 ):
+    monkeypatch.setattr(
+        "app.session_service.LLM_INPUT_PRICE_PER_1M_TOKENS",
+        1.0,
+    )
+    monkeypatch.setattr(
+        "app.session_service.LLM_OUTPUT_PRICE_PER_1M_TOKENS",
+        1.0,
+    )
+
     original_session = AgentSession(
         session_id="cost-protected-session",
     )
@@ -257,7 +267,17 @@ def test_run_agent_session_does_not_save_when_cost_exceeded(
     
 def test_run_agent_session_preflight_budget_blocks_llm_call(
     tmp_path,
+    monkeypatch,
 ):
+    monkeypatch.setattr(
+        "app.session_service.LLM_INPUT_PRICE_PER_1M_TOKENS",
+        1.0,
+    )
+    monkeypatch.setattr(
+        "app.session_service.LLM_OUTPUT_PRICE_PER_1M_TOKENS",
+        1.0,
+    )
+
     def llm_call_should_not_run(messages):
         raise AssertionError("预算预检失败时不应调用模型")
 
