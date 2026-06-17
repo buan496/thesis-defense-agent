@@ -307,3 +307,56 @@ def test_run_agent_session_runs_when_preflight_budget_passes(
     ]
 
     assert len(user_messages) == 1
+
+
+def test_run_agent_session_saves_token_usage_and_cost_metadata(
+    tmp_path,
+):
+    def fake_llm_call(messages):
+        return FakeResponse(
+            message=FakeMessage(
+                content="带成本统计的回答",
+                tool_calls=None,
+            ),
+            prompt_tokens=100,
+            completion_tokens=20,
+            total_tokens=120,
+        )
+
+    result, session, session_path = run_agent_session(
+        user_message="测试成本记录",
+        directory=tmp_path,
+        llm_call=fake_llm_call,
+    )
+
+    expected_token_usage = {
+        "prompt_tokens": result.token_usage.prompt_tokens,
+        "completion_tokens": result.token_usage.completion_tokens,
+        "total_tokens": result.token_usage.total_tokens,
+    }
+    expected_cost_estimate = {
+        "input_cost": result.cost_estimate.input_cost,
+        "output_cost": result.cost_estimate.output_cost,
+        "total_cost": result.cost_estimate.total_cost,
+        "currency": result.cost_estimate.currency,
+    }
+
+    assert session.metadata["last_token_usage"] == (
+        expected_token_usage
+    )
+    assert session.metadata["last_cost_estimate"] == (
+        expected_cost_estimate
+    )
+
+    saved_session = load_agent_session(
+        session_id=session.session_id,
+        directory=tmp_path,
+    )
+
+    assert session_path.exists()
+    assert saved_session.metadata["last_token_usage"] == (
+        expected_token_usage
+    )
+    assert saved_session.metadata["last_cost_estimate"] == (
+        expected_cost_estimate
+    )

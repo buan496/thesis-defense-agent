@@ -87,6 +87,18 @@ def run_agent_session(
             max_cost=max_run_cost,
         )
 
+    session.metadata["last_token_usage"] = {
+        "prompt_tokens": result.token_usage.prompt_tokens,
+        "completion_tokens": result.token_usage.completion_tokens,
+        "total_tokens": result.token_usage.total_tokens,
+    }
+    session.metadata["last_cost_estimate"] = {
+        "input_cost": result.cost_estimate.input_cost,
+        "output_cost": result.cost_estimate.output_cost,
+        "total_cost": result.cost_estimate.total_cost,
+        "currency": result.cost_estimate.currency,
+    }
+
     session_path = save_agent_session(
         session=session,
         directory=directory,
