@@ -48,6 +48,7 @@ from app.task_service import (
     get_defense_task,
     start_next_task_step,
 )
+from app.task_resume import get_resumable_task_status
 from app.task_store import DEFAULT_TASK_DIRECTORY
 
 
@@ -451,6 +452,22 @@ def main():
         help="Defense task ID",
     )
     execute_task_step_parser.add_argument(
+        "--directory",
+        type=str,
+        default=str(DEFAULT_TASK_DIRECTORY),
+        help="Directory used to store defense task JSON files",
+    )
+
+    resume_task_parser = subparsers.add_parser(
+        "resume-task",
+        help="Show how to resume a defense task",
+    )
+    resume_task_parser.add_argument(
+        "--task-id",
+        required=True,
+        help="Defense task ID",
+    )
+    resume_task_parser.add_argument(
         "--directory",
         type=str,
         default=str(DEFAULT_TASK_DIRECTORY),
@@ -1163,6 +1180,28 @@ def main():
             print(f"SOURCE COUNT: {len(step.output['sources'])}")
 
         print(f"SAVED: {task_path}")
+
+    elif args.command == "resume-task":
+        task = get_defense_task(
+            task_id=args.task_id,
+            directory=args.directory,
+        )
+        status = get_resumable_task_status(task)
+
+        print("TASK RESUME STATUS")
+        print(f"TASK ID: {task.task_id}")
+        print(f"TASK STATUS: {status.task_status}")
+        print(f"ACTION: {status.action}")
+        print(f"CURRENT STEP ID: {status.current_step_id}")
+        print(f"CURRENT STEP TYPE: {status.current_step_type}")
+        print(f"CURRENT STEP STATUS: {status.current_step_status}")
+        print(f"NEXT STEP TYPE: {status.next_step_type}")
+        print(
+            "CAN EXECUTE CURRENT STEP:",
+            status.can_execute_current_step,
+        )
+        print("NEEDS HUMAN INPUT:", status.needs_human_input)
+        print(f"MESSAGE: {status.message}")
 
     elif args.command == "show-task":
         task = get_defense_task(

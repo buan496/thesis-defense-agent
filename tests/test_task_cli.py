@@ -326,3 +326,129 @@ def test_execute_task_step_command_reports_task_error(
 
     assert "TASK ERROR" in output
     assert "当前任务没有可执行步骤" in output
+
+
+def test_resume_task_command_for_new_task(
+    monkeypatch,
+    capsys,
+    tmp_path,
+):
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "app.cli",
+            "create-task",
+            "--topic",
+            "系统架构",
+            "--directory",
+            str(tmp_path),
+        ],
+    )
+    cli.main()
+    task_id = extract_value(capsys.readouterr().out, "TASK ID:")
+
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "app.cli",
+            "resume-task",
+            "--task-id",
+            task_id,
+            "--directory",
+            str(tmp_path),
+        ],
+    )
+    cli.main()
+    output = capsys.readouterr().out
+
+    assert "TASK RESUME STATUS" in output
+    assert f"TASK ID: {task_id}" in output
+    assert "ACTION: create_next_step" in output
+    assert "NEXT STEP TYPE: retrieve_context" in output
+    assert "CAN EXECUTE CURRENT STEP: False" in output
+
+
+def test_resume_task_command_for_pending_auto_step(
+    monkeypatch,
+    capsys,
+    tmp_path,
+):
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "app.cli",
+            "create-task",
+            "--topic",
+            "系统架构",
+            "--directory",
+            str(tmp_path),
+        ],
+    )
+    cli.main()
+    task_id = extract_value(capsys.readouterr().out, "TASK ID:")
+
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "app.cli",
+            "start-task-step",
+            "--task-id",
+            task_id,
+            "--input",
+            '{"topic":"系统架构"}',
+            "--directory",
+            str(tmp_path),
+        ],
+    )
+    cli.main()
+    capsys.readouterr()
+
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "app.cli",
+            "resume-task",
+            "--task-id",
+            task_id,
+            "--directory",
+            str(tmp_path),
+        ],
+    )
+    cli.main()
+    output = capsys.readouterr().out
+
+    assert "ACTION: execute_current_step" in output
+    assert "CURRENT STEP TYPE: retrieve_context" in output
+    assert "CURRENT STEP STATUS: pending" in output
+    assert "CAN EXECUTE CURRENT STEP: True" in output
+
+
+def test_resume_task_command_for_human_input_step(
+    monkeypatch,
+    capsys,
+    tmp_path,
+):
+    task = DefenseTask(topic="系统架构", task_id="task-001")
+    task.add_step(TaskStep(step_type="wait_for_answer"))
+
+    from app.task_store import save_defense_task
+
+    save_defense_task(task, directory=tmp_path)
+
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "app.cli",
+            "resume-task",
+            "--task-id",
+            "task-001",
+            "--directory",
+            str(tmp_path),
+        ],
+    )
+    cli.main()
+    output = capsys.readouterr().out
+
+    assert "ACTION: wait_for_human_input" in output
+    assert "CURRENT STEP TYPE: wait_for_answer" in output
+    assert "NEEDS HUMAN INPUT: True" in output
