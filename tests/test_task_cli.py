@@ -452,3 +452,76 @@ def test_resume_task_command_for_human_input_step(
     assert "ACTION: wait_for_human_input" in output
     assert "CURRENT STEP TYPE: wait_for_answer" in output
     assert "NEEDS HUMAN INPUT: True" in output
+
+
+def test_analyze_task_command(
+    monkeypatch,
+    capsys,
+    tmp_path,
+):
+    task = DefenseTask(topic="系统架构", task_id="task-001")
+    step = TaskStep(step_type="generate_question", step_id="step-001")
+    step.evidence = [
+        {
+            "id": 1,
+            "text": "系统架构包括训练模块。",
+        },
+    ]
+    step.tool_traces = [
+        {
+            "tool_name": "generate_questions_from_context",
+            "success": True,
+            "duration_ms": 12.345,
+        },
+    ]
+    step.token_usage = {
+        "prompt_tokens": 100,
+        "completion_tokens": 20,
+        "total_tokens": 120,
+    }
+    step.cost_estimate = {
+        "input_cost": 0.001,
+        "output_cost": 0.002,
+        "total_cost": 0.003,
+        "currency": "CNY",
+    }
+    step.mark_completed(
+        output={
+            "question": "系统架构为什么要拆分模块？",
+        }
+    )
+    task.add_step(step)
+
+    from app.task_store import save_defense_task
+
+    save_defense_task(task, directory=tmp_path)
+
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "app.cli",
+            "analyze-task",
+            "--task-id",
+            "task-001",
+            "--directory",
+            str(tmp_path),
+        ],
+    )
+    cli.main()
+    output = capsys.readouterr().out
+
+    assert "TASK TRACE SUMMARY" in output
+    assert "TASK ID: task-001" in output
+    assert "TOPIC: 系统架构" in output
+    assert "CURRENT STEP TYPE: generate_question" in output
+    assert "STEP COUNT: 1" in output
+    assert "COMPLETED STEPS: 1" in output
+    assert "TOOL CALLS: 1" in output
+    assert "SUCCESSFUL TOOL CALLS: 1" in output
+    assert "TOTAL DURATION MS: 12.35" in output
+    assert "TOTAL PROMPT TOKENS: 100" in output
+    assert "TOTAL COMPLETION TOKENS: 20" in output
+    assert "TOTAL TOKENS: 120" in output
+    assert "TOTAL COST: 0.003" in output
+    assert "CURRENCY: CNY" in output
+    assert "EVIDENCE COUNT: 1" in output

@@ -49,6 +49,7 @@ from app.task_service import (
     start_next_task_step,
 )
 from app.task_resume import get_resumable_task_status
+from app.task_trace_analyzer import analyze_task_trace
 from app.task_store import DEFAULT_TASK_DIRECTORY
 
 
@@ -468,6 +469,22 @@ def main():
         help="Defense task ID",
     )
     resume_task_parser.add_argument(
+        "--directory",
+        type=str,
+        default=str(DEFAULT_TASK_DIRECTORY),
+        help="Directory used to store defense task JSON files",
+    )
+
+    analyze_task_parser = subparsers.add_parser(
+        "analyze-task",
+        help="Analyze a defense task trace summary",
+    )
+    analyze_task_parser.add_argument(
+        "--task-id",
+        required=True,
+        help="Defense task ID",
+    )
+    analyze_task_parser.add_argument(
         "--directory",
         type=str,
         default=str(DEFAULT_TASK_DIRECTORY),
@@ -1202,6 +1219,45 @@ def main():
         )
         print("NEEDS HUMAN INPUT:", status.needs_human_input)
         print(f"MESSAGE: {status.message}")
+
+    elif args.command == "analyze-task":
+        task = get_defense_task(
+            task_id=args.task_id,
+            directory=args.directory,
+        )
+        report = analyze_task_trace(task)
+
+        print("TASK TRACE SUMMARY")
+        print(f"TASK ID: {report['task_id']}")
+        print(f"TOPIC: {report['topic']}")
+        print(f"STATUS: {report['status']}")
+        print(f"CURRENT STEP ID: {report['current_step_id']}")
+        print(f"CURRENT STEP TYPE: {report['current_step_type']}")
+        print(f"CURRENT STEP STATUS: {report['current_step_status']}")
+        print(f"STEP COUNT: {report['step_count']}")
+        print(f"COMPLETED STEPS: {report['completed_step_count']}")
+        print(f"FAILED STEPS: {report['failed_step_count']}")
+        print(f"PENDING STEPS: {report['pending_step_count']}")
+        print(f"RUNNING STEPS: {report['running_step_count']}")
+        print(f"TOOL CALLS: {report['tool_call_count']}")
+        print(
+            "SUCCESSFUL TOOL CALLS:",
+            report["successful_tool_call_count"],
+        )
+        print("FAILED TOOL CALLS:", report["failed_tool_call_count"])
+        print(
+            "TOTAL DURATION MS:",
+            round(report["total_duration_ms"], 2),
+        )
+        print("TOTAL PROMPT TOKENS:", report["total_prompt_tokens"])
+        print(
+            "TOTAL COMPLETION TOKENS:",
+            report["total_completion_tokens"],
+        )
+        print("TOTAL TOKENS:", report["total_tokens"])
+        print("TOTAL COST:", round(report["total_cost"], 6))
+        print("CURRENCY:", report["currency"])
+        print("EVIDENCE COUNT:", report["evidence_count"])
 
     elif args.command == "show-task":
         task = get_defense_task(
