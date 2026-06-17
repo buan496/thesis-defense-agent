@@ -1,6 +1,7 @@
+import time
 from collections.abc import Callable
 
-from app.defense_questions import generate_questions_from_context
+from app.defense_questions import generate_questions_from_context_with_audit
 from app.embeddings import create_embedding
 from app.rag import build_context_from_results
 from app.task_models import TaskStep
@@ -19,8 +20,8 @@ def execute_task_step(
     embedding_fn: Callable[[str], list[float]] = create_embedding,
     question_generator: Callable[
         [str],
-        list[str],
-    ] = generate_questions_from_context,
+        list[str] | dict,
+    ] = generate_questions_from_context_with_audit,
 ) -> TaskStep:
     if step.step_type == "retrieve_context":
         return execute_retrieve_context_step(
@@ -56,6 +57,7 @@ def execute_retrieve_context_step(
 
     step.mark_running()
 
+    start_time = time.perf_counter()
     store = load_vector_store(vector_store_path)
 
     results = search_vector_store(
@@ -66,6 +68,7 @@ def execute_retrieve_context_step(
     )
 
     context = build_context_from_results(results)
+    duration_ms = (time.perf_counter() - start_time) * 1000
 
     sources = [
         {
@@ -77,6 +80,18 @@ def execute_retrieve_context_step(
     ]
 
     step.evidence = results
+    step.tool_traces.append(
+        {
+            "tool_name": "search_vector_store",
+            "arguments": {
+                "query": query,
+                "top_k": top_k,
+                "vector_store_path": vector_store_path,
+            },
+            "success": True,
+            "duration_ms": duration_ms,
+        }
+    )
     step.mark_completed(
         output={
             "query": query,
@@ -92,8 +107,8 @@ def execute_generate_question_step(
     step: TaskStep,
     question_generator: Callable[
         [str],
-        list[str],
-    ] = generate_questions_from_context,
+        list[str] | dict,
+    ] = generate_questions_from_context_with_audit,
 ) -> TaskStep:
     context = step.input.get("context")
 
@@ -104,11 +119,31 @@ def execute_generate_question_step(
 
     step.mark_running()
 
-    questions = question_generator(context)
+    start_time = time.perf_counter()
+    generation_result = question_generator(context)
+    duration_ms = (time.perf_counter() - start_time) * 1000
+
+    if isinstance(generation_result, dict):
+        questions = generation_result.get("questions", [])
+        step.token_usage = generation_result.get("token_usage", {})
+        step.cost_estimate = generation_result.get("cost_estimate", {})
+    else:
+        questions = generation_result
 
     if not questions:
         raise ValueError("生成的问题列表不能为空")
 
+    step.tool_traces.append(
+        {
+            "tool_name": "generate_questions_from_context",
+            "arguments": {
+                "context_length": len(context),
+                "topic": step.input.get("topic"),
+            },
+            "success": True,
+            "duration_ms": duration_ms,
+        }
+    )
     step.mark_completed(
         output={
             "question": questions[0],

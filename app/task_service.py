@@ -3,7 +3,7 @@ from collections.abc import Callable
 from typing import Any
 
 from app.config import RAG_TOP_K, RAG_VECTOR_STORE_PATH
-from app.defense_questions import generate_questions_from_context
+from app.defense_questions import generate_questions_from_context_with_audit
 from app.embeddings import create_embedding
 from app.task_executor import execute_task_step
 from app.task_models import DefenseTask, TaskStep
@@ -86,8 +86,8 @@ def execute_current_task_step(
     embedding_fn: Callable[[str], list[float]] = create_embedding,
     question_generator: Callable[
         [str],
-        list[str],
-    ] = generate_questions_from_context,
+        list[str] | dict,
+    ] = generate_questions_from_context_with_audit,
 ) -> tuple[DefenseTask, TaskStep, Path]:
     task = load_defense_task(
         task_id=task_id,

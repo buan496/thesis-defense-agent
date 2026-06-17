@@ -26,6 +26,27 @@ def fake_question_generator(context: str) -> list[str]:
     ]
 
 
+def fake_audited_question_generator(context: str) -> dict:
+    assert "系统架构" in context
+
+    return {
+        "questions": [
+            "系统架构为什么要拆分为多个模块？",
+        ],
+        "token_usage": {
+            "prompt_tokens": 100,
+            "completion_tokens": 20,
+            "total_tokens": 120,
+        },
+        "cost_estimate": {
+            "input_cost": 0.001,
+            "output_cost": 0.002,
+            "total_cost": 0.003,
+            "currency": "CNY",
+        },
+    }
+
+
 def test_execute_retrieve_context_step(tmp_path):
     chunks = [
         {
@@ -73,6 +94,11 @@ def test_execute_retrieve_context_step(tmp_path):
     assert result_step.evidence[0]["text"] == (
         "系统架构包括特征处理、词表管理和模型模块。"
     )
+    assert result_step.tool_traces[0]["tool_name"] == "search_vector_store"
+    assert result_step.tool_traces[0]["arguments"]["query"] == "系统架构"
+    assert result_step.tool_traces[0]["arguments"]["top_k"] == 1
+    assert result_step.tool_traces[0]["success"] is True
+    assert result_step.tool_traces[0]["duration_ms"] >= 0
 
 
 def test_execute_retrieve_context_step_accepts_topic_as_query(tmp_path):
@@ -202,6 +228,12 @@ def test_execute_generate_question_step():
         "系统架构为什么要拆分为多个模块？",
         "系统架构如何支持后续扩展？",
     ]
+    assert (
+        result_step.tool_traces[0]["tool_name"]
+        == "generate_questions_from_context"
+    )
+    assert result_step.tool_traces[0]["success"] is True
+    assert result_step.tool_traces[0]["duration_ms"] >= 0
 
 
 def test_execute_generate_question_step_requires_context():
@@ -240,3 +272,34 @@ def test_execute_task_step_dispatches_generate_question():
     assert result_step.output["question"] == (
         "系统架构为什么要拆分为多个模块？"
     )
+
+
+def test_execute_generate_question_step_records_token_usage_and_cost():
+    step = TaskStep(
+        step_type="generate_question",
+        input={
+            "topic": "系统架构",
+            "context": "系统架构包括特征处理和训练模块。",
+        },
+    )
+
+    result_step = execute_generate_question_step(
+        step,
+        question_generator=fake_audited_question_generator,
+    )
+
+    assert result_step.status == "completed"
+    assert result_step.output["question"] == (
+        "系统架构为什么要拆分为多个模块？"
+    )
+    assert result_step.token_usage == {
+        "prompt_tokens": 100,
+        "completion_tokens": 20,
+        "total_tokens": 120,
+    }
+    assert result_step.cost_estimate == {
+        "input_cost": 0.001,
+        "output_cost": 0.002,
+        "total_cost": 0.003,
+        "currency": "CNY",
+    }
