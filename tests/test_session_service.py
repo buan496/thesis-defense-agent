@@ -219,6 +219,14 @@ def test_run_agent_session_does_not_save_when_cost_exceeded(
         "app.session_service.LLM_OUTPUT_PRICE_PER_1M_TOKENS",
         1.0,
     )
+    monkeypatch.setattr(
+        "app.agent.LLM_INPUT_PRICE_PER_1M_TOKENS",
+        1.0,
+    )
+    monkeypatch.setattr(
+        "app.agent.LLM_OUTPUT_PRICE_PER_1M_TOKENS",
+        1.0,
+    )
 
     original_session = AgentSession(
         session_id="cost-protected-session",
