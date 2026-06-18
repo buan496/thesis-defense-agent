@@ -47,6 +47,7 @@ from app.task_service import (
     execute_current_task_step,
     get_defense_task,
     start_next_task_step,
+    submit_task_answer,
 )
 from app.task_resume import get_resumable_task_status
 from app.task_trace_analyzer import analyze_task_trace
@@ -485,6 +486,27 @@ def main():
         help="Defense task ID",
     )
     analyze_task_parser.add_argument(
+        "--directory",
+        type=str,
+        default=str(DEFAULT_TASK_DIRECTORY),
+        help="Directory used to store defense task JSON files",
+    )
+
+    submit_task_answer_parser = subparsers.add_parser(
+        "submit-task-answer",
+        help="Submit a student answer for the current task",
+    )
+    submit_task_answer_parser.add_argument(
+        "--task-id",
+        required=True,
+        help="Defense task ID",
+    )
+    submit_task_answer_parser.add_argument(
+        "--answer",
+        required=True,
+        help="Student answer text",
+    )
+    submit_task_answer_parser.add_argument(
         "--directory",
         type=str,
         default=str(DEFAULT_TASK_DIRECTORY),
@@ -1258,6 +1280,26 @@ def main():
         print("TOTAL COST:", round(report["total_cost"], 6))
         print("CURRENCY:", report["currency"])
         print("EVIDENCE COUNT:", report["evidence_count"])
+
+    elif args.command == "submit-task-answer":
+        try:
+            task, step, task_path = submit_task_answer(
+                task_id=args.task_id,
+                answer=args.answer,
+                directory=args.directory,
+            )
+        except ValueError as error:
+            print(f"TASK ERROR: {error}")
+            raise SystemExit(1) from error
+
+        print("TASK ANSWER SUBMITTED")
+        print(f"TASK ID: {task.task_id}")
+        print(f"STATUS: {task.status}")
+        print(f"STEP ID: {step.step_id}")
+        print(f"STEP TYPE: {step.step_type}")
+        print(f"STEP STATUS: {step.status}")
+        print(f"ANSWER: {step.output['answer']}")
+        print(f"SAVED: {task_path}")
 
     elif args.command == "show-task":
         task = get_defense_task(

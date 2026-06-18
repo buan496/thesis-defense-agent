@@ -127,6 +127,46 @@ def execute_current_task_step(
     return task, executed_step, task_path
 
 
+def submit_task_answer(
+    task_id: str,
+    answer: str,
+    directory: str | Path = DEFAULT_TASK_DIRECTORY,
+) -> tuple[DefenseTask, TaskStep, Path]:
+    if not answer.strip():
+        raise ValueError("学生回答不能为空")
+
+    task = load_defense_task(
+        task_id=task_id,
+        directory=directory,
+    )
+
+    step = task.get_current_step()
+
+    if step is None:
+        raise ValueError("当前任务没有可提交回答的步骤")
+
+    if step.step_type != "wait_for_answer":
+        raise ValueError(
+            "当前步骤不是 wait_for_answer，不能提交学生回答"
+        )
+
+    if step.status == "completed":
+        raise ValueError("当前回答步骤已经完成，不能重复提交")
+
+    step.mark_completed(
+        output={
+            "answer": answer,
+        }
+    )
+
+    task_path = save_defense_task(
+        task,
+        directory=directory,
+    )
+
+    return task, step, task_path
+
+
 def get_defense_task(
     task_id: str,
     directory: str | Path = DEFAULT_TASK_DIRECTORY,

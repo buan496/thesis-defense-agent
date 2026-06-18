@@ -4,7 +4,9 @@ from app.task_service import (
     execute_current_task_step,
     get_defense_task,
     start_next_task_step,
+    submit_task_answer,
 )
+from app.task_models import TaskStep
 from app.vector_store import build_vector_store
 from app.vector_store_io import save_vector_store
 
@@ -282,3 +284,78 @@ def test_execute_current_task_step_runs_generate_question_step(
     )
 
     assert loaded_task == updated_task
+
+
+def test_submit_task_answer_completes_wait_for_answer_step(tmp_path):
+    task, _ = create_defense_task(
+        topic="系统架构",
+        directory=tmp_path,
+    )
+    wait_step = TaskStep(
+        step_type="wait_for_answer",
+        input={
+            "question": "系统架构为什么要拆分模块？",
+        },
+    )
+    task.add_step(wait_step)
+    from app.task_store import save_defense_task
+
+    save_defense_task(task, directory=tmp_path)
+
+    updated_task, step, task_path = submit_task_answer(
+        task_id=task.task_id,
+        answer="为了降低耦合并方便定位问题。",
+        directory=tmp_path,
+    )
+
+    assert step.status == "completed"
+    assert step.output["answer"] == "为了降低耦合并方便定位问题。"
+    assert task_path.exists()
+
+    loaded_task = get_defense_task(
+        task.task_id,
+        directory=tmp_path,
+    )
+
+    assert loaded_task == updated_task
+
+
+def test_submit_task_answer_rejects_empty_answer(tmp_path):
+    task, _ = create_defense_task(
+        topic="系统架构",
+        directory=tmp_path,
+    )
+
+    try:
+        submit_task_answer(
+            task_id=task.task_id,
+            answer="   ",
+            directory=tmp_path,
+        )
+    except ValueError as error:
+        assert "学生回答不能为空" in str(error)
+    else:
+        raise AssertionError("空回答应该报错")
+
+
+def test_submit_task_answer_rejects_non_answer_step(tmp_path):
+    task, _ = create_defense_task(
+        topic="系统架构",
+        directory=tmp_path,
+    )
+
+    start_next_task_step(
+        task_id=task.task_id,
+        directory=tmp_path,
+    )
+
+    try:
+        submit_task_answer(
+            task_id=task.task_id,
+            answer="为了降低耦合。",
+            directory=tmp_path,
+        )
+    except ValueError as error:
+        assert "当前步骤不是 wait_for_answer" in str(error)
+    else:
+        raise AssertionError("非 wait_for_answer 步骤应该拒绝提交")

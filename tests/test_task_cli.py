@@ -525,3 +525,85 @@ def test_analyze_task_command(
     assert "TOTAL COST: 0.003" in output
     assert "CURRENCY: CNY" in output
     assert "EVIDENCE COUNT: 1" in output
+
+
+def test_submit_task_answer_command(
+    monkeypatch,
+    capsys,
+    tmp_path,
+):
+    task = DefenseTask(topic="系统架构", task_id="task-001")
+    task.add_step(
+        TaskStep(
+            step_type="wait_for_answer",
+            input={
+                "question": "系统架构为什么要拆分模块？",
+            },
+        )
+    )
+
+    from app.task_store import save_defense_task
+
+    save_defense_task(task, directory=tmp_path)
+
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "app.cli",
+            "submit-task-answer",
+            "--task-id",
+            "task-001",
+            "--answer",
+            "为了降低耦合并方便定位问题。",
+            "--directory",
+            str(tmp_path),
+        ],
+    )
+
+    cli.main()
+    output = capsys.readouterr().out
+
+    assert "TASK ANSWER SUBMITTED" in output
+    assert "TASK ID: task-001" in output
+    assert "STEP TYPE: wait_for_answer" in output
+    assert "STEP STATUS: completed" in output
+    assert "ANSWER: 为了降低耦合并方便定位问题。" in output
+
+
+def test_submit_task_answer_command_reports_task_error(
+    monkeypatch,
+    capsys,
+    tmp_path,
+):
+    task = DefenseTask(topic="系统架构", task_id="task-001")
+    task.add_step(TaskStep(step_type="retrieve_context"))
+
+    from app.task_store import save_defense_task
+
+    save_defense_task(task, directory=tmp_path)
+
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "app.cli",
+            "submit-task-answer",
+            "--task-id",
+            "task-001",
+            "--answer",
+            "为了降低耦合。",
+            "--directory",
+            str(tmp_path),
+        ],
+    )
+
+    try:
+        cli.main()
+    except SystemExit as error:
+        assert error.code == 1
+    else:
+        raise AssertionError("任务提交错误应该让 CLI 以状态码 1 退出")
+
+    output = capsys.readouterr().out
+
+    assert "TASK ERROR" in output
+    assert "当前步骤不是 wait_for_answer" in output
