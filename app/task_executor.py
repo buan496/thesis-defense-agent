@@ -3,6 +3,7 @@ from collections.abc import Callable
 
 from app.defense_questions import generate_questions_from_context_with_audit
 from app.embeddings import create_embedding
+from app.evaluation import evaluate_answer
 from app.rag import build_context_from_results
 from app.task_models import TaskStep
 from app.vector_store import search_vector_store
@@ -22,6 +23,7 @@ def execute_task_step(
         [str],
         list[str] | dict,
     ] = generate_questions_from_context_with_audit,
+    answer_evaluator: Callable[[str, str], str] = evaluate_answer,
 ) -> TaskStep:
     if step.step_type == "retrieve_context":
         return execute_retrieve_context_step(
@@ -35,6 +37,12 @@ def execute_task_step(
         return execute_generate_question_step(
             step=step,
             question_generator=question_generator,
+        )
+
+    if step.step_type == "evaluate_answer":
+        return execute_evaluate_answer_step(
+            step=step,
+            answer_evaluator=answer_evaluator,
         )
 
     raise ValueError(
@@ -97,6 +105,51 @@ def execute_retrieve_context_step(
             "query": query,
             "context": context,
             "sources": sources,
+        }
+    )
+
+    return step
+
+
+def execute_evaluate_answer_step(
+    step: TaskStep,
+    answer_evaluator: Callable[[str, str], str] = evaluate_answer,
+) -> TaskStep:
+    question = step.input.get("question")
+    answer = step.input.get("answer")
+
+    if not question:
+        raise ValueError(
+            "evaluate_answer 步骤需要 input.question"
+        )
+
+    if not answer:
+        raise ValueError(
+            "evaluate_answer 步骤需要 input.answer"
+        )
+
+    step.mark_running()
+
+    start_time = time.perf_counter()
+    evaluation = answer_evaluator(question, answer)
+    duration_ms = (time.perf_counter() - start_time) * 1000
+
+    step.tool_traces.append(
+        {
+            "tool_name": "evaluate_answer",
+            "arguments": {
+                "question_length": len(question),
+                "answer_length": len(answer),
+            },
+            "success": True,
+            "duration_ms": duration_ms,
+        }
+    )
+    step.mark_completed(
+        output={
+            "question": question,
+            "answer": answer,
+            "evaluation": evaluation,
         }
     )
 

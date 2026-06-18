@@ -5,6 +5,7 @@ from typing import Any
 from app.config import RAG_TOP_K, RAG_VECTOR_STORE_PATH
 from app.defense_questions import generate_questions_from_context_with_audit
 from app.embeddings import create_embedding
+from app.evaluation import evaluate_answer
 from app.task_executor import execute_task_step
 from app.task_models import DefenseTask, TaskStep
 from app.task_runner import (
@@ -88,6 +89,7 @@ def execute_current_task_step(
         [str],
         list[str] | dict,
     ] = generate_questions_from_context_with_audit,
+    answer_evaluator: Callable[[str, str], str] = evaluate_answer,
 ) -> tuple[DefenseTask, TaskStep, Path]:
     task = load_defense_task(
         task_id=task_id,
@@ -109,6 +111,7 @@ def execute_current_task_step(
             top_k=top_k,
             embedding_fn=embedding_fn,
             question_generator=question_generator,
+            answer_evaluator=answer_evaluator,
         )
     except Exception as error:
         step.mark_failed(f"{type(error).__name__}: {error}")
@@ -153,11 +156,14 @@ def submit_task_answer(
     if step.status == "completed":
         raise ValueError("当前回答步骤已经完成，不能重复提交")
 
-    step.mark_completed(
-        output={
-            "answer": answer,
-        }
-    )
+    output: dict[str, Any] = {
+        "answer": answer,
+    }
+
+    if "question" in step.input:
+        output["question"] = step.input["question"]
+
+    step.mark_completed(output=output)
 
     task_path = save_defense_task(
         task,

@@ -26,6 +26,13 @@ def fake_question_generator(context: str) -> list[str]:
     ]
 
 
+def fake_answer_evaluator(question: str, answer: str) -> str:
+    assert "模块划分" in question
+    assert "降低耦合" in answer
+
+    return "评分：7/10。回答方向正确。"
+
+
 def save_test_vector_store(tmp_path):
     chunks = [
         {
@@ -309,6 +316,7 @@ def test_submit_task_answer_completes_wait_for_answer_step(tmp_path):
     )
 
     assert step.status == "completed"
+    assert step.output["question"] == "系统架构为什么要拆分模块？"
     assert step.output["answer"] == "为了降低耦合并方便定位问题。"
     assert task_path.exists()
 
@@ -359,3 +367,75 @@ def test_submit_task_answer_rejects_non_answer_step(tmp_path):
         assert "当前步骤不是 wait_for_answer" in str(error)
     else:
         raise AssertionError("非 wait_for_answer 步骤应该拒绝提交")
+
+
+def test_execute_current_task_step_runs_evaluate_answer_step(
+    tmp_path,
+):
+    task, _ = create_defense_task(
+        topic="系统架构",
+        directory=tmp_path,
+    )
+
+    question_step = TaskStep(step_type="generate_question")
+    question_step.mark_completed(
+        output={
+            "question": "请说明系统架构的模块划分依据是什么？",
+        }
+    )
+    task.add_step(question_step)
+
+    from app.task_store import save_defense_task
+
+    save_defense_task(task, directory=tmp_path)
+
+    _, wait_step, _ = start_next_task_step(
+        task_id=task.task_id,
+        directory=tmp_path,
+    )
+
+    assert wait_step is not None
+    assert wait_step.step_type == "wait_for_answer"
+    assert wait_step.input["question"] == (
+        "请说明系统架构的模块划分依据是什么？"
+    )
+
+    submit_task_answer(
+        task_id=task.task_id,
+        answer="为了降低耦合并方便定位问题。",
+        directory=tmp_path,
+    )
+
+    _, evaluation_step, _ = start_next_task_step(
+        task_id=task.task_id,
+        directory=tmp_path,
+    )
+
+    assert evaluation_step is not None
+    assert evaluation_step.step_type == "evaluate_answer"
+    assert evaluation_step.input["question"] == (
+        "请说明系统架构的模块划分依据是什么？"
+    )
+    assert evaluation_step.input["answer"] == "为了降低耦合并方便定位问题。"
+
+    updated_task, step, task_path = execute_current_task_step(
+        task_id=task.task_id,
+        directory=tmp_path,
+        answer_evaluator=fake_answer_evaluator,
+    )
+
+    assert step.step_type == "evaluate_answer"
+    assert step.status == "completed"
+    assert step.output["question"] == (
+        "请说明系统架构的模块划分依据是什么？"
+    )
+    assert step.output["answer"] == "为了降低耦合并方便定位问题。"
+    assert step.output["evaluation"] == "评分：7/10。回答方向正确。"
+    assert task_path.exists()
+
+    loaded_task = get_defense_task(
+        task.task_id,
+        directory=tmp_path,
+    )
+
+    assert loaded_task == updated_task

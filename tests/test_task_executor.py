@@ -1,6 +1,7 @@
 import pytest
 
 from app.task_executor import (
+    execute_evaluate_answer_step,
     execute_generate_question_step,
     execute_retrieve_context_step,
     execute_task_step,
@@ -45,6 +46,13 @@ def fake_audited_question_generator(context: str) -> dict:
             "currency": "CNY",
         },
     }
+
+
+def fake_answer_evaluator(question: str, answer: str) -> str:
+    assert "系统架构" in question
+    assert "降低耦合" in answer
+
+    return "评分：7/10。回答方向正确，但需要补充模块例子。"
 
 
 def test_execute_retrieve_context_step(tmp_path):
@@ -303,3 +311,86 @@ def test_execute_generate_question_step_records_token_usage_and_cost():
         "total_cost": 0.003,
         "currency": "CNY",
     }
+
+
+def test_execute_evaluate_answer_step():
+    step = TaskStep(
+        step_type="evaluate_answer",
+        input={
+            "question": "系统架构为什么要拆分为多个模块？",
+            "answer": "为了降低耦合并方便定位问题。",
+        },
+    )
+
+    result_step = execute_evaluate_answer_step(
+        step,
+        answer_evaluator=fake_answer_evaluator,
+    )
+
+    assert result_step.status == "completed"
+    assert result_step.output["question"] == (
+        "系统架构为什么要拆分为多个模块？"
+    )
+    assert result_step.output["answer"] == (
+        "为了降低耦合并方便定位问题。"
+    )
+    assert result_step.output["evaluation"] == (
+        "评分：7/10。回答方向正确，但需要补充模块例子。"
+    )
+    assert result_step.tool_traces[0]["tool_name"] == "evaluate_answer"
+    assert result_step.tool_traces[0]["success"] is True
+    assert result_step.tool_traces[0]["duration_ms"] >= 0
+
+
+def test_execute_evaluate_answer_step_requires_question():
+    step = TaskStep(
+        step_type="evaluate_answer",
+        input={
+            "answer": "为了降低耦合。",
+        },
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="input.question",
+    ):
+        execute_evaluate_answer_step(
+            step,
+            answer_evaluator=fake_answer_evaluator,
+        )
+
+
+def test_execute_evaluate_answer_step_requires_answer():
+    step = TaskStep(
+        step_type="evaluate_answer",
+        input={
+            "question": "系统架构为什么要拆分为多个模块？",
+        },
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="input.answer",
+    ):
+        execute_evaluate_answer_step(
+            step,
+            answer_evaluator=fake_answer_evaluator,
+        )
+
+
+def test_execute_task_step_dispatches_evaluate_answer():
+    step = TaskStep(
+        step_type="evaluate_answer",
+        input={
+            "question": "系统架构为什么要拆分为多个模块？",
+            "answer": "为了降低耦合并方便定位问题。",
+        },
+    )
+
+    result_step = execute_task_step(
+        step,
+        answer_evaluator=fake_answer_evaluator,
+    )
+
+    assert result_step.status == "completed"
+    assert "评分：7/10" in result_step.output["evaluation"]
