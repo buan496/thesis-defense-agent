@@ -4,6 +4,7 @@ from app.task_service import (
     execute_current_task_step,
     get_defense_task,
     start_next_task_step,
+    submit_follow_up_answer,
     submit_task_answer,
 )
 from app.task_models import TaskStep
@@ -43,6 +44,45 @@ def fake_answer_rewriter(
     assert evaluation == "评分：7/10。回答方向正确。"
 
     return "系统架构进行模块划分，主要是为了降低耦合并方便定位问题。"
+
+
+def fake_follow_up_generator(
+    question: str,
+    answer: str,
+    evaluation: str | None = None,
+    rewritten_answer: str | None = None,
+) -> str:
+    assert "模块划分" in question
+    assert "降低耦合" in answer
+    assert evaluation == "评分：7/10。回答方向正确。"
+    assert rewritten_answer is not None
+
+    return "请结合特征处理模块说明模块拆分如何帮助定位问题？"
+
+
+def fake_follow_up_evaluator(question: str, answer: str) -> str:
+    assert "特征处理模块" in question
+    assert "音频读取" in answer
+
+    return "评分：8/10。追问回答较具体。"
+
+
+def fake_training_summarizer(
+    question: str,
+    answer: str,
+    evaluation: str,
+    rewritten_answer: str,
+    follow_up_question: str,
+    follow_up_answer: str,
+    follow_up_evaluation: str,
+) -> str:
+    assert "模块划分" in question
+    assert "降低耦合" in answer
+    assert "特征处理模块" in follow_up_question
+    assert "音频读取" in follow_up_answer
+    assert "8/10" in follow_up_evaluation
+
+    return "本轮训练完成，下一轮应继续补充具体模块案例。"
 
 
 def save_test_vector_store(tmp_path):
@@ -508,3 +548,184 @@ def test_execute_current_task_step_runs_rewrite_answer_step(
     )
 
     assert loaded_task == updated_task
+
+
+def test_submit_follow_up_answer_completes_wait_for_follow_up_answer_step(
+    tmp_path,
+):
+    task, _ = create_defense_task(
+        topic="系统架构",
+        directory=tmp_path,
+    )
+    wait_step = TaskStep(
+        step_type="wait_for_follow_up_answer",
+        input={
+            "question": "请说明系统架构的模块划分依据是什么？",
+            "answer": "为了降低耦合并方便定位问题。",
+            "evaluation": "评分：7/10。回答方向正确。",
+            "rewritten_answer": "系统架构进行模块划分，主要是为了降低耦合。",
+            "follow_up_question": "请结合特征处理模块说明模块拆分如何帮助定位问题？",
+        },
+    )
+    task.add_step(wait_step)
+    from app.task_store import save_defense_task
+
+    save_defense_task(task, directory=tmp_path)
+
+    updated_task, step, task_path = submit_follow_up_answer(
+        task_id=task.task_id,
+        answer="如果音频读取失败，可以优先检查特征处理模块。",
+        directory=tmp_path,
+    )
+
+    assert step.status == "completed"
+    assert step.output["follow_up_question"] == (
+        "请结合特征处理模块说明模块拆分如何帮助定位问题？"
+    )
+    assert step.output["follow_up_answer"] == (
+        "如果音频读取失败，可以优先检查特征处理模块。"
+    )
+    assert step.output["question"] == "请说明系统架构的模块划分依据是什么？"
+    assert task_path.exists()
+
+    loaded_task = get_defense_task(
+        task.task_id,
+        directory=tmp_path,
+    )
+
+    assert loaded_task == updated_task
+
+
+def test_submit_follow_up_answer_rejects_empty_answer(tmp_path):
+    task, _ = create_defense_task(
+        topic="系统架构",
+        directory=tmp_path,
+    )
+    task.add_step(TaskStep(step_type="wait_for_follow_up_answer"))
+
+    from app.task_store import save_defense_task
+
+    save_defense_task(task, directory=tmp_path)
+
+    try:
+        submit_follow_up_answer(
+            task_id=task.task_id,
+            answer="   ",
+            directory=tmp_path,
+        )
+    except ValueError as error:
+        assert "追问回答不能为空" in str(error)
+    else:
+        raise AssertionError("空追问回答应该报错")
+
+
+def test_submit_follow_up_answer_rejects_non_follow_up_answer_step(
+    tmp_path,
+):
+    task, _ = create_defense_task(
+        topic="系统架构",
+        directory=tmp_path,
+    )
+    task.add_step(TaskStep(step_type="wait_for_answer"))
+
+    from app.task_store import save_defense_task
+
+    save_defense_task(task, directory=tmp_path)
+
+    try:
+        submit_follow_up_answer(
+            task_id=task.task_id,
+            answer="可以检查特征处理模块。",
+            directory=tmp_path,
+        )
+    except ValueError as error:
+        assert "当前步骤不是 wait_for_follow_up_answer" in str(error)
+    else:
+        raise AssertionError("非 wait_for_follow_up_answer 步骤应该拒绝提交")
+
+
+def test_task_service_can_complete_follow_up_and_summary_flow(
+    tmp_path,
+):
+    task, _ = create_defense_task(
+        topic="系统架构",
+        directory=tmp_path,
+    )
+
+    rewrite_step = TaskStep(step_type="rewrite_answer")
+    rewrite_step.mark_completed(
+        output={
+            "question": "请说明系统架构的模块划分依据是什么？",
+            "answer": "为了降低耦合并方便定位问题。",
+            "evaluation": "评分：7/10。回答方向正确。",
+            "rewritten_answer": "系统架构进行模块划分，主要是为了降低耦合并方便定位问题。",
+        }
+    )
+    task.add_step(rewrite_step)
+
+    from app.task_store import save_defense_task
+
+    save_defense_task(task, directory=tmp_path)
+
+    _, follow_up_step, _ = start_next_task_step(
+        task_id=task.task_id,
+        directory=tmp_path,
+    )
+    assert follow_up_step is not None
+    assert follow_up_step.step_type == "generate_follow_up"
+
+    _, executed_follow_up_step, _ = execute_current_task_step(
+        task_id=task.task_id,
+        directory=tmp_path,
+        follow_up_generator=fake_follow_up_generator,
+    )
+    assert executed_follow_up_step.output["follow_up_question"] == (
+        "请结合特征处理模块说明模块拆分如何帮助定位问题？"
+    )
+
+    _, wait_follow_up_step, _ = start_next_task_step(
+        task_id=task.task_id,
+        directory=tmp_path,
+    )
+    assert wait_follow_up_step is not None
+    assert wait_follow_up_step.step_type == "wait_for_follow_up_answer"
+
+    submit_follow_up_answer(
+        task_id=task.task_id,
+        answer="如果音频读取失败，可以优先检查特征处理模块。",
+        directory=tmp_path,
+    )
+
+    _, evaluate_follow_up_step, _ = start_next_task_step(
+        task_id=task.task_id,
+        directory=tmp_path,
+    )
+    assert evaluate_follow_up_step is not None
+    assert evaluate_follow_up_step.step_type == "evaluate_follow_up_answer"
+
+    _, executed_evaluation_step, _ = execute_current_task_step(
+        task_id=task.task_id,
+        directory=tmp_path,
+        follow_up_evaluator=fake_follow_up_evaluator,
+    )
+    assert executed_evaluation_step.output["follow_up_evaluation"] == (
+        "评分：8/10。追问回答较具体。"
+    )
+
+    _, summary_step, _ = start_next_task_step(
+        task_id=task.task_id,
+        directory=tmp_path,
+    )
+    assert summary_step is not None
+    assert summary_step.step_type == "summarize_training"
+
+    updated_task, executed_summary_step, _ = execute_current_task_step(
+        task_id=task.task_id,
+        directory=tmp_path,
+        training_summarizer=fake_training_summarizer,
+    )
+
+    assert executed_summary_step.output["summary"] == (
+        "本轮训练完成，下一轮应继续补充具体模块案例。"
+    )
+    assert updated_task.status == "completed"

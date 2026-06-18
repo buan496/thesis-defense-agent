@@ -47,6 +47,7 @@ from app.task_service import (
     execute_current_task_step,
     get_defense_task,
     start_next_task_step,
+    submit_follow_up_answer,
     submit_task_answer,
 )
 from app.task_resume import get_resumable_task_status
@@ -507,6 +508,27 @@ def main():
         help="Student answer text",
     )
     submit_task_answer_parser.add_argument(
+        "--directory",
+        type=str,
+        default=str(DEFAULT_TASK_DIRECTORY),
+        help="Directory used to store defense task JSON files",
+    )
+
+    submit_follow_up_answer_parser = subparsers.add_parser(
+        "submit-follow-up-answer",
+        help="Submit a student follow-up answer for the current task",
+    )
+    submit_follow_up_answer_parser.add_argument(
+        "--task-id",
+        required=True,
+        help="Defense task ID",
+    )
+    submit_follow_up_answer_parser.add_argument(
+        "--answer",
+        required=True,
+        help="Student follow-up answer text",
+    )
+    submit_follow_up_answer_parser.add_argument(
         "--directory",
         type=str,
         default=str(DEFAULT_TASK_DIRECTORY),
@@ -1299,6 +1321,26 @@ def main():
         print(f"STEP TYPE: {step.step_type}")
         print(f"STEP STATUS: {step.status}")
         print(f"ANSWER: {step.output['answer']}")
+        print(f"SAVED: {task_path}")
+
+    elif args.command == "submit-follow-up-answer":
+        try:
+            task, step, task_path = submit_follow_up_answer(
+                task_id=args.task_id,
+                answer=args.answer,
+                directory=args.directory,
+            )
+        except ValueError as error:
+            print(f"TASK ERROR: {error}")
+            raise SystemExit(1) from error
+
+        print("TASK FOLLOW-UP ANSWER SUBMITTED")
+        print(f"TASK ID: {task.task_id}")
+        print(f"STATUS: {task.status}")
+        print(f"STEP ID: {step.step_id}")
+        print(f"STEP TYPE: {step.step_type}")
+        print(f"STEP STATUS: {step.status}")
+        print(f"FOLLOW-UP ANSWER: {step.output['follow_up_answer']}")
         print(f"SAVED: {task_path}")
 
     elif args.command == "show-task":

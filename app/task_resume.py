@@ -7,6 +7,11 @@ from app.task_runner import get_next_step_type
 AUTO_EXECUTABLE_STEP_TYPES = {
     "retrieve_context",
     "generate_question",
+    "evaluate_answer",
+    "rewrite_answer",
+    "generate_follow_up",
+    "evaluate_follow_up_answer",
+    "summarize_training",
 }
 
 HUMAN_INPUT_STEP_TYPES = {

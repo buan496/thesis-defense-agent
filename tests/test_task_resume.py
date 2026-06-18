@@ -75,15 +75,46 @@ def test_resume_status_for_human_input_step_waits_for_user():
     assert status.needs_human_input is True
 
 
-def test_resume_status_for_unimplemented_pending_step_requires_manual_review():
+def test_resume_status_for_pending_task_auto_steps_executes_current_step():
+    for step_type in [
+        "evaluate_answer",
+        "rewrite_answer",
+        "generate_follow_up",
+        "evaluate_follow_up_answer",
+        "summarize_training",
+    ]:
+        task = DefenseTask(topic="系统架构")
+        step = TaskStep(step_type=step_type)
+        task.add_step(step)
+
+        status = get_resumable_task_status(task)
+
+        assert status.action == "execute_current_step"
+        assert status.current_step_type == step_type
+        assert status.can_execute_current_step is True
+
+
+def test_resume_status_for_wait_follow_up_answer_waits_for_user():
     task = DefenseTask(topic="系统架构")
-    step = TaskStep(step_type="evaluate_answer")
+    step = TaskStep(step_type="wait_for_follow_up_answer")
+    task.add_step(step)
+
+    status = get_resumable_task_status(task)
+
+    assert status.action == "wait_for_human_input"
+    assert status.current_step_type == "wait_for_follow_up_answer"
+    assert status.needs_human_input is True
+
+
+def test_resume_status_for_unknown_pending_step_requires_manual_review():
+    task = DefenseTask(topic="系统架构")
+    step = TaskStep(step_type="unknown_manual_step")
     task.add_step(step)
 
     status = get_resumable_task_status(task)
 
     assert status.action == "manual_review"
-    assert status.current_step_type == "evaluate_answer"
+    assert status.current_step_type == "unknown_manual_step"
     assert status.can_execute_current_step is False
 
 

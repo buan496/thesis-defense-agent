@@ -607,3 +607,85 @@ def test_submit_task_answer_command_reports_task_error(
 
     assert "TASK ERROR" in output
     assert "当前步骤不是 wait_for_answer" in output
+
+
+def test_submit_follow_up_answer_command(
+    monkeypatch,
+    capsys,
+    tmp_path,
+):
+    task = DefenseTask(topic="系统架构", task_id="task-001")
+    task.add_step(
+        TaskStep(
+            step_type="wait_for_follow_up_answer",
+            input={
+                "follow_up_question": "请结合特征处理模块说明模块拆分如何帮助定位问题？",
+            },
+        )
+    )
+
+    from app.task_store import save_defense_task
+
+    save_defense_task(task, directory=tmp_path)
+
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "app.cli",
+            "submit-follow-up-answer",
+            "--task-id",
+            "task-001",
+            "--answer",
+            "可以优先检查音频读取和特征处理模块。",
+            "--directory",
+            str(tmp_path),
+        ],
+    )
+
+    cli.main()
+    output = capsys.readouterr().out
+
+    assert "TASK FOLLOW-UP ANSWER SUBMITTED" in output
+    assert "TASK ID: task-001" in output
+    assert "STEP TYPE: wait_for_follow_up_answer" in output
+    assert "STEP STATUS: completed" in output
+    assert "FOLLOW-UP ANSWER: 可以优先检查音频读取和特征处理模块。" in output
+
+
+def test_submit_follow_up_answer_command_reports_task_error(
+    monkeypatch,
+    capsys,
+    tmp_path,
+):
+    task = DefenseTask(topic="系统架构", task_id="task-001")
+    task.add_step(TaskStep(step_type="wait_for_answer"))
+
+    from app.task_store import save_defense_task
+
+    save_defense_task(task, directory=tmp_path)
+
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "app.cli",
+            "submit-follow-up-answer",
+            "--task-id",
+            "task-001",
+            "--answer",
+            "可以检查特征处理模块。",
+            "--directory",
+            str(tmp_path),
+        ],
+    )
+
+    try:
+        cli.main()
+    except SystemExit as error:
+        assert error.code == 1
+    else:
+        raise AssertionError("追问回答提交错误应该让 CLI 以状态码 1 退出")
+
+    output = capsys.readouterr().out
+
+    assert "TASK ERROR" in output
+    assert "当前步骤不是 wait_for_follow_up_answer" in output
