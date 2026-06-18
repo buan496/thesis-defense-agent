@@ -1,6 +1,18 @@
 from app.llm import chat_with_llm
 
-def rewrite_answer(question, student_answer):
+
+def rewrite_answer(
+    question: str,
+    student_answer: str,
+    evaluation: str | None = None,
+) -> str:
+    evaluation_text = ""
+
+    if evaluation:
+        evaluation_text = f"""
+    评价反馈：{evaluation}
+    """
+
     user_message = f"""
     
     请根据下面的问题和答案，帮学生润色和改写答案，使其更符合论文答辩的风格和要求。
@@ -21,6 +33,7 @@ def rewrite_answer(question, student_answer):
     只能把回答改写为：目前尚未明确，并建议可以从哪些方向补充思考。
     问题：{question}
     答案：{student_answer}
+    {evaluation_text}
     """
     
     rewritten_answer = chat_with_llm(user_message)

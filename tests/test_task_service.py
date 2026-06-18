@@ -33,6 +33,18 @@ def fake_answer_evaluator(question: str, answer: str) -> str:
     return "评分：7/10。回答方向正确。"
 
 
+def fake_answer_rewriter(
+    question: str,
+    answer: str,
+    evaluation: str | None,
+) -> str:
+    assert "模块划分" in question
+    assert "降低耦合" in answer
+    assert evaluation == "评分：7/10。回答方向正确。"
+
+    return "系统架构进行模块划分，主要是为了降低耦合并方便定位问题。"
+
+
 def save_test_vector_store(tmp_path):
     chunks = [
         {
@@ -431,6 +443,63 @@ def test_execute_current_task_step_runs_evaluate_answer_step(
     )
     assert step.output["answer"] == "为了降低耦合并方便定位问题。"
     assert step.output["evaluation"] == "评分：7/10。回答方向正确。"
+    assert task_path.exists()
+
+    loaded_task = get_defense_task(
+        task.task_id,
+        directory=tmp_path,
+    )
+
+    assert loaded_task == updated_task
+
+
+def test_execute_current_task_step_runs_rewrite_answer_step(
+    tmp_path,
+):
+    task, _ = create_defense_task(
+        topic="系统架构",
+        directory=tmp_path,
+    )
+
+    evaluation_step = TaskStep(step_type="evaluate_answer")
+    evaluation_step.mark_completed(
+        output={
+            "question": "请说明系统架构的模块划分依据是什么？",
+            "answer": "为了降低耦合并方便定位问题。",
+            "evaluation": "评分：7/10。回答方向正确。",
+        }
+    )
+    task.add_step(evaluation_step)
+
+    from app.task_store import save_defense_task
+
+    save_defense_task(task, directory=tmp_path)
+
+    _, rewrite_step, _ = start_next_task_step(
+        task_id=task.task_id,
+        directory=tmp_path,
+    )
+
+    assert rewrite_step is not None
+    assert rewrite_step.step_type == "rewrite_answer"
+    assert rewrite_step.input["question"] == (
+        "请说明系统架构的模块划分依据是什么？"
+    )
+    assert rewrite_step.input["answer"] == "为了降低耦合并方便定位问题。"
+    assert rewrite_step.input["evaluation"] == "评分：7/10。回答方向正确。"
+
+    updated_task, step, task_path = execute_current_task_step(
+        task_id=task.task_id,
+        directory=tmp_path,
+        answer_rewriter=fake_answer_rewriter,
+    )
+
+    assert step.step_type == "rewrite_answer"
+    assert step.status == "completed"
+    assert step.output["rewritten_answer"] == (
+        "系统架构进行模块划分，主要是为了降低耦合并方便定位问题。"
+    )
+    assert step.tool_traces[0]["tool_name"] == "rewrite_answer"
     assert task_path.exists()
 
     loaded_task = get_defense_task(

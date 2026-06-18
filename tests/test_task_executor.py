@@ -4,6 +4,7 @@ from app.task_executor import (
     execute_evaluate_answer_step,
     execute_generate_question_step,
     execute_retrieve_context_step,
+    execute_rewrite_answer_step,
     execute_task_step,
 )
 from app.task_models import TaskStep
@@ -53,6 +54,19 @@ def fake_answer_evaluator(question: str, answer: str) -> str:
     assert "降低耦合" in answer
 
     return "评分：7/10。回答方向正确，但需要补充模块例子。"
+
+
+def fake_answer_rewriter(
+    question: str,
+    answer: str,
+    evaluation: str | None,
+) -> str:
+    assert "系统架构" in question
+    assert "降低耦合" in answer
+    assert evaluation is not None
+    assert "补充模块例子" in evaluation
+
+    return "系统架构拆分为多个模块，主要是为了降低耦合，并便于定位问题。"
 
 
 def test_execute_retrieve_context_step(tmp_path):
@@ -394,3 +408,93 @@ def test_execute_task_step_dispatches_evaluate_answer():
 
     assert result_step.status == "completed"
     assert "评分：7/10" in result_step.output["evaluation"]
+
+
+def test_execute_rewrite_answer_step():
+    step = TaskStep(
+        step_type="rewrite_answer",
+        input={
+            "question": "系统架构为什么要拆分为多个模块？",
+            "answer": "为了降低耦合并方便定位问题。",
+            "evaluation": "评分：7/10。回答方向正确，但需要补充模块例子。",
+        },
+    )
+
+    result_step = execute_rewrite_answer_step(
+        step,
+        answer_rewriter=fake_answer_rewriter,
+    )
+
+    assert result_step.status == "completed"
+    assert result_step.output["question"] == (
+        "系统架构为什么要拆分为多个模块？"
+    )
+    assert result_step.output["answer"] == (
+        "为了降低耦合并方便定位问题。"
+    )
+    assert result_step.output["evaluation"] == (
+        "评分：7/10。回答方向正确，但需要补充模块例子。"
+    )
+    assert result_step.output["rewritten_answer"] == (
+        "系统架构拆分为多个模块，主要是为了降低耦合，并便于定位问题。"
+    )
+    assert result_step.tool_traces[0]["tool_name"] == "rewrite_answer"
+    assert result_step.tool_traces[0]["success"] is True
+    assert result_step.tool_traces[0]["duration_ms"] >= 0
+
+
+def test_execute_rewrite_answer_step_requires_question():
+    step = TaskStep(
+        step_type="rewrite_answer",
+        input={
+            "answer": "为了降低耦合。",
+            "evaluation": "评分：7/10。",
+        },
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="input.question",
+    ):
+        execute_rewrite_answer_step(
+            step,
+            answer_rewriter=fake_answer_rewriter,
+        )
+
+
+def test_execute_rewrite_answer_step_requires_answer():
+    step = TaskStep(
+        step_type="rewrite_answer",
+        input={
+            "question": "系统架构为什么要拆分为多个模块？",
+            "evaluation": "评分：7/10。",
+        },
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="input.answer",
+    ):
+        execute_rewrite_answer_step(
+            step,
+            answer_rewriter=fake_answer_rewriter,
+        )
+
+
+def test_execute_task_step_dispatches_rewrite_answer():
+    step = TaskStep(
+        step_type="rewrite_answer",
+        input={
+            "question": "系统架构为什么要拆分为多个模块？",
+            "answer": "为了降低耦合并方便定位问题。",
+            "evaluation": "评分：7/10。回答方向正确，但需要补充模块例子。",
+        },
+    )
+
+    result_step = execute_task_step(
+        step,
+        answer_rewriter=fake_answer_rewriter,
+    )
+
+    assert result_step.status == "completed"
+    assert "降低耦合" in result_step.output["rewritten_answer"]

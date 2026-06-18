@@ -1,6 +1,7 @@
 import time
 from collections.abc import Callable
 
+from app.answer_rewrite import rewrite_answer
 from app.defense_questions import generate_questions_from_context_with_audit
 from app.embeddings import create_embedding
 from app.evaluation import evaluate_answer
@@ -24,6 +25,10 @@ def execute_task_step(
         list[str] | dict,
     ] = generate_questions_from_context_with_audit,
     answer_evaluator: Callable[[str, str], str] = evaluate_answer,
+    answer_rewriter: Callable[
+        [str, str, str | None],
+        str,
+    ] = rewrite_answer,
 ) -> TaskStep:
     if step.step_type == "retrieve_context":
         return execute_retrieve_context_step(
@@ -43,6 +48,12 @@ def execute_task_step(
         return execute_evaluate_answer_step(
             step=step,
             answer_evaluator=answer_evaluator,
+        )
+
+    if step.step_type == "rewrite_answer":
+        return execute_rewrite_answer_step(
+            step=step,
+            answer_rewriter=answer_rewriter,
         )
 
     raise ValueError(
@@ -150,6 +161,61 @@ def execute_evaluate_answer_step(
             "question": question,
             "answer": answer,
             "evaluation": evaluation,
+        }
+    )
+
+    return step
+
+
+def execute_rewrite_answer_step(
+    step: TaskStep,
+    answer_rewriter: Callable[
+        [str, str, str | None],
+        str,
+    ] = rewrite_answer,
+) -> TaskStep:
+    question = step.input.get("question")
+    answer = step.input.get("answer")
+    evaluation = step.input.get("evaluation")
+
+    if not question:
+        raise ValueError(
+            "rewrite_answer 步骤需要 input.question"
+        )
+
+    if not answer:
+        raise ValueError(
+            "rewrite_answer 步骤需要 input.answer"
+        )
+
+    step.mark_running()
+
+    start_time = time.perf_counter()
+    rewritten_answer = answer_rewriter(
+        question,
+        answer,
+        evaluation,
+    )
+    duration_ms = (time.perf_counter() - start_time) * 1000
+
+    step.tool_traces.append(
+        {
+            "tool_name": "rewrite_answer",
+            "arguments": {
+                "question_length": len(question),
+                "answer_length": len(answer),
+                "evaluation_length": len(evaluation or ""),
+            },
+            "success": True,
+            "duration_ms": duration_ms,
+        }
+    )
+    step.mark_completed(
+        output={
+            "question": question,
+            "answer": answer,
+            "evaluation": evaluation,
+            "rewritten_answer": rewritten_answer,
         }
     )
 
