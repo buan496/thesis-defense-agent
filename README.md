@@ -65,7 +65,9 @@
 29. 支持 Agent trace JSONL 持久化和 trace 分析
 30. 支持 Agent routing、task completion、faithfulness 和稳定性评估
 31. 支持评估报告生成、回归对比、指标下降检测、预测翻转检测和稳定性退化检测
-32. 使用 pytest 覆盖文本切分、文档读取、JSON 清洗、向量检索、RAG、Agent、Session、Trace、预算控制和评估逻辑
+32. 支持可恢复 DefenseTask 工作流，覆盖检索、生成问题、提交回答、评价、改写、追问、追问评价和训练总结
+33. 支持任务级 resume、trace 汇总和 Markdown 训练报告导出
+34. 使用 pytest 覆盖文本切分、文档读取、JSON 清洗、向量检索、RAG、Agent、Session、Trace、预算控制、Task 工作流和评估逻辑
 
 ## 当前技术栈
 
@@ -83,7 +85,7 @@
 
 项目使用 pytest、评估 benchmark 和 GitHub Actions 组成多层质量门禁：
 
-- `178` 个离线单元测试覆盖 Agent、工具调用、RAG、Session、Memory、Trace、预算控制和评估模块
+- `280` 个离线单元测试覆盖 Agent、工具调用、RAG、Session、Memory、Trace、预算控制、Task 工作流和评估模块
 - Retrieval benchmark 检查 RAG Top-K 召回效果
 - Agent routing benchmark 检查工具选择、参数生成和任务完成
 - Faithfulness benchmark 检查 LLM Judge 的语义判断
@@ -174,6 +176,14 @@ app/agent_routing_evaluator.py    Agent 工具路由评估
 app/faithfulness_evaluator.py     Faithfulness Judge
 app/evaluation_report.py          评估报告生成
 app/evaluation_report_comparator.py 评估报告回归对比
+app/task_models.py          DefenseTask 和 TaskStep 数据结构
+app/task_store.py           可恢复任务 JSON 保存与加载
+app/task_runner.py          任务步骤状态流转
+app/task_service.py         任务创建、推进、提交回答和执行服务
+app/task_executor.py        执行 retrieve/generate/evaluate/rewrite/follow-up/summary 节点
+app/task_resume.py          任务中断后的恢复状态判断
+app/task_trace_analyzer.py  任务级 trace、耗时、token 和 cost 汇总
+app/task_markdown_exporter.py  任务训练记录 Markdown 导出
 app/cli.py                统一命令行入口
 ```
 
@@ -253,8 +263,26 @@ python -m app.cli chat --message "请记住，我的论文研究方向是中英�
 ```powershell
 python -m app.cli create-task --topic 系统架构
 python -m app.cli start-task-step --task-id <TASK_ID> --input '{\"topic\":\"系统架构\"}'
-python -m app.cli complete-task-step --task-id <TASK_ID> --output '{\"context\":\"系统架构相关上下文\"}'
+python -m app.cli execute-task-step --task-id <TASK_ID>
+python -m app.cli start-task-step --task-id <TASK_ID>
+python -m app.cli execute-task-step --task-id <TASK_ID>
+python -m app.cli start-task-step --task-id <TASK_ID>
+python -m app.cli submit-task-answer --task-id <TASK_ID> --answer "系统架构拆分为多个模块，主要是为了降低耦合，并方便定位问题。"
+python -m app.cli start-task-step --task-id <TASK_ID>
+python -m app.cli execute-task-step --task-id <TASK_ID>
+python -m app.cli start-task-step --task-id <TASK_ID>
+python -m app.cli execute-task-step --task-id <TASK_ID>
+python -m app.cli start-task-step --task-id <TASK_ID>
+python -m app.cli execute-task-step --task-id <TASK_ID>
+python -m app.cli start-task-step --task-id <TASK_ID>
+python -m app.cli submit-follow-up-answer --task-id <TASK_ID> --answer "如果音频读取失败，可以优先检查特征处理模块；如果损失维度不对，可以检查数据集构建和输出头。"
+python -m app.cli start-task-step --task-id <TASK_ID>
+python -m app.cli execute-task-step --task-id <TASK_ID>
+python -m app.cli start-task-step --task-id <TASK_ID>
+python -m app.cli execute-task-step --task-id <TASK_ID>
 python -m app.cli show-task --task-id <TASK_ID>
+python -m app.cli analyze-task --task-id <TASK_ID>
+python -m app.cli export-task-markdown --task-id <TASK_ID>
 ```
 
 说明：PowerShell 会处理命令行引号，JSON 参数里的双引号需要写成 `\"`，否则 Python 收到的可能会变成 `{topic:系统架构}` 这类非法 JSON。
@@ -292,15 +320,13 @@ uv run pytest
 
 ## 下一步计划
 
-1. 将 `retrieve_context`、`generate_question`、`evaluate_answer` 等任务步骤接入真实 RAG 和 LLM
-2. 将每一步的输入、输出、证据、工具调用、成本和 trace 统一写入任务记录
-3. 增加任务级 resume，支持中断后从上一步继续
-4. 增加工具超时、工具重试和工具结果长度限制
-5. 增加长期记忆，沉淀学生论文方向、常错点和薄弱模块
-6. 增加混合检索 BM25 + Vector、reranker 和 query rewrite
-7. 增加 FastAPI 后端接口
-8. 增加 Web 页面或 Streamlit / Gradio 界面
-9. 后续迁移到 LangGraph、MCP 和 Sub-Agent 协作
+1. 增强任务报告可读性，补充更细粒度的薄弱点和下一轮训练建议结构化字段
+2. 增加工具超时、工具重试和工具结果长度限制
+3. 增加长期记忆，沉淀学生论文方向、常错点和薄弱模块
+4. 增加混合检索 BM25 + Vector、reranker 和 query rewrite
+5. 增加 FastAPI 后端接口
+6. 增加 Web 页面或 Streamlit / Gradio 界面
+7. 后续迁移到 LangGraph、MCP 和 Sub-Agent 协作
 
 ## 学习记录
 
@@ -317,3 +343,4 @@ uv run pytest
 - 2026-06-12：实现评估报告回归对比和 GitHub Actions 离线质量门禁。
 - 2026-06-17：实现 chat session、短期记忆窗口、token / cost 统计、预算预检和 session metadata 成本审计。
 - 2026-06-17：实现 DefenseTask / TaskStep、任务存储、状态推进、Task Service 和 Task CLI。
+- 2026-06-22：实现完整可恢复答辩任务流，支持追问、追问评价、训练总结、任务 trace 汇总和 Markdown 报告导出。

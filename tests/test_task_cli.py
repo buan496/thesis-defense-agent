@@ -689,3 +689,51 @@ def test_submit_follow_up_answer_command_reports_task_error(
 
     assert "TASK ERROR" in output
     assert "当前步骤不是 wait_for_follow_up_answer" in output
+
+
+def test_export_task_markdown_command(
+    monkeypatch,
+    capsys,
+    tmp_path,
+):
+    task = DefenseTask(topic="系统架构", task_id="task-001")
+    step = TaskStep(step_type="summarize_training")
+    step.mark_completed(
+        output={
+            "summary": "本轮训练完成。",
+        }
+    )
+    task.add_step(step)
+    task.mark_completed()
+
+    from app.task_store import save_defense_task
+
+    save_defense_task(task, directory=tmp_path)
+
+    output_path = tmp_path / "task-001.md"
+
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "app.cli",
+            "export-task-markdown",
+            "--task-id",
+            "task-001",
+            "--directory",
+            str(tmp_path),
+            "--output",
+            str(output_path),
+        ],
+    )
+
+    cli.main()
+    output = capsys.readouterr().out
+
+    assert "TASK MARKDOWN EXPORTED" in output
+    assert "TASK ID: task-001" in output
+    assert "STATUS: completed" in output
+    assert f"REPORT: {output_path}" in output
+    assert output_path.exists()
+    assert "论文答辩训练报告" in output_path.read_text(
+        encoding="utf-8",
+    )
