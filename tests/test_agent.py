@@ -2,9 +2,13 @@ from types import SimpleNamespace
 
 import pytest
 
-from app.agent import run_agent
+from app.agent import build_agent_messages, run_agent
+from app.agent import AGENT_TOOLS
 from app.session_models import AgentSession
+from app.session_compactor import SESSION_SUMMARY_METADATA_KEY
 from app.conversation_memory import count_message_characters
+
+
 class FakeMessage:
     def __init__(self, content="", tool_calls=None):
         self.content = content
@@ -26,6 +30,119 @@ class FakeMessage:
                 for tool_call in self.tool_calls
             ],
         }
+
+
+def test_agent_tools_include_answer_evaluation_tool():
+    tool_names = [
+        tool["function"]["name"]
+        for tool in AGENT_TOOLS
+    ]
+
+    assert "evaluate_student_answer" in tool_names
+
+
+def test_agent_tools_include_follow_up_tool():
+    tool_names = [
+        tool["function"]["name"]
+        for tool in AGENT_TOOLS
+    ]
+
+    assert "generate_follow_up" in tool_names
+
+
+def test_agent_tools_include_training_record_tool():
+    tool_names = [
+        tool["function"]["name"]
+        for tool in AGENT_TOOLS
+    ]
+
+    assert "query_training_record" in tool_names
+
+
+def test_build_agent_messages_includes_long_term_memory_context():
+    session = AgentSession(session_id="memory-context-test")
+    session.add_message(
+        role="user",
+        content="What is my thesis direction?",
+    )
+
+    messages = build_agent_messages(
+        session=session,
+        max_history_turns=6,
+        max_history_characters=12000,
+        long_term_memory_context=(
+            "Long-term memory:\n"
+            "Profile:\n"
+            "- thesis_direction: bilingual speech recognition"
+        ),
+    )
+
+    assert messages[0]["role"] == "system"
+    assert messages[1] == {
+        "role": "system",
+        "content": (
+            "Long-term memory:\n"
+            "Profile:\n"
+            "- thesis_direction: bilingual speech recognition"
+        ),
+    }
+    assert messages[2] == {
+        "role": "user",
+        "content": "What is my thesis direction?",
+    }
+
+
+def test_build_agent_messages_omits_empty_long_term_memory_context():
+    session = AgentSession(session_id="empty-memory-context-test")
+    session.add_message(
+        role="user",
+        content="hello",
+    )
+
+    messages = build_agent_messages(
+        session=session,
+        max_history_turns=6,
+        max_history_characters=12000,
+        long_term_memory_context="   ",
+    )
+
+    assert messages[0]["role"] == "system"
+    assert messages[1:] == [
+        {
+            "role": "user",
+            "content": "hello",
+        },
+    ]
+
+
+def test_build_agent_messages_includes_conversation_summary():
+    session = AgentSession(session_id="summary-context-test")
+    session.metadata[SESSION_SUMMARY_METADATA_KEY] = (
+        "user previously said the thesis is about ASR"
+    )
+    session.add_message(
+        role="user",
+        content="What did I say before?",
+    )
+
+    messages = build_agent_messages(
+        session=session,
+        max_history_turns=6,
+        max_history_characters=12000,
+    )
+
+    assert messages[0]["role"] == "system"
+    assert messages[1] == {
+        "role": "system",
+        "content": (
+            "Conversation summary:\n"
+            "user previously said the thesis is about ASR"
+        ),
+    }
+    assert messages[2] == {
+        "role": "user",
+        "content": "What did I say before?",
+    }
 
 
 def test_run_agent_executes_tool_then_returns_answer():

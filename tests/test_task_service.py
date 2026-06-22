@@ -3,10 +3,12 @@ from app.task_service import (
     create_defense_task,
     execute_current_task_step,
     get_defense_task,
+    persist_training_summary_to_memory,
     start_next_task_step,
     submit_follow_up_answer,
     submit_task_answer,
 )
+from app.long_term_memory import load_long_term_memory
 from app.task_models import TaskStep
 from app.vector_store import build_vector_store
 from app.vector_store_io import save_vector_store
@@ -729,3 +731,91 @@ def test_task_service_can_complete_follow_up_and_summary_flow(
         "本轮训练完成，下一轮应继续补充具体模块案例。"
     )
     assert updated_task.status == "completed"
+
+
+def test_persist_training_summary_to_memory_saves_summary_and_weakness(
+    tmp_path,
+):
+    task = TaskStep(step_type="summarize_training")
+    task.mark_completed(
+        output={
+            "summary": "Practice explaining module boundaries.",
+            "weaknesses": [
+                "System architecture answer lacks concrete examples.",
+            ],
+        }
+    )
+    defense_task = type(
+        "DefenseTaskStub",
+        (),
+        {
+            "task_id": "task-001",
+            "topic": "system architecture",
+        },
+    )()
+    memory_path = tmp_path / "memory.json"
+
+    saved_path = persist_training_summary_to_memory(
+        task=defense_task,
+        step=task,
+        memory_path=memory_path,
+    )
+
+    memory = load_long_term_memory(saved_path)
+
+    assert memory["training_summaries"][0]["summary"] == (
+        "Practice explaining module boundaries."
+    )
+    assert memory["training_summaries"][0]["task_id"] == "task-001"
+    assert memory["training_summaries"][0]["topic"] == (
+        "system architecture"
+    )
+    assert memory["weaknesses"][0]["weakness"] == (
+        "System architecture answer lacks concrete examples."
+    )
+    assert memory["weaknesses"][0]["source_task_id"] == "task-001"
+
+
+def test_execute_current_task_step_persists_summary_when_memory_path_is_set(
+    tmp_path,
+):
+    task, _ = create_defense_task(
+        topic="system architecture",
+        directory=tmp_path,
+    )
+    summary_step = TaskStep(
+        step_type="summarize_training",
+        input={
+            "question": "Why split the system into modules?",
+            "answer": "To make debugging easier.",
+            "evaluation": "The answer is directionally correct.",
+            "rewritten_answer": "The system is split into modules to reduce coupling.",
+            "follow_up_question": "Can you give a concrete module example?",
+            "follow_up_answer": "Audio loading failures can be checked in feature processing.",
+            "follow_up_evaluation": "The follow-up answer is more concrete.",
+        },
+    )
+    task.add_step(summary_step)
+
+    from app.task_store import save_defense_task
+
+    save_defense_task(task, directory=tmp_path)
+
+    memory_path = tmp_path / "memory.json"
+
+    updated_task, executed_step, _ = execute_current_task_step(
+        task_id=task.task_id,
+        directory=tmp_path,
+        training_summarizer=lambda *args: "Summary saved to memory.",
+        long_term_memory_path=memory_path,
+    )
+
+    memory = load_long_term_memory(memory_path)
+
+    assert updated_task.status == "completed"
+    assert executed_step.output["summary"] == "Summary saved to memory."
+    assert memory["training_summaries"][0]["summary"] == (
+        "Summary saved to memory."
+    )
+    assert memory["training_summaries"][0]["task_id"] == task.task_id
+    assert memory["training_summaries"][0]["topic"] == "system architecture"

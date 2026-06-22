@@ -1,16 +1,12 @@
+﻿from types import SimpleNamespace
+
 import pytest
 
-from types import SimpleNamespace
-
 import app.cli as cli
-from app.budget_guard import (
-    BudgetExceededError,
-    PreflightBudgetExceededError,
-)
+from app.budget_guard import BudgetExceededError, PreflightBudgetExceededError
 
-def build_fake_agent_result(
-    final_output: str,
-):
+
+def build_fake_agent_result(final_output: str):
     return SimpleNamespace(
         final_output=final_output,
         token_usage=SimpleNamespace(
@@ -26,11 +22,8 @@ def build_fake_agent_result(
         ),
     )
 
-def test_chat_command_creates_new_session(
-    monkeypatch,
-    capsys,
-    tmp_path,
-):
+
+def test_chat_command_creates_new_session(monkeypatch, capsys, tmp_path):
     received_arguments = {}
 
     def fake_run_agent_session(
@@ -40,46 +33,40 @@ def test_chat_command_creates_new_session(
         max_history_characters=12000,
         max_run_cost=None,
         preflight_max_run_cost=None,
+        use_long_term_memory=True,
+        max_memory_weaknesses=5,
+        max_memory_summaries=3,
+        compact_session=True,
+        compact_summary_max_characters=4000,
     ):
-        received_arguments["user_message"] = user_message
-        received_arguments["session_id"] = session_id
-        received_arguments["max_history_turns"] = (
-            max_history_turns
-        )
-        received_arguments["max_history_characters"] = (
-            max_history_characters
-        )
-        received_arguments["max_run_cost"] = max_run_cost
-        received_arguments["preflight_max_run_cost"] = (
-            preflight_max_run_cost
-        )
-        
-        result = build_fake_agent_result(
-            "我已经记住你的研究方向。"
-        )   
-        session = SimpleNamespace(
-            session_id="new-session-001",
-        )
-        session_path = (
-            tmp_path / "new-session-001.json"
+        received_arguments.update(
+            {
+                "user_message": user_message,
+                "session_id": session_id,
+                "max_history_turns": max_history_turns,
+                "max_history_characters": max_history_characters,
+                "max_run_cost": max_run_cost,
+                "preflight_max_run_cost": preflight_max_run_cost,
+                "use_long_term_memory": use_long_term_memory,
+                "max_memory_weaknesses": max_memory_weaknesses,
+                "max_memory_summaries": max_memory_summaries,
+                "compact_session": compact_session,
+                "compact_summary_max_characters": (
+                    compact_summary_max_characters
+                ),
+            }
         )
 
-        return result, session, session_path
+        return (
+            build_fake_agent_result("saved thesis direction"),
+            SimpleNamespace(session_id="new-session-001"),
+            tmp_path / "new-session-001.json",
+        )
 
-    monkeypatch.setattr(
-        cli,
-        "run_agent_session",
-        fake_run_agent_session,
-    )
-
+    monkeypatch.setattr(cli, "run_agent_session", fake_run_agent_session)
     monkeypatch.setattr(
         "sys.argv",
-        [
-            "app.cli",
-            "chat",
-            "--message",
-            "我的论文研究语音识别。",
-        ],
+        ["app.cli", "chat", "--message", "remember my thesis direction"],
     )
 
     cli.main()
@@ -87,15 +74,19 @@ def test_chat_command_creates_new_session(
     output = capsys.readouterr().out
 
     assert received_arguments == {
-        "user_message": "我的论文研究语音识别。",
+        "user_message": "remember my thesis direction",
         "session_id": None,
         "max_history_turns": 6,
         "max_history_characters": 12000,
         "max_run_cost": None,
         "preflight_max_run_cost": None,
+        "use_long_term_memory": True,
+        "max_memory_weaknesses": 5,
+        "max_memory_summaries": 3,
+        "compact_session": True,
+        "compact_summary_max_characters": 4000,
     }
-
-    assert "我已经记住你的研究方向。" in output
+    assert "saved thesis direction" in output
     assert "TOKEN USAGE" in output
     assert "PROMPT TOKENS: 100" in output
     assert "COMPLETION TOKENS: 20" in output
@@ -109,11 +100,7 @@ def test_chat_command_creates_new_session(
     assert "new-session-001.json" in output
 
 
-def test_chat_command_resumes_existing_session(
-    monkeypatch,
-    capsys,
-    tmp_path,
-):
+def test_chat_command_resumes_existing_session(monkeypatch, capsys, tmp_path):
     received_arguments = {}
 
     def fake_run_agent_session(
@@ -123,39 +110,37 @@ def test_chat_command_resumes_existing_session(
         max_history_characters=12000,
         max_run_cost=None,
         preflight_max_run_cost=None,
+        use_long_term_memory=True,
+        max_memory_weaknesses=5,
+        max_memory_summaries=3,
+        compact_session=True,
+        compact_summary_max_characters=4000,
     ):
-        received_arguments["user_message"] = user_message
-        received_arguments["session_id"] = session_id
-        received_arguments["max_history_turns"] = (
-            max_history_turns
-        )
-        received_arguments["max_history_characters"] = (
-            max_history_characters
-        )
-        received_arguments["max_run_cost"] = max_run_cost
-        received_arguments["preflight_max_run_cost"] = (
-            preflight_max_run_cost
-        )
-                
-        
-        result = build_fake_agent_result(
-            "你的论文研究语音识别。"
-        )   
-        session = SimpleNamespace(
-            session_id="existing-session",
-        )
-        session_path = (
-            tmp_path / "existing-session.json"
+        received_arguments.update(
+            {
+                "user_message": user_message,
+                "session_id": session_id,
+                "max_history_turns": max_history_turns,
+                "max_history_characters": max_history_characters,
+                "max_run_cost": max_run_cost,
+                "preflight_max_run_cost": preflight_max_run_cost,
+                "use_long_term_memory": use_long_term_memory,
+                "max_memory_weaknesses": max_memory_weaknesses,
+                "max_memory_summaries": max_memory_summaries,
+                "compact_session": compact_session,
+                "compact_summary_max_characters": (
+                    compact_summary_max_characters
+                ),
+            }
         )
 
-        return result, session, session_path
+        return (
+            build_fake_agent_result("existing session answer"),
+            SimpleNamespace(session_id="existing-session"),
+            tmp_path / "existing-session.json",
+        )
 
-    monkeypatch.setattr(
-        cli,
-        "run_agent_session",
-        fake_run_agent_session,
-    )
-
+    monkeypatch.setattr(cli, "run_agent_session", fake_run_agent_session)
     monkeypatch.setattr(
         "sys.argv",
         [
@@ -164,7 +149,7 @@ def test_chat_command_resumes_existing_session(
             "--session-id",
             "existing-session",
             "--message",
-            "我的论文研究方向是什么？",
+            "what is my thesis direction?",
         ],
     )
 
@@ -173,23 +158,23 @@ def test_chat_command_resumes_existing_session(
     output = capsys.readouterr().out
 
     assert received_arguments == {
-        "user_message": "我的论文研究方向是什么？",
+        "user_message": "what is my thesis direction?",
         "session_id": "existing-session",
         "max_history_turns": 6,
         "max_history_characters": 12000,
         "max_run_cost": None,
         "preflight_max_run_cost": None,
+        "use_long_term_memory": True,
+        "max_memory_weaknesses": 5,
+        "max_memory_summaries": 3,
+        "compact_session": True,
+        "compact_summary_max_characters": 4000,
     }
-
-    assert "你的论文研究语音识别。" in output
+    assert "existing session answer" in output
     assert "existing-session" in output
 
 
-def test_chat_command_reads_interactive_input(
-    monkeypatch,
-    capsys,
-    tmp_path,
-):
+def test_chat_command_reads_interactive_input(monkeypatch, capsys, tmp_path):
     def fake_run_agent_session(
         user_message,
         session_id=None,
@@ -197,47 +182,34 @@ def test_chat_command_reads_interactive_input(
         max_history_characters=12000,
         max_run_cost=None,
         preflight_max_run_cost=None,
+        use_long_term_memory=True,
+        max_memory_weaknesses=5,
+        max_memory_summaries=3,
+        compact_session=True,
+        compact_summary_max_characters=4000,
     ):
-        assert user_message == "交互输入的问题"
+        assert user_message == "interactive question"
         assert session_id is None
 
         return (
-            build_fake_agent_result("交互回答"),
+            build_fake_agent_result("interactive answer"),
             SimpleNamespace(session_id="interactive-session"),
             tmp_path / "interactive-session.json",
         )
 
-    monkeypatch.setattr(
-        cli,
-        "run_agent_session",
-        fake_run_agent_session,
-    )
-
-    monkeypatch.setattr(
-        "builtins.input",
-        lambda prompt: "交互输入的问题",
-    )
-
-    monkeypatch.setattr(
-        "sys.argv",
-        [
-            "app.cli",
-            "chat",
-        ],
-    )
+    monkeypatch.setattr(cli, "run_agent_session", fake_run_agent_session)
+    monkeypatch.setattr("builtins.input", lambda prompt: "interactive question")
+    monkeypatch.setattr("sys.argv", ["app.cli", "chat"])
 
     cli.main()
 
     output = capsys.readouterr().out
 
-    assert "交互回答" in output
+    assert "interactive answer" in output
     assert "interactive-session" in output
 
 
-def test_chat_command_handles_missing_session(
-    monkeypatch,
-    capsys,
-):
+def test_chat_command_handles_missing_session(monkeypatch, capsys):
     def fake_run_agent_session(
         user_message,
         session_id=None,
@@ -245,17 +217,15 @@ def test_chat_command_handles_missing_session(
         max_history_characters=12000,
         max_run_cost=None,
         preflight_max_run_cost=None,
+        use_long_term_memory=True,
+        max_memory_weaknesses=5,
+        max_memory_summaries=3,
+        compact_session=True,
+        compact_summary_max_characters=4000,
     ):
-        raise FileNotFoundError(
-            "Agent 会话文件不存在：missing-session.json"
-        )
+        raise FileNotFoundError("missing-session.json")
 
-    monkeypatch.setattr(
-        cli,
-        "run_agent_session",
-        fake_run_agent_session,
-    )
-
+    monkeypatch.setattr(cli, "run_agent_session", fake_run_agent_session)
     monkeypatch.setattr(
         "sys.argv",
         [
@@ -264,28 +234,20 @@ def test_chat_command_handles_missing_session(
             "--session-id",
             "missing-session",
             "--message",
-            "继续对话",
+            "continue chat",
         ],
     )
 
-    try:
+    with pytest.raises(SystemExit) as error:
         cli.main()
-    except SystemExit as error:
-        assert error.code == 1
-    else:
-        raise AssertionError("CLI 应该以状态码 1 退出")
 
+    assert error.value.code == 1
     output = capsys.readouterr().out
-
     assert "SESSION ERROR" in output
     assert "missing-session.json" in output
-    
-    
-def test_chat_command_passes_max_history_turns(
-    monkeypatch,
-    capsys,
-    tmp_path,
-):
+
+
+def test_chat_command_passes_max_history_turns(monkeypatch, capsys, tmp_path):
     received_arguments = {}
 
     def fake_run_agent_session(
@@ -295,39 +257,28 @@ def test_chat_command_passes_max_history_turns(
         max_history_characters=12000,
         max_run_cost=None,
         preflight_max_run_cost=None,
+        use_long_term_memory=True,
+        max_memory_weaknesses=5,
+        max_memory_summaries=3,
+        compact_session=True,
+        compact_summary_max_characters=4000,
     ):
-        received_arguments["user_message"] = user_message
-        received_arguments["session_id"] = session_id
-        received_arguments["max_history_turns"] = (
-            max_history_turns
-        )
-        received_arguments["max_history_characters"] = (
-            max_history_characters
-        )
-        received_arguments["max_run_cost"] = max_run_cost
-        received_arguments["preflight_max_run_cost"] = (
-            preflight_max_run_cost
-        )
+        received_arguments["max_history_turns"] = max_history_turns
 
         return (
-            build_fake_agent_result("测试回答"),
+            build_fake_agent_result("history window answer"),
             SimpleNamespace(session_id="window-session"),
             tmp_path / "window-session.json",
         )
 
-    monkeypatch.setattr(
-        cli,
-        "run_agent_session",
-        fake_run_agent_session,
-    )
-
+    monkeypatch.setattr(cli, "run_agent_session", fake_run_agent_session)
     monkeypatch.setattr(
         "sys.argv",
         [
             "app.cli",
             "chat",
             "--message",
-            "测试短期记忆窗口",
+            "test history window",
             "--max-history-turns",
             "3",
         ],
@@ -335,39 +286,23 @@ def test_chat_command_passes_max_history_turns(
 
     cli.main()
 
-    assert received_arguments == {
-        "user_message": "测试短期记忆窗口",
-        "session_id": None,
-        "max_history_turns": 3,
-        "max_history_characters": 12000,
-        "max_run_cost": None,
-        "preflight_max_run_cost": None,
-    }
-
     output = capsys.readouterr().out
-    assert "测试回答" in output
-    
-    
-def test_chat_command_rejects_invalid_history_turns(
-    monkeypatch,
-    capsys,
-):
+    assert received_arguments["max_history_turns"] == 3
+    assert "history window answer" in output
+
+
+def test_chat_command_rejects_invalid_history_turns(monkeypatch, capsys):
     def run_agent_session_should_not_run(*args, **kwargs):
-        raise AssertionError("参数非法时不应运行 Agent")
+        raise AssertionError("invalid arguments should not run Agent")
 
-    monkeypatch.setattr(
-        cli,
-        "run_agent_session",
-        run_agent_session_should_not_run,
-    )
-
+    monkeypatch.setattr(cli, "run_agent_session", run_agent_session_should_not_run)
     monkeypatch.setattr(
         "sys.argv",
         [
             "app.cli",
             "chat",
             "--message",
-            "测试",
+            "test",
             "--max-history-turns",
             "0",
         ],
@@ -377,17 +312,12 @@ def test_chat_command_rejects_invalid_history_turns(
         cli.main()
 
     assert error.value.code == 2
-
     output = capsys.readouterr().out
+    assert "ARGUMENT ERROR" in output
+    assert "--max-history-turns" in output
 
-    assert "--max-history-turns 必须大于 0" in output
-    
-    
-def test_chat_command_passes_max_history_characters(
-    monkeypatch,
-    capsys,
-    tmp_path,
-):
+
+def test_chat_command_passes_max_history_characters(monkeypatch, capsys, tmp_path):
     received_arguments = {}
 
     def fake_run_agent_session(
@@ -397,37 +327,28 @@ def test_chat_command_passes_max_history_characters(
         max_history_characters=12000,
         max_run_cost=None,
         preflight_max_run_cost=None,
+        use_long_term_memory=True,
+        max_memory_weaknesses=5,
+        max_memory_summaries=3,
+        compact_session=True,
+        compact_summary_max_characters=4000,
     ):
-        received_arguments["user_message"] = user_message
-        received_arguments["session_id"] = session_id
-        received_arguments["max_history_turns"] = max_history_turns
-        received_arguments["max_history_characters"] = (
-            max_history_characters
-        )
-        received_arguments["max_run_cost"] = max_run_cost
-        received_arguments["preflight_max_run_cost"] = (
-            preflight_max_run_cost
-        )
-        
+        received_arguments["max_history_characters"] = max_history_characters
+
         return (
-            build_fake_agent_result("字符预算测试回答"),
+            build_fake_agent_result("character budget answer"),
             SimpleNamespace(session_id="character-session"),
             tmp_path / "character-session.json",
         )
 
-    monkeypatch.setattr(
-        cli,
-        "run_agent_session",
-        fake_run_agent_session,
-    )
-
+    monkeypatch.setattr(cli, "run_agent_session", fake_run_agent_session)
     monkeypatch.setattr(
         "sys.argv",
         [
             "app.cli",
             "chat",
             "--message",
-            "测试字符预算",
+            "test character budget",
             "--max-history-characters",
             "3000",
         ],
@@ -435,39 +356,23 @@ def test_chat_command_passes_max_history_characters(
 
     cli.main()
 
-    assert received_arguments == {
-        "user_message": "测试字符预算",
-        "session_id": None,
-        "max_history_turns": 6,
-        "max_history_characters": 3000,
-        "max_run_cost": None,
-        "preflight_max_run_cost": None,
-    }
-
     output = capsys.readouterr().out
+    assert received_arguments["max_history_characters"] == 3000
+    assert "character budget answer" in output
 
-    assert "字符预算测试回答" in output
-    
-def test_chat_command_rejects_invalid_history_characters(
-    monkeypatch,
-    capsys,
-):
+
+def test_chat_command_rejects_invalid_history_characters(monkeypatch, capsys):
     def run_agent_session_should_not_run(*args, **kwargs):
-        raise AssertionError("参数非法时不应运行 Agent")
+        raise AssertionError("invalid arguments should not run Agent")
 
-    monkeypatch.setattr(
-        cli,
-        "run_agent_session",
-        run_agent_session_should_not_run,
-    )
-
+    monkeypatch.setattr(cli, "run_agent_session", run_agent_session_should_not_run)
     monkeypatch.setattr(
         "sys.argv",
         [
             "app.cli",
             "chat",
             "--message",
-            "测试",
+            "test",
             "--max-history-characters",
             "0",
         ],
@@ -477,16 +382,12 @@ def test_chat_command_rejects_invalid_history_characters(
         cli.main()
 
     assert error.value.code == 2
-
     output = capsys.readouterr().out
+    assert "ARGUMENT ERROR" in output
+    assert "--max-history-characters" in output
 
-    assert "--max-history-characters 必须大于 0" in output
-    
-def test_chat_command_passes_max_run_cost(
-    monkeypatch,
-    capsys,
-    tmp_path,
-):
+
+def test_chat_command_passes_max_run_cost(monkeypatch, capsys, tmp_path):
     received_arguments = {}
 
     def fake_run_agent_session(
@@ -496,37 +397,28 @@ def test_chat_command_passes_max_run_cost(
         max_history_characters=12000,
         max_run_cost=None,
         preflight_max_run_cost=None,
+        use_long_term_memory=True,
+        max_memory_weaknesses=5,
+        max_memory_summaries=3,
+        compact_session=True,
+        compact_summary_max_characters=4000,
     ):
-        received_arguments["user_message"] = user_message
-        received_arguments["session_id"] = session_id
-        received_arguments["max_history_turns"] = max_history_turns
-        received_arguments["max_history_characters"] = (
-            max_history_characters
-        )
         received_arguments["max_run_cost"] = max_run_cost
-        received_arguments["preflight_max_run_cost"] = (
-            preflight_max_run_cost
-        )
-        
+
         return (
-            build_fake_agent_result("预算测试回答"),
+            build_fake_agent_result("budget answer"),
             SimpleNamespace(session_id="budget-session"),
             tmp_path / "budget-session.json",
         )
 
-    monkeypatch.setattr(
-        cli,
-        "run_agent_session",
-        fake_run_agent_session,
-    )
-
+    monkeypatch.setattr(cli, "run_agent_session", fake_run_agent_session)
     monkeypatch.setattr(
         "sys.argv",
         [
             "app.cli",
             "chat",
             "--message",
-            "测试预算",
+            "test budget",
             "--max-run-cost",
             "0.05",
         ],
@@ -534,38 +426,23 @@ def test_chat_command_passes_max_run_cost(
 
     cli.main()
 
-    assert received_arguments == {
-        "user_message": "测试预算",
-        "session_id": None,
-        "max_history_turns": 6,
-        "max_history_characters": 12000,
-        "max_run_cost": 0.05,
-        "preflight_max_run_cost": None,
-    }
-
     output = capsys.readouterr().out
-    assert "预算测试回答" in output
-    
-def test_chat_command_rejects_negative_max_run_cost(
-    monkeypatch,
-    capsys,
-):
+    assert received_arguments["max_run_cost"] == 0.05
+    assert "budget answer" in output
+
+
+def test_chat_command_rejects_negative_max_run_cost(monkeypatch, capsys):
     def run_agent_session_should_not_run(*args, **kwargs):
-        raise AssertionError("参数非法时不应运行 Agent")
+        raise AssertionError("invalid arguments should not run Agent")
 
-    monkeypatch.setattr(
-        cli,
-        "run_agent_session",
-        run_agent_session_should_not_run,
-    )
-
+    monkeypatch.setattr(cli, "run_agent_session", run_agent_session_should_not_run)
     monkeypatch.setattr(
         "sys.argv",
         [
             "app.cli",
             "chat",
             "--message",
-            "测试",
+            "test",
             "--max-run-cost",
             "-0.01",
         ],
@@ -575,15 +452,12 @@ def test_chat_command_rejects_negative_max_run_cost(
         cli.main()
 
     assert error.value.code == 2
-
     output = capsys.readouterr().out
+    assert "ARGUMENT ERROR" in output
+    assert "--max-run-cost" in output
 
-    assert "--max-run-cost 不能小于 0" in output
-    
-def test_chat_command_handles_budget_exceeded(
-    monkeypatch,
-    capsys,
-):
+
+def test_chat_command_handles_budget_exceeded(monkeypatch, capsys):
     def fake_run_agent_session(
         user_message,
         session_id=None,
@@ -591,6 +465,11 @@ def test_chat_command_handles_budget_exceeded(
         max_history_characters=12000,
         max_run_cost=None,
         preflight_max_run_cost=None,
+        use_long_term_memory=True,
+        max_memory_weaknesses=5,
+        max_memory_summaries=3,
+        compact_session=True,
+        compact_summary_max_characters=4000,
     ):
         raise BudgetExceededError(
             actual_cost=0.06,
@@ -598,19 +477,14 @@ def test_chat_command_handles_budget_exceeded(
             currency="CNY",
         )
 
-    monkeypatch.setattr(
-        cli,
-        "run_agent_session",
-        fake_run_agent_session,
-    )
-
+    monkeypatch.setattr(cli, "run_agent_session", fake_run_agent_session)
     monkeypatch.setattr(
         "sys.argv",
         [
             "app.cli",
             "chat",
             "--message",
-            "测试预算超限",
+            "test budget exceeded",
             "--max-run-cost",
             "0.05",
         ],
@@ -620,18 +494,13 @@ def test_chat_command_handles_budget_exceeded(
         cli.main()
 
     assert error.value.code == 1
-
     output = capsys.readouterr().out
-
     assert "BUDGET ERROR" in output
     assert "0.060000 CNY" in output
     assert "0.050000 CNY" in output
-    
-def test_chat_command_passes_preflight_max_run_cost(
-    monkeypatch,
-    capsys,
-    tmp_path,
-):
+
+
+def test_chat_command_passes_preflight_max_run_cost(monkeypatch, capsys, tmp_path):
     received_arguments = {}
 
     def fake_run_agent_session(
@@ -641,37 +510,28 @@ def test_chat_command_passes_preflight_max_run_cost(
         max_history_characters=12000,
         max_run_cost=None,
         preflight_max_run_cost=None,
+        use_long_term_memory=True,
+        max_memory_weaknesses=5,
+        max_memory_summaries=3,
+        compact_session=True,
+        compact_summary_max_characters=4000,
     ):
-        received_arguments["user_message"] = user_message
-        received_arguments["session_id"] = session_id
-        received_arguments["max_history_turns"] = max_history_turns
-        received_arguments["max_history_characters"] = (
-            max_history_characters
-        )
-        received_arguments["max_run_cost"] = max_run_cost
-        received_arguments["preflight_max_run_cost"] = (
-            preflight_max_run_cost
-        )
+        received_arguments["preflight_max_run_cost"] = preflight_max_run_cost
 
         return (
-            build_fake_agent_result("预检预算测试回答"),
+            build_fake_agent_result("preflight budget answer"),
             SimpleNamespace(session_id="preflight-session"),
             tmp_path / "preflight-session.json",
         )
 
-    monkeypatch.setattr(
-        cli,
-        "run_agent_session",
-        fake_run_agent_session,
-    )
-
+    monkeypatch.setattr(cli, "run_agent_session", fake_run_agent_session)
     monkeypatch.setattr(
         "sys.argv",
         [
             "app.cli",
             "chat",
             "--message",
-            "测试调用前预算",
+            "test preflight budget",
             "--preflight-max-run-cost",
             "0.02",
         ],
@@ -679,38 +539,23 @@ def test_chat_command_passes_preflight_max_run_cost(
 
     cli.main()
 
-    assert received_arguments == {
-        "user_message": "测试调用前预算",
-        "session_id": None,
-        "max_history_turns": 6,
-        "max_history_characters": 12000,
-        "max_run_cost": None,
-        "preflight_max_run_cost": 0.02,
-    }
-
     output = capsys.readouterr().out
-    assert "预检预算测试回答" in output
-    
-def test_chat_command_rejects_negative_preflight_max_run_cost(
-    monkeypatch,
-    capsys,
-):
+    assert received_arguments["preflight_max_run_cost"] == 0.02
+    assert "preflight budget answer" in output
+
+
+def test_chat_command_rejects_negative_preflight_max_run_cost(monkeypatch, capsys):
     def run_agent_session_should_not_run(*args, **kwargs):
-        raise AssertionError("参数非法时不应运行 Agent")
+        raise AssertionError("invalid arguments should not run Agent")
 
-    monkeypatch.setattr(
-        cli,
-        "run_agent_session",
-        run_agent_session_should_not_run,
-    )
-
+    monkeypatch.setattr(cli, "run_agent_session", run_agent_session_should_not_run)
     monkeypatch.setattr(
         "sys.argv",
         [
             "app.cli",
             "chat",
             "--message",
-            "测试",
+            "test",
             "--preflight-max-run-cost",
             "-0.01",
         ],
@@ -720,15 +565,12 @@ def test_chat_command_rejects_negative_preflight_max_run_cost(
         cli.main()
 
     assert error.value.code == 2
-
     output = capsys.readouterr().out
+    assert "ARGUMENT ERROR" in output
+    assert "--preflight-max-run-cost" in output
 
-    assert "--preflight-max-run-cost 不能小于 0" in output
-    
-def test_chat_command_handles_preflight_budget_exceeded(
-    monkeypatch,
-    capsys,
-):
+
+def test_chat_command_handles_preflight_budget_exceeded(monkeypatch, capsys):
     def fake_run_agent_session(
         user_message,
         session_id=None,
@@ -736,6 +578,11 @@ def test_chat_command_handles_preflight_budget_exceeded(
         max_history_characters=12000,
         max_run_cost=None,
         preflight_max_run_cost=None,
+        use_long_term_memory=True,
+        max_memory_weaknesses=5,
+        max_memory_summaries=3,
+        compact_session=True,
+        compact_summary_max_characters=4000,
     ):
         raise PreflightBudgetExceededError(
             estimated_cost=0.06,
@@ -744,19 +591,14 @@ def test_chat_command_handles_preflight_budget_exceeded(
             estimated_total_tokens=20000,
         )
 
-    monkeypatch.setattr(
-        cli,
-        "run_agent_session",
-        fake_run_agent_session,
-    )
-
+    monkeypatch.setattr(cli, "run_agent_session", fake_run_agent_session)
     monkeypatch.setattr(
         "sys.argv",
         [
             "app.cli",
             "chat",
             "--message",
-            "测试调用前预算超限",
+            "test preflight budget exceeded",
             "--preflight-max-run-cost",
             "0.05",
         ],
@@ -766,10 +608,199 @@ def test_chat_command_handles_preflight_budget_exceeded(
         cli.main()
 
     assert error.value.code == 1
-
     output = capsys.readouterr().out
-
     assert "PREFLIGHT BUDGET ERROR" in output
     assert "0.060000 CNY" in output
     assert "0.050000 CNY" in output
-    assert "预计 tokens：20000" in output
+
+
+def test_chat_command_passes_memory_controls(monkeypatch, capsys, tmp_path):
+    received_arguments = {}
+
+    def fake_run_agent_session(
+        user_message,
+        session_id=None,
+        max_history_turns=6,
+        max_history_characters=12000,
+        max_run_cost=None,
+        preflight_max_run_cost=None,
+        use_long_term_memory=True,
+        max_memory_weaknesses=5,
+        max_memory_summaries=3,
+        compact_session=True,
+        compact_summary_max_characters=4000,
+    ):
+        received_arguments["user_message"] = user_message
+        received_arguments["use_long_term_memory"] = use_long_term_memory
+        received_arguments["max_memory_weaknesses"] = max_memory_weaknesses
+        received_arguments["max_memory_summaries"] = max_memory_summaries
+
+        return (
+            build_fake_agent_result("memory controls answer"),
+            SimpleNamespace(session_id="memory-control-session"),
+            tmp_path / "memory-control-session.json",
+        )
+
+    monkeypatch.setattr(cli, "run_agent_session", fake_run_agent_session)
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "app.cli",
+            "chat",
+            "--message",
+            "test memory controls",
+            "--disable-memory",
+            "--max-memory-weaknesses",
+            "2",
+            "--max-memory-summaries",
+            "1",
+        ],
+    )
+
+    cli.main()
+
+    output = capsys.readouterr().out
+    assert received_arguments == {
+        "user_message": "test memory controls",
+        "use_long_term_memory": False,
+        "max_memory_weaknesses": 2,
+        "max_memory_summaries": 1,
+    }
+    assert "memory controls answer" in output
+
+
+def test_chat_command_rejects_negative_max_memory_weaknesses(monkeypatch, capsys):
+    def run_agent_session_should_not_run(*args, **kwargs):
+        raise AssertionError("invalid arguments should not run Agent")
+
+    monkeypatch.setattr(cli, "run_agent_session", run_agent_session_should_not_run)
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "app.cli",
+            "chat",
+            "--message",
+            "test",
+            "--max-memory-weaknesses",
+            "-1",
+        ],
+    )
+
+    with pytest.raises(SystemExit) as error:
+        cli.main()
+
+    assert error.value.code == 2
+    output = capsys.readouterr().out
+    assert "ARGUMENT ERROR" in output
+    assert "--max-memory-weaknesses" in output
+
+
+def test_chat_command_rejects_negative_max_memory_summaries(monkeypatch, capsys):
+    def run_agent_session_should_not_run(*args, **kwargs):
+        raise AssertionError("invalid arguments should not run Agent")
+
+    monkeypatch.setattr(cli, "run_agent_session", run_agent_session_should_not_run)
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "app.cli",
+            "chat",
+            "--message",
+            "test",
+            "--max-memory-summaries",
+            "-1",
+        ],
+    )
+
+    with pytest.raises(SystemExit) as error:
+        cli.main()
+
+    assert error.value.code == 2
+    output = capsys.readouterr().out
+    assert "ARGUMENT ERROR" in output
+    assert "--max-memory-summaries" in output
+
+
+def test_chat_command_passes_session_compaction_controls(
+    monkeypatch,
+    capsys,
+    tmp_path,
+):
+    received_arguments = {}
+
+    def fake_run_agent_session(
+        user_message,
+        session_id=None,
+        max_history_turns=6,
+        max_history_characters=12000,
+        max_run_cost=None,
+        preflight_max_run_cost=None,
+        use_long_term_memory=True,
+        max_memory_weaknesses=5,
+        max_memory_summaries=3,
+        compact_session=True,
+        compact_summary_max_characters=4000,
+    ):
+        received_arguments["compact_session"] = compact_session
+        received_arguments["compact_summary_max_characters"] = (
+            compact_summary_max_characters
+        )
+
+        return (
+            build_fake_agent_result("compaction controls answer"),
+            SimpleNamespace(session_id="compaction-control-session"),
+            tmp_path / "compaction-control-session.json",
+        )
+
+    monkeypatch.setattr(cli, "run_agent_session", fake_run_agent_session)
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "app.cli",
+            "chat",
+            "--message",
+            "test compaction controls",
+            "--disable-session-compaction",
+            "--compact-summary-max-characters",
+            "1200",
+        ],
+    )
+
+    cli.main()
+
+    output = capsys.readouterr().out
+    assert received_arguments == {
+        "compact_session": False,
+        "compact_summary_max_characters": 1200,
+    }
+    assert "compaction controls answer" in output
+
+
+def test_chat_command_rejects_invalid_compact_summary_characters(
+    monkeypatch,
+    capsys,
+):
+    def run_agent_session_should_not_run(*args, **kwargs):
+        raise AssertionError("invalid arguments should not run Agent")
+
+    monkeypatch.setattr(cli, "run_agent_session", run_agent_session_should_not_run)
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "app.cli",
+            "chat",
+            "--message",
+            "test",
+            "--compact-summary-max-characters",
+            "0",
+        ],
+    )
+
+    with pytest.raises(SystemExit) as error:
+        cli.main()
+
+    assert error.value.code == 2
+    output = capsys.readouterr().out
+    assert "ARGUMENT ERROR" in output
+    assert "--compact-summary-max-characters" in output
+

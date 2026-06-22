@@ -1,6 +1,7 @@
 import pytest
 
 from app.session_models import AgentSession
+from app.session_compactor import SESSION_SUMMARY_METADATA_KEY
 from app.session_service import run_agent_session
 from app.session_store import (
     load_agent_session,
@@ -8,6 +9,12 @@ from app.session_store import (
 )
 from app.agent_models import CostEstimate
 from app.budget_guard import BudgetExceededError ,PreflightBudgetExceededError
+from app.long_term_memory import (
+    add_weakness,
+    create_empty_long_term_memory,
+    save_long_term_memory,
+    update_memory_profile,
+)
 
 
 class FakeMessage:
@@ -70,6 +77,185 @@ def test_run_agent_session_creates_and_saves_new_session(
     )
 
     assert loaded_session == session
+
+
+def test_run_agent_session_injects_long_term_memory_context(
+    tmp_path,
+):
+    memory = create_empty_long_term_memory()
+    memory = update_memory_profile(
+        memory,
+        thesis_direction="bilingual speech recognition",
+    )
+    memory_path = save_long_term_memory(
+        memory,
+        path=tmp_path / "memory.json",
+    )
+
+    received_messages = []
+
+    def fake_llm_call(messages):
+        received_messages.extend(messages)
+
+        return FakeMessage(
+            content="Your thesis direction is bilingual speech recognition.",
+            tool_calls=None,
+        )
+
+    result, session, session_path = run_agent_session(
+        user_message="What is my thesis direction?",
+        directory=tmp_path,
+        long_term_memory_path=memory_path,
+        llm_call=fake_llm_call,
+    )
+
+    assert result.final_output == (
+        "Your thesis direction is bilingual speech recognition."
+    )
+    assert session.session_id
+    assert session_path.exists()
+    assert received_messages[0]["role"] == "system"
+    assert received_messages[1] == {
+        "role": "system",
+        "content": (
+            "Long-term memory:\n"
+            "Profile:\n"
+            "- thesis_direction: bilingual speech recognition"
+        ),
+    }
+    assert received_messages[2] == {
+        "role": "user",
+        "content": "What is my thesis direction?",
+    }
+
+
+def test_run_agent_session_injects_relevant_long_term_memory(
+    tmp_path,
+):
+    memory = create_empty_long_term_memory()
+    memory = add_weakness(memory, "experiment answer lacks metrics")
+    memory = add_weakness(
+        memory,
+        "system architecture answer lacks module examples",
+    )
+    memory_path = save_long_term_memory(
+        memory,
+        path=tmp_path / "memory.json",
+    )
+
+    received_messages = []
+
+    def fake_llm_call(messages):
+        received_messages.extend(messages)
+
+        return FakeMessage(
+            content="Use module examples when answering architecture questions.",
+            tool_calls=None,
+        )
+
+    run_agent_session(
+        user_message="How should I answer system architecture questions?",
+        directory=tmp_path,
+        long_term_memory_path=memory_path,
+        llm_call=fake_llm_call,
+    )
+
+    memory_context = received_messages[1]["content"]
+
+    assert "system architecture answer lacks module examples" in memory_context
+    assert "experiment answer lacks metrics" not in memory_context
+
+
+def test_run_agent_session_can_disable_long_term_memory(
+    tmp_path,
+):
+    memory = create_empty_long_term_memory()
+    memory = add_weakness(
+        memory,
+        "system architecture answer lacks module examples",
+    )
+    memory_path = save_long_term_memory(
+        memory,
+        path=tmp_path / "memory.json",
+    )
+
+    received_messages = []
+
+    def fake_llm_call(messages):
+        received_messages.extend(messages)
+
+        return FakeMessage(
+            content="Memory disabled.",
+            tool_calls=None,
+        )
+
+    run_agent_session(
+        user_message="How should I answer system architecture questions?",
+        directory=tmp_path,
+        long_term_memory_path=memory_path,
+        use_long_term_memory=False,
+        llm_call=fake_llm_call,
+    )
+
+    assert received_messages[0]["role"] == "system"
+    assert received_messages[1] == {
+        "role": "user",
+        "content": "How should I answer system architecture questions?",
+    }
+
+
+def test_run_agent_session_limits_long_term_memory_items(
+    tmp_path,
+):
+    memory = create_empty_long_term_memory()
+    memory = add_weakness(memory, "system architecture old weakness")
+    memory = add_weakness(memory, "system architecture recent weakness")
+    memory_path = save_long_term_memory(
+        memory,
+        path=tmp_path / "memory.json",
+    )
+
+    received_messages = []
+
+    def fake_llm_call(messages):
+        received_messages.extend(messages)
+
+        return FakeMessage(
+            content="Memory limited.",
+            tool_calls=None,
+        )
+
+    run_agent_session(
+        user_message="system architecture",
+        directory=tmp_path,
+        long_term_memory_path=memory_path,
+        max_memory_weaknesses=1,
+        max_memory_summaries=0,
+        llm_call=fake_llm_call,
+    )
+
+    memory_context = received_messages[1]["content"]
+
+    assert "system architecture recent weakness" in memory_context
+    assert "system architecture old weakness" not in memory_context
+
+
+def test_run_agent_session_rejects_negative_memory_limits(tmp_path):
+    with pytest.raises(ValueError, match="max_memory_weaknesses"):
+        run_agent_session(
+            user_message="test",
+            directory=tmp_path,
+            max_memory_weaknesses=-1,
+            llm_call=lambda messages: FakeMessage(content="never"),
+        )
+
+    with pytest.raises(ValueError, match="max_memory_summaries"):
+        run_agent_session(
+            user_message="test",
+            directory=tmp_path,
+            max_memory_summaries=-1,
+            llm_call=lambda messages: FakeMessage(content="never"),
+        )
 
 
 def test_run_agent_session_resumes_existing_session(
@@ -388,3 +574,86 @@ def test_run_agent_session_saves_token_usage_and_cost_metadata(
     assert saved_session.metadata["last_cost_estimate"] == (
         expected_cost_estimate
     )
+
+
+def test_run_agent_session_compacts_old_history(tmp_path):
+    session = AgentSession(session_id="compact-service-session")
+
+    for index in range(3):
+        session.add_message(
+            role="user",
+            content=f"old user message {index}",
+        )
+        session.add_message(
+            role="assistant",
+            content=f"old assistant answer {index}",
+        )
+
+    save_agent_session(
+        session=session,
+        directory=tmp_path,
+    )
+
+    def fake_llm_call(messages):
+        return FakeMessage(
+            content="new assistant answer",
+            tool_calls=None,
+        )
+
+    result, compacted_session, session_path = run_agent_session(
+        user_message="new user message",
+        session_id="compact-service-session",
+        directory=tmp_path,
+        max_history_turns=2,
+        compact_summary_max_characters=500,
+        llm_call=fake_llm_call,
+    )
+
+    assert result.final_output == "new assistant answer"
+    assert session_path.exists()
+    assert len(compacted_session.messages) == 4
+    assert compacted_session.messages[0]["content"] == "old user message 2"
+    assert compacted_session.messages[-1]["content"] == "new assistant answer"
+    assert "old user message 0" in compacted_session.metadata[
+        SESSION_SUMMARY_METADATA_KEY
+    ]
+    assert compacted_session.metadata["retained_turn_count"] == 2
+
+
+def test_run_agent_session_can_disable_compaction(tmp_path):
+    session = AgentSession(session_id="no-compact-service-session")
+
+    for index in range(3):
+        session.add_message(
+            role="user",
+            content=f"old user message {index}",
+        )
+        session.add_message(
+            role="assistant",
+            content=f"old assistant answer {index}",
+        )
+
+    save_agent_session(
+        session=session,
+        directory=tmp_path,
+    )
+
+    def fake_llm_call(messages):
+        return FakeMessage(
+            content="new assistant answer",
+            tool_calls=None,
+        )
+
+    result, session, session_path = run_agent_session(
+        user_message="new user message",
+        session_id="no-compact-service-session",
+        directory=tmp_path,
+        max_history_turns=2,
+        compact_session=False,
+        llm_call=fake_llm_call,
+    )
+
+    assert result.final_output == "new assistant answer"
+    assert session_path.exists()
+    assert len(session.messages) == 8
+    assert SESSION_SUMMARY_METADATA_KEY not in session.metadata

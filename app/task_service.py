@@ -4,6 +4,12 @@ from typing import Any
 
 from app.answer_rewrite import rewrite_answer
 from app.config import RAG_TOP_K, RAG_VECTOR_STORE_PATH
+from app.long_term_memory import (
+    add_training_summary,
+    add_weakness,
+    load_long_term_memory,
+    save_long_term_memory,
+)
 from app.defense_questions import generate_questions_from_context_with_audit
 from app.embeddings import create_embedding
 from app.evaluation import evaluate_answer
@@ -107,6 +113,7 @@ def execute_current_task_step(
         [str, str, str, str, str, str, str],
         str,
     ] = summarize_training,
+    long_term_memory_path: str | Path | None = None,
 ) -> tuple[DefenseTask, TaskStep, Path]:
     task = load_defense_task(
         task_id=task_id,
@@ -154,8 +161,48 @@ def execute_current_task_step(
             task,
             directory=directory,
         )
+    
+    if (
+        executed_step.step_type == "summarize_training"
+        and executed_step.status == "completed"
+        and long_term_memory_path is not None
+    ):
+        persist_training_summary_to_memory(
+            task=task,
+            step=executed_step,
+            memory_path=long_term_memory_path,
+        )
 
     return task, executed_step, task_path
+
+
+def persist_training_summary_to_memory(
+    task: DefenseTask,
+    step: TaskStep,
+    memory_path: str | Path,
+) -> Path:
+    summary = step.output.get("summary")
+
+    if not summary:
+        raise ValueError("summarize_training output missing summary")
+
+    memory = load_long_term_memory(memory_path)
+    memory = add_training_summary(
+        memory,
+        summary=summary,
+        task_id=task.task_id,
+        topic=task.topic,
+    )
+
+    for weakness in step.output.get("weaknesses", []):
+        if isinstance(weakness, str) and weakness.strip():
+            memory = add_weakness(
+                memory,
+                weakness=weakness,
+                source_task_id=task.task_id,
+            )
+
+    return save_long_term_memory(memory, memory_path)
 
 
 def submit_task_answer(

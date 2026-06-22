@@ -27,6 +27,7 @@ from app.config import (
     AGENT_TRACE_PATH,
     DEEPSEEK_MODEL,
     FAITHFULNESS_BENCHMARK_PATH,
+    LONG_TERM_MEMORY_PATH,
     RAG_BENCHMARK_PATH,
     RAG_CHUNK_OVERLAP,
     RAG_CHUNK_SIZE,
@@ -40,6 +41,15 @@ from app.session_service import run_agent_session
 from app.budget_guard import (
     BudgetExceededError ,
     PreflightBudgetExceededError,
+)
+from app.long_term_memory import (
+    add_training_summary,
+    add_weakness,
+    build_long_term_memory_context,
+    load_long_term_memory,
+    prune_long_term_memory,
+    save_long_term_memory,
+    update_memory_profile,
 )
 from app.task_service import (
     complete_task_step,
@@ -378,6 +388,139 @@ def main():
         type=float,
         default=None,
         help="Maximum estimated cost allowed before calling the LLM",
+    )
+    chat_parser.add_argument(
+        "--disable-memory",
+        action="store_true",
+        help="Disable long-term memory injection for this chat turn",
+    )
+    chat_parser.add_argument(
+        "--max-memory-weaknesses",
+        type=int,
+        default=5,
+        help="Maximum relevant weaknesses injected into the chat context",
+    )
+    chat_parser.add_argument(
+        "--max-memory-summaries",
+        type=int,
+        default=3,
+        help="Maximum relevant training summaries injected into the chat context",
+    )
+    chat_parser.add_argument(
+        "--disable-session-compaction",
+        action="store_true",
+        help="Disable session history summary compaction for this chat turn",
+    )
+    chat_parser.add_argument(
+        "--compact-summary-max-characters",
+        type=int,
+        default=4000,
+        help="Maximum characters kept in the session summary",
+    )
+    
+    memory_show_parser = subparsers.add_parser(
+        "memory-show",
+        help="Show local long-term memory",
+    )
+    memory_show_parser.add_argument(
+        "--path",
+        type=str,
+        default=LONG_TERM_MEMORY_PATH,
+        help="Long-term memory JSON path",
+    )
+    
+    memory_set_profile_parser = subparsers.add_parser(
+        "memory-set-profile",
+        help="Set one profile field in local long-term memory",
+    )
+    memory_set_profile_parser.add_argument(
+        "--key",
+        required=True,
+        help="Profile field name",
+    )
+    memory_set_profile_parser.add_argument(
+        "--value",
+        required=True,
+        help="Profile field value",
+    )
+    memory_set_profile_parser.add_argument(
+        "--path",
+        type=str,
+        default=LONG_TERM_MEMORY_PATH,
+        help="Long-term memory JSON path",
+    )
+    
+    memory_add_weakness_parser = subparsers.add_parser(
+        "memory-add-weakness",
+        help="Add one weakness to local long-term memory",
+    )
+    memory_add_weakness_parser.add_argument(
+        "--text",
+        required=True,
+        help="Weakness text",
+    )
+    memory_add_weakness_parser.add_argument(
+        "--task-id",
+        type=str,
+        default=None,
+        help="Optional source task ID",
+    )
+    memory_add_weakness_parser.add_argument(
+        "--path",
+        type=str,
+        default=LONG_TERM_MEMORY_PATH,
+        help="Long-term memory JSON path",
+    )
+    
+    memory_add_summary_parser = subparsers.add_parser(
+        "memory-add-summary",
+        help="Add one training summary to local long-term memory",
+    )
+    memory_add_summary_parser.add_argument(
+        "--summary",
+        required=True,
+        help="Training summary text",
+    )
+    memory_add_summary_parser.add_argument(
+        "--task-id",
+        type=str,
+        default=None,
+        help="Optional source task ID",
+    )
+    memory_add_summary_parser.add_argument(
+        "--topic",
+        type=str,
+        default=None,
+        help="Optional training topic",
+    )
+    memory_add_summary_parser.add_argument(
+        "--path",
+        type=str,
+        default=LONG_TERM_MEMORY_PATH,
+        help="Long-term memory JSON path",
+    )
+    
+    memory_prune_parser = subparsers.add_parser(
+        "memory-prune",
+        help="Prune local long-term memory by retention limits",
+    )
+    memory_prune_parser.add_argument(
+        "--max-weaknesses",
+        type=int,
+        default=20,
+        help="Maximum weaknesses to keep",
+    )
+    memory_prune_parser.add_argument(
+        "--max-summaries",
+        type=int,
+        default=10,
+        help="Maximum training summaries to keep",
+    )
+    memory_prune_parser.add_argument(
+        "--path",
+        type=str,
+        default=LONG_TERM_MEMORY_PATH,
+        help="Long-term memory JSON path",
     )
     
     mock_parser = subparsers.add_parser("mock-defense")
@@ -1124,6 +1267,21 @@ def main():
             print("ARGUMENT ERROR: --preflight-max-run-cost 不能小于 0")
             raise SystemExit(2)
         
+        if args.max_memory_weaknesses < 0:
+            print("ARGUMENT ERROR: --max-memory-weaknesses 不能小于 0")
+            raise SystemExit(2)
+        
+        if args.max_memory_summaries < 0:
+            print("ARGUMENT ERROR: --max-memory-summaries 不能小于 0")
+            raise SystemExit(2)
+        
+        if args.compact_summary_max_characters <= 0:
+            print(
+                "ARGUMENT ERROR: "
+                "--compact-summary-max-characters must be greater than 0"
+            )
+            raise SystemExit(2)
+        
         try:
             result, session, session_path = run_agent_session(
                 user_message=user_message,
@@ -1132,6 +1290,13 @@ def main():
                 max_history_characters=args.max_history_characters,
                 max_run_cost=args.max_run_cost,
                 preflight_max_run_cost=args.preflight_max_run_cost,
+                use_long_term_memory=not args.disable_memory,
+                max_memory_weaknesses=args.max_memory_weaknesses,
+                max_memory_summaries=args.max_memory_summaries,
+                compact_session=not args.disable_session_compaction,
+                compact_summary_max_characters=(
+                    args.compact_summary_max_characters
+                ),
             )
         except FileNotFoundError as error:
             print(f"SESSION ERROR: {error}")
@@ -1167,6 +1332,105 @@ def main():
 
         print("\nSESSION SAVED:")
         print(session_path)
+
+    elif args.command == "memory-show":
+        memory = load_long_term_memory(args.path)
+        context = build_long_term_memory_context(memory)
+
+        print("MEMORY PATH:", args.path)
+        print("MEMORY JSON:")
+        print(json.dumps(memory, ensure_ascii=False, indent=2))
+        print("MEMORY CONTEXT:")
+        print(context or "<empty>")
+
+    elif args.command == "memory-set-profile":
+        if not args.key.strip():
+            print("ARGUMENT ERROR: --key cannot be empty")
+            raise SystemExit(2)
+        
+        if not args.value.strip():
+            print("ARGUMENT ERROR: --value cannot be empty")
+            raise SystemExit(2)
+        
+        memory = load_long_term_memory(args.path)
+        memory = update_memory_profile(
+            memory,
+            **{args.key.strip(): args.value.strip()},
+        )
+        memory_path = save_long_term_memory(memory, args.path)
+
+        print("MEMORY PROFILE UPDATED")
+        print("PATH:", memory_path)
+        print("KEY:", args.key.strip())
+        print("VALUE:", args.value.strip())
+
+    elif args.command == "memory-add-weakness":
+        try:
+            memory = load_long_term_memory(args.path)
+            memory = add_weakness(
+                memory,
+                weakness=args.text,
+                source_task_id=args.task_id,
+            )
+            memory_path = save_long_term_memory(memory, args.path)
+        except ValueError as error:
+            print(f"MEMORY ERROR: {error}")
+            raise SystemExit(1) from error
+
+        print("MEMORY WEAKNESS ADDED")
+        print("PATH:", memory_path)
+        print("WEAKNESS:", args.text.strip())
+
+    elif args.command == "memory-add-summary":
+        try:
+            memory = load_long_term_memory(args.path)
+            memory = add_training_summary(
+                memory,
+                summary=args.summary,
+                task_id=args.task_id,
+                topic=args.topic,
+            )
+            memory_path = save_long_term_memory(memory, args.path)
+        except ValueError as error:
+            print(f"MEMORY ERROR: {error}")
+            raise SystemExit(1) from error
+
+        print("MEMORY SUMMARY ADDED")
+        print("PATH:", memory_path)
+        print("SUMMARY:", args.summary.strip())
+
+    elif args.command == "memory-prune":
+        if args.max_weaknesses < 0:
+            print("ARGUMENT ERROR: --max-weaknesses cannot be negative")
+            raise SystemExit(2)
+        
+        if args.max_summaries < 0:
+            print("ARGUMENT ERROR: --max-summaries cannot be negative")
+            raise SystemExit(2)
+        
+        try:
+            memory = load_long_term_memory(args.path)
+            before_weaknesses = len(memory["weaknesses"])
+            before_summaries = len(memory["training_summaries"])
+            memory = prune_long_term_memory(
+                memory,
+                max_weaknesses=args.max_weaknesses,
+                max_summaries=args.max_summaries,
+            )
+            memory_path = save_long_term_memory(memory, args.path)
+        except ValueError as error:
+            print(f"MEMORY ERROR: {error}")
+            raise SystemExit(1) from error
+
+        print("MEMORY PRUNED")
+        print("PATH:", memory_path)
+        print("WEAKNESSES:", before_weaknesses, "->", len(memory["weaknesses"]))
+        print(
+            "SUMMARIES:",
+            before_summaries,
+            "->",
+            len(memory["training_summaries"]),
+        )
 
     elif args.command == "mock-defense":
         run_mock_defense(training_query=args.topic)
@@ -1245,6 +1509,7 @@ def main():
             task, step, task_path = execute_current_task_step(
                 task_id=args.task_id,
                 directory=args.directory,
+                long_term_memory_path=LONG_TERM_MEMORY_PATH,
             )
         except ValueError as error:
             print(f"TASK ERROR: {error}")

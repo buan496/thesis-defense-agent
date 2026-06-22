@@ -15,6 +15,11 @@ LLM_OUTPUT_PRICE_PER_1M_TOKENS = float(
     os.getenv("LLM_OUTPUT_PRICE_PER_1M_TOKENS", "0")
 )
 LLM_PRICE_CURRENCY = os.getenv("LLM_PRICE_CURRENCY", "CNY")
+TOOL_RESULT_MAX_CHARACTERS = int(
+    os.getenv("TOOL_RESULT_MAX_CHARACTERS", "6000")
+)
+TOOL_MAX_RETRIES = int(os.getenv("TOOL_MAX_RETRIES", "2"))
+TOOL_TIMEOUT_SECONDS = float(os.getenv("TOOL_TIMEOUT_SECONDS", "30"))
 EMBEDDING_API_KEY = os.getenv("EMBEDDING_API_KEY")
 EMBEDDING_BASE_URL = os.getenv("EMBEDDING_BASE_URL", "https://api.siliconflow.cn/v1")
 EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "BAAI/bge-m3")
@@ -41,6 +46,10 @@ QUERY_EMBEDDING_CACHE_PATH = os.getenv(
 AGENT_TRACE_PATH = os.getenv(
     "AGENT_TRACE_PATH",
     "data/traces/agent_trace.jsonl",
+)
+LONG_TERM_MEMORY_PATH = os.getenv(
+    "LONG_TERM_MEMORY_PATH",
+    "data/long_term_memory.json",
 )
 AGENT_ROUTING_BENCHMARK_PATH = os.getenv(
     "AGENT_ROUTING_BENCHMARK_PATH",

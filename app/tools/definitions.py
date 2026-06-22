@@ -46,3 +46,91 @@ DEFENSE_QUESTION_TOOL = {
         },
     },
 }
+
+ANSWER_EVALUATION_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "evaluate_student_answer",
+        "description": (
+            "根据答辩问题和学生回答，评价回答质量并给出改进建议。"
+            "适用于用户要求评分、诊断回答不足或生成参考回答时。"
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "question": {
+                    "type": "string",
+                    "description": "需要评价的论文答辩问题",
+                    "maxLength": 4000,
+                },
+                "student_answer": {
+                    "type": "string",
+                    "description": "学生对该答辩问题的回答",
+                    "maxLength": 8000,
+                },
+            },
+            "required": ["question", "student_answer"],
+            "additionalProperties": False,
+        },
+    },
+}
+
+FOLLOW_UP_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "generate_follow_up",
+        "description": (
+            "根据答辩问题、学生回答以及可选评价反馈生成一个有针对性的追问。"
+            "适用于用户要求继续追问、深入追问或模拟评委追问时。"
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "question": {
+                    "type": "string",
+                    "description": "原始论文答辩问题",
+                    "maxLength": 4000,
+                },
+                "student_answer": {
+                    "type": "string",
+                    "description": "学生对原始问题的回答",
+                    "maxLength": 8000,
+                },
+                "evaluation": {
+                    "type": "string",
+                    "description": "可选的回答评价反馈",
+                    "maxLength": 8000,
+                },
+                "rewritten_answer": {
+                    "type": "string",
+                    "description": "可选的改写后参考回答",
+                    "maxLength": 8000,
+                },
+            },
+            "required": ["question", "student_answer"],
+            "additionalProperties": False,
+        },
+    },
+}
+
+TRAINING_RECORD_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "query_training_record",
+        "description": (
+            "根据 task_id 查询已经保存的论文答辩训练记录摘要，"
+            "包括原问题、学生回答、评价、追问、追问评价和训练总结。"
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "task_id": {
+                    "type": "string",
+                    "description": "需要查询的 DefenseTask ID",
+                },
+            },
+            "required": ["task_id"],
+            "additionalProperties": False,
+        },
+    },
+}

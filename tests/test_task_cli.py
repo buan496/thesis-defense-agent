@@ -257,9 +257,11 @@ def test_execute_task_step_command(
     def fake_execute_current_task_step(
         task_id,
         directory,
+        long_term_memory_path=None,
     ):
         assert task_id == "task-001"
         assert directory == str(tmp_path)
+        assert long_term_memory_path is not None
         return task, step, tmp_path / "task-001.json"
 
     monkeypatch.setattr(
@@ -297,7 +299,9 @@ def test_execute_task_step_command_reports_task_error(
     def fake_execute_current_task_step(
         task_id,
         directory,
+        long_term_memory_path=None,
     ):
+        assert long_term_memory_path is not None
         raise ValueError("当前任务没有可执行步骤")
 
     monkeypatch.setattr(
