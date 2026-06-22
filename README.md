@@ -320,13 +320,15 @@ uv run pytest
 
 ## 下一步计划
 
-1. 增强任务报告可读性，补充更细粒度的薄弱点和下一轮训练建议结构化字段
-2. 增加工具超时、工具重试和工具结果长度限制
+当前本机学习版已经完成可恢复任务型 Agent 主线。后续按学习路线继续推进，但不在当前机器上提前做服务器部署。
+
+1. 增加工具结果长度限制，防止工具返回内容撑爆上下文
+2. 增加工具重试、工具超时和工具错误标准化
 3. 增加长期记忆，沉淀学生论文方向、常错点和薄弱模块
-4. 增加混合检索 BM25 + Vector、reranker 和 query rewrite
-5. 增加 FastAPI 后端接口
-6. 增加 Web 页面或 Streamlit / Gradio 界面
-7. 后续迁移到 LangGraph、MCP 和 Sub-Agent 协作
+4. 增加 Trace 回放和反馈闭环，将真实训练反馈沉淀为 benchmark 候选数据
+5. 增加混合检索 BM25 + Vector、reranker 和 query rewrite
+6. 旁路迁移到 LangGraph：新增独立目录和独立 CLI，保留当前手写 Agent Harness 源码用于对照学习
+7. MCP、Sub-Agent、FastAPI、Web 前端、Docker、K8s 和服务器部署放到后续服务器笔记本学习
 
 ## 学习记录
 

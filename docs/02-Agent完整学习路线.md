@@ -3,7 +3,7 @@ tags:
   - roadmap
   - agent-engineering
 status: active
-updated: 2026-06-17
+updated: 2026-06-22
 ---
 
 # Agent 完整学习路线
@@ -167,7 +167,7 @@ updated: 2026-06-17
 - [x] 向量库构建 checkpoint
 - [x] 向量库构建断点恢复
 - [ ] 幂等性
-- [ ] Agent 任务恢复
+- [x] Agent 任务恢复
 
 基础知识：
 
@@ -186,7 +186,7 @@ updated: 2026-06-17
 - [ ] Human-in-the-loop
 - [ ] 将当前手写 Agent Loop 迁移到 LangGraph
 
-原则：先理解手写 Harness，再使用框架。
+原则：先理解手写 Harness，再使用框架。LangGraph 迁移必须采用旁路实现，新增独立目录和独立 CLI，不覆盖 `app/task_*`、`app/agent.py` 等现有手写实现，保留两套实现用于对照学习。
 
 ## 阶段 9：MCP 与 Sub-Agent
 
@@ -200,6 +200,8 @@ updated: 2026-06-17
 - [ ] 失败回收和预算控制
 
 ## 阶段 10：服务化与界面
+
+> 当前机器暂不推进服务器部署相关学习；FastAPI、Web 前端、数据库、Docker、K8s 等内容后续放到另一台服务器笔记本上继续。
 
 - [ ] FastAPI
 - [ ] Pydantic 请求模型
@@ -229,9 +231,9 @@ updated: 2026-06-17
 
 ## 当前阶段：Task State / 可恢复任务型 Agent
 
-当前项目已经完成 RAG 原型、手写 Agent Harness、Tool Calling、Session、短期记忆、成本审计和离线评估门禁。下一阶段不是继续堆新框架，而是把 `mock-defense` 从线性脚本升级为可恢复、可审计、可评估的任务型 Agent。
+当前项目已经完成“本机学习版 Agent Harness 完整闭环”：RAG、Tool Calling、Agent Loop、Session、Trace、评估、CI、Task State、可恢复任务流和 Markdown 报告导出已经连成完整链路。下一阶段不再继续堆新框架，而是进入工具稳定性治理，并为后续 Memory、Trace 回放和 LangGraph 旁路迁移打基础。
 
-重点任务：
+已完成能力：
 
 - [x] 设计 `DefenseTask` 数据结构
 - [x] 设计 `TaskStep` 数据结构
@@ -240,12 +242,20 @@ updated: 2026-06-17
 - [x] 实现任务推进 service
 - [x] 接入 Task CLI
 - [x] 为任务模型、存储、状态推进、服务层和 CLI 补 pytest
-- [ ] 将每一步的输入、输出、证据、工具调用、token 和 cost 写入任务记录
-- [ ] 支持任务中断后 resume
-- [ ] 支持任务级 trace 汇总
-- [ ] 将任务步骤接入真实 RAG 和 LLM
+- [x] 将每一步的输入、输出、证据、工具调用、token 和 cost 写入任务记录
+- [x] 支持任务中断后 `resume-task`
+- [x] 支持任务级 `analyze-task` trace 汇总
+- [x] 将任务步骤接入真实 RAG 和 LLM
+- [x] 支持 `retrieve_context`、`generate_question`、`wait_for_answer`、`evaluate_answer`、`rewrite_answer`、`generate_follow_up`、`wait_for_follow_up_answer`、`evaluate_follow_up_answer`、`summarize_training` 完整流程
+- [x] 支持 `submit-task-answer` 和 `submit-follow-up-answer`
+- [x] 支持 `export-task-markdown` 导出任务训练报告
 
-这一阶段对应企业级 Agent 中的 `Task / Workspace / Session / Trace` 边界，是从“能回答问题的 Agent”走向“能执行稳定流程的 Agent”的关键一步。
+后续边界：
+
+- LangGraph 迁移只做旁路实现，不覆盖当前手写 Task State / Agent Harness 源码。
+- FastAPI、Docker、K8s、数据库、服务器部署和私有化运行环境放到另一台服务器笔记本学习。
+
+下一步学习重点：工具结果长度限制、工具重试、工具超时和工具错误标准化。这一阶段对应企业级 Agent 中的 `Task / Workspace / Session / Trace` 边界，是从“能回答问题的 Agent”走向“能执行稳定流程的 Agent”的关键一步。
 
 ## 最终简历能力目标
 
