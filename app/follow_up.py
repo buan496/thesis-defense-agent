@@ -1,6 +1,25 @@
 from app.llm import chat_with_llm
 
-def generate_follow_up_question(question, student_answer):
+
+def generate_follow_up_question(
+    question: str,
+    student_answer: str,
+    evaluation: str | None = None,
+    rewritten_answer: str | None = None,
+) -> str:
+    evaluation_text = ""
+    rewritten_answer_text = ""
+
+    if evaluation:
+        evaluation_text = f"""
+    评价反馈：{evaluation}
+    """
+
+    if rewritten_answer:
+        rewritten_answer_text = f"""
+    改写后的回答：{rewritten_answer}
+    """
+
     user_message = f"""
     
     请根据下面的问题和答案，生成1个追问。
@@ -14,6 +33,8 @@ def generate_follow_up_question(question, student_answer):
     
     问题：{question}
     答案：{student_answer}
+    {evaluation_text}
+    {rewritten_answer_text}
     """
     
     follow_up_question = chat_with_llm(user_message)

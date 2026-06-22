@@ -27,6 +27,7 @@ from app.config import (
     AGENT_TRACE_PATH,
     DEEPSEEK_MODEL,
     FAITHFULNESS_BENCHMARK_PATH,
+    LONG_TERM_MEMORY_PATH,
     RAG_BENCHMARK_PATH,
     RAG_CHUNK_OVERLAP,
     RAG_CHUNK_SIZE,
@@ -41,12 +42,27 @@ from app.budget_guard import (
     BudgetExceededError ,
     PreflightBudgetExceededError,
 )
+from app.long_term_memory import (
+    add_training_summary,
+    add_weakness,
+    build_long_term_memory_context,
+    load_long_term_memory,
+    prune_long_term_memory,
+    save_long_term_memory,
+    update_memory_profile,
+)
 from app.task_service import (
     complete_task_step,
     create_defense_task,
+    execute_current_task_step,
     get_defense_task,
     start_next_task_step,
+    submit_follow_up_answer,
+    submit_task_answer,
 )
+from app.task_resume import get_resumable_task_status
+from app.task_trace_analyzer import analyze_task_trace
+from app.task_markdown_exporter import export_task_markdown_report
 from app.task_store import DEFAULT_TASK_DIRECTORY
 
 
@@ -373,6 +389,139 @@ def main():
         default=None,
         help="Maximum estimated cost allowed before calling the LLM",
     )
+    chat_parser.add_argument(
+        "--disable-memory",
+        action="store_true",
+        help="Disable long-term memory injection for this chat turn",
+    )
+    chat_parser.add_argument(
+        "--max-memory-weaknesses",
+        type=int,
+        default=5,
+        help="Maximum relevant weaknesses injected into the chat context",
+    )
+    chat_parser.add_argument(
+        "--max-memory-summaries",
+        type=int,
+        default=3,
+        help="Maximum relevant training summaries injected into the chat context",
+    )
+    chat_parser.add_argument(
+        "--disable-session-compaction",
+        action="store_true",
+        help="Disable session history summary compaction for this chat turn",
+    )
+    chat_parser.add_argument(
+        "--compact-summary-max-characters",
+        type=int,
+        default=4000,
+        help="Maximum characters kept in the session summary",
+    )
+    
+    memory_show_parser = subparsers.add_parser(
+        "memory-show",
+        help="Show local long-term memory",
+    )
+    memory_show_parser.add_argument(
+        "--path",
+        type=str,
+        default=LONG_TERM_MEMORY_PATH,
+        help="Long-term memory JSON path",
+    )
+    
+    memory_set_profile_parser = subparsers.add_parser(
+        "memory-set-profile",
+        help="Set one profile field in local long-term memory",
+    )
+    memory_set_profile_parser.add_argument(
+        "--key",
+        required=True,
+        help="Profile field name",
+    )
+    memory_set_profile_parser.add_argument(
+        "--value",
+        required=True,
+        help="Profile field value",
+    )
+    memory_set_profile_parser.add_argument(
+        "--path",
+        type=str,
+        default=LONG_TERM_MEMORY_PATH,
+        help="Long-term memory JSON path",
+    )
+    
+    memory_add_weakness_parser = subparsers.add_parser(
+        "memory-add-weakness",
+        help="Add one weakness to local long-term memory",
+    )
+    memory_add_weakness_parser.add_argument(
+        "--text",
+        required=True,
+        help="Weakness text",
+    )
+    memory_add_weakness_parser.add_argument(
+        "--task-id",
+        type=str,
+        default=None,
+        help="Optional source task ID",
+    )
+    memory_add_weakness_parser.add_argument(
+        "--path",
+        type=str,
+        default=LONG_TERM_MEMORY_PATH,
+        help="Long-term memory JSON path",
+    )
+    
+    memory_add_summary_parser = subparsers.add_parser(
+        "memory-add-summary",
+        help="Add one training summary to local long-term memory",
+    )
+    memory_add_summary_parser.add_argument(
+        "--summary",
+        required=True,
+        help="Training summary text",
+    )
+    memory_add_summary_parser.add_argument(
+        "--task-id",
+        type=str,
+        default=None,
+        help="Optional source task ID",
+    )
+    memory_add_summary_parser.add_argument(
+        "--topic",
+        type=str,
+        default=None,
+        help="Optional training topic",
+    )
+    memory_add_summary_parser.add_argument(
+        "--path",
+        type=str,
+        default=LONG_TERM_MEMORY_PATH,
+        help="Long-term memory JSON path",
+    )
+    
+    memory_prune_parser = subparsers.add_parser(
+        "memory-prune",
+        help="Prune local long-term memory by retention limits",
+    )
+    memory_prune_parser.add_argument(
+        "--max-weaknesses",
+        type=int,
+        default=20,
+        help="Maximum weaknesses to keep",
+    )
+    memory_prune_parser.add_argument(
+        "--max-summaries",
+        type=int,
+        default=10,
+        help="Maximum training summaries to keep",
+    )
+    memory_prune_parser.add_argument(
+        "--path",
+        type=str,
+        default=LONG_TERM_MEMORY_PATH,
+        help="Long-term memory JSON path",
+    )
     
     mock_parser = subparsers.add_parser("mock-defense")
     mock_parser.add_argument(
@@ -438,6 +587,118 @@ def main():
         type=str,
         default=str(DEFAULT_TASK_DIRECTORY),
         help="Directory used to store defense task JSON files",
+    )
+
+    execute_task_step_parser = subparsers.add_parser(
+        "execute-task-step",
+        help="Execute the current defense task step",
+    )
+    execute_task_step_parser.add_argument(
+        "--task-id",
+        required=True,
+        help="Defense task ID",
+    )
+    execute_task_step_parser.add_argument(
+        "--directory",
+        type=str,
+        default=str(DEFAULT_TASK_DIRECTORY),
+        help="Directory used to store defense task JSON files",
+    )
+
+    resume_task_parser = subparsers.add_parser(
+        "resume-task",
+        help="Show how to resume a defense task",
+    )
+    resume_task_parser.add_argument(
+        "--task-id",
+        required=True,
+        help="Defense task ID",
+    )
+    resume_task_parser.add_argument(
+        "--directory",
+        type=str,
+        default=str(DEFAULT_TASK_DIRECTORY),
+        help="Directory used to store defense task JSON files",
+    )
+
+    analyze_task_parser = subparsers.add_parser(
+        "analyze-task",
+        help="Analyze a defense task trace summary",
+    )
+    analyze_task_parser.add_argument(
+        "--task-id",
+        required=True,
+        help="Defense task ID",
+    )
+    analyze_task_parser.add_argument(
+        "--directory",
+        type=str,
+        default=str(DEFAULT_TASK_DIRECTORY),
+        help="Directory used to store defense task JSON files",
+    )
+
+    submit_task_answer_parser = subparsers.add_parser(
+        "submit-task-answer",
+        help="Submit a student answer for the current task",
+    )
+    submit_task_answer_parser.add_argument(
+        "--task-id",
+        required=True,
+        help="Defense task ID",
+    )
+    submit_task_answer_parser.add_argument(
+        "--answer",
+        required=True,
+        help="Student answer text",
+    )
+    submit_task_answer_parser.add_argument(
+        "--directory",
+        type=str,
+        default=str(DEFAULT_TASK_DIRECTORY),
+        help="Directory used to store defense task JSON files",
+    )
+
+    submit_follow_up_answer_parser = subparsers.add_parser(
+        "submit-follow-up-answer",
+        help="Submit a student follow-up answer for the current task",
+    )
+    submit_follow_up_answer_parser.add_argument(
+        "--task-id",
+        required=True,
+        help="Defense task ID",
+    )
+    submit_follow_up_answer_parser.add_argument(
+        "--answer",
+        required=True,
+        help="Student follow-up answer text",
+    )
+    submit_follow_up_answer_parser.add_argument(
+        "--directory",
+        type=str,
+        default=str(DEFAULT_TASK_DIRECTORY),
+        help="Directory used to store defense task JSON files",
+    )
+
+    export_task_markdown_parser = subparsers.add_parser(
+        "export-task-markdown",
+        help="Export a defense task as a Markdown report",
+    )
+    export_task_markdown_parser.add_argument(
+        "--task-id",
+        required=True,
+        help="Defense task ID",
+    )
+    export_task_markdown_parser.add_argument(
+        "--directory",
+        type=str,
+        default=str(DEFAULT_TASK_DIRECTORY),
+        help="Directory used to store defense task JSON files",
+    )
+    export_task_markdown_parser.add_argument(
+        "--output",
+        type=str,
+        default=None,
+        help="Markdown output path",
     )
 
     show_task_parser = subparsers.add_parser(
@@ -1006,6 +1267,21 @@ def main():
             print("ARGUMENT ERROR: --preflight-max-run-cost 不能小于 0")
             raise SystemExit(2)
         
+        if args.max_memory_weaknesses < 0:
+            print("ARGUMENT ERROR: --max-memory-weaknesses 不能小于 0")
+            raise SystemExit(2)
+        
+        if args.max_memory_summaries < 0:
+            print("ARGUMENT ERROR: --max-memory-summaries 不能小于 0")
+            raise SystemExit(2)
+        
+        if args.compact_summary_max_characters <= 0:
+            print(
+                "ARGUMENT ERROR: "
+                "--compact-summary-max-characters must be greater than 0"
+            )
+            raise SystemExit(2)
+        
         try:
             result, session, session_path = run_agent_session(
                 user_message=user_message,
@@ -1014,6 +1290,13 @@ def main():
                 max_history_characters=args.max_history_characters,
                 max_run_cost=args.max_run_cost,
                 preflight_max_run_cost=args.preflight_max_run_cost,
+                use_long_term_memory=not args.disable_memory,
+                max_memory_weaknesses=args.max_memory_weaknesses,
+                max_memory_summaries=args.max_memory_summaries,
+                compact_session=not args.disable_session_compaction,
+                compact_summary_max_characters=(
+                    args.compact_summary_max_characters
+                ),
             )
         except FileNotFoundError as error:
             print(f"SESSION ERROR: {error}")
@@ -1049,6 +1332,105 @@ def main():
 
         print("\nSESSION SAVED:")
         print(session_path)
+
+    elif args.command == "memory-show":
+        memory = load_long_term_memory(args.path)
+        context = build_long_term_memory_context(memory)
+
+        print("MEMORY PATH:", args.path)
+        print("MEMORY JSON:")
+        print(json.dumps(memory, ensure_ascii=False, indent=2))
+        print("MEMORY CONTEXT:")
+        print(context or "<empty>")
+
+    elif args.command == "memory-set-profile":
+        if not args.key.strip():
+            print("ARGUMENT ERROR: --key cannot be empty")
+            raise SystemExit(2)
+        
+        if not args.value.strip():
+            print("ARGUMENT ERROR: --value cannot be empty")
+            raise SystemExit(2)
+        
+        memory = load_long_term_memory(args.path)
+        memory = update_memory_profile(
+            memory,
+            **{args.key.strip(): args.value.strip()},
+        )
+        memory_path = save_long_term_memory(memory, args.path)
+
+        print("MEMORY PROFILE UPDATED")
+        print("PATH:", memory_path)
+        print("KEY:", args.key.strip())
+        print("VALUE:", args.value.strip())
+
+    elif args.command == "memory-add-weakness":
+        try:
+            memory = load_long_term_memory(args.path)
+            memory = add_weakness(
+                memory,
+                weakness=args.text,
+                source_task_id=args.task_id,
+            )
+            memory_path = save_long_term_memory(memory, args.path)
+        except ValueError as error:
+            print(f"MEMORY ERROR: {error}")
+            raise SystemExit(1) from error
+
+        print("MEMORY WEAKNESS ADDED")
+        print("PATH:", memory_path)
+        print("WEAKNESS:", args.text.strip())
+
+    elif args.command == "memory-add-summary":
+        try:
+            memory = load_long_term_memory(args.path)
+            memory = add_training_summary(
+                memory,
+                summary=args.summary,
+                task_id=args.task_id,
+                topic=args.topic,
+            )
+            memory_path = save_long_term_memory(memory, args.path)
+        except ValueError as error:
+            print(f"MEMORY ERROR: {error}")
+            raise SystemExit(1) from error
+
+        print("MEMORY SUMMARY ADDED")
+        print("PATH:", memory_path)
+        print("SUMMARY:", args.summary.strip())
+
+    elif args.command == "memory-prune":
+        if args.max_weaknesses < 0:
+            print("ARGUMENT ERROR: --max-weaknesses cannot be negative")
+            raise SystemExit(2)
+        
+        if args.max_summaries < 0:
+            print("ARGUMENT ERROR: --max-summaries cannot be negative")
+            raise SystemExit(2)
+        
+        try:
+            memory = load_long_term_memory(args.path)
+            before_weaknesses = len(memory["weaknesses"])
+            before_summaries = len(memory["training_summaries"])
+            memory = prune_long_term_memory(
+                memory,
+                max_weaknesses=args.max_weaknesses,
+                max_summaries=args.max_summaries,
+            )
+            memory_path = save_long_term_memory(memory, args.path)
+        except ValueError as error:
+            print(f"MEMORY ERROR: {error}")
+            raise SystemExit(1) from error
+
+        print("MEMORY PRUNED")
+        print("PATH:", memory_path)
+        print("WEAKNESSES:", before_weaknesses, "->", len(memory["weaknesses"]))
+        print(
+            "SUMMARIES:",
+            before_summaries,
+            "->",
+            len(memory["training_summaries"]),
+        )
 
     elif args.command == "mock-defense":
         run_mock_defense(training_query=args.topic)
@@ -1121,6 +1503,149 @@ def main():
         print(f"STEP TYPE: {step.step_type}")
         print(f"STEP STATUS: {step.status}")
         print(f"SAVED: {task_path}")
+
+    elif args.command == "execute-task-step":
+        try:
+            task, step, task_path = execute_current_task_step(
+                task_id=args.task_id,
+                directory=args.directory,
+                long_term_memory_path=LONG_TERM_MEMORY_PATH,
+            )
+        except ValueError as error:
+            print(f"TASK ERROR: {error}")
+            raise SystemExit(1) from error
+
+        print("TASK STEP EXECUTED")
+        print(f"TASK ID: {task.task_id}")
+        print(f"STATUS: {task.status}")
+        print(f"STEP ID: {step.step_id}")
+        print(f"STEP TYPE: {step.step_type}")
+        print(f"STEP STATUS: {step.status}")
+
+        if "query" in step.output:
+            print(f"QUERY: {step.output['query']}")
+
+        if "sources" in step.output:
+            print(f"SOURCE COUNT: {len(step.output['sources'])}")
+
+        print(f"SAVED: {task_path}")
+
+    elif args.command == "resume-task":
+        task = get_defense_task(
+            task_id=args.task_id,
+            directory=args.directory,
+        )
+        status = get_resumable_task_status(task)
+
+        print("TASK RESUME STATUS")
+        print(f"TASK ID: {task.task_id}")
+        print(f"TASK STATUS: {status.task_status}")
+        print(f"ACTION: {status.action}")
+        print(f"CURRENT STEP ID: {status.current_step_id}")
+        print(f"CURRENT STEP TYPE: {status.current_step_type}")
+        print(f"CURRENT STEP STATUS: {status.current_step_status}")
+        print(f"NEXT STEP TYPE: {status.next_step_type}")
+        print(
+            "CAN EXECUTE CURRENT STEP:",
+            status.can_execute_current_step,
+        )
+        print("NEEDS HUMAN INPUT:", status.needs_human_input)
+        print(f"MESSAGE: {status.message}")
+
+    elif args.command == "analyze-task":
+        task = get_defense_task(
+            task_id=args.task_id,
+            directory=args.directory,
+        )
+        report = analyze_task_trace(task)
+
+        print("TASK TRACE SUMMARY")
+        print(f"TASK ID: {report['task_id']}")
+        print(f"TOPIC: {report['topic']}")
+        print(f"STATUS: {report['status']}")
+        print(f"CURRENT STEP ID: {report['current_step_id']}")
+        print(f"CURRENT STEP TYPE: {report['current_step_type']}")
+        print(f"CURRENT STEP STATUS: {report['current_step_status']}")
+        print(f"STEP COUNT: {report['step_count']}")
+        print(f"COMPLETED STEPS: {report['completed_step_count']}")
+        print(f"FAILED STEPS: {report['failed_step_count']}")
+        print(f"PENDING STEPS: {report['pending_step_count']}")
+        print(f"RUNNING STEPS: {report['running_step_count']}")
+        print(f"TOOL CALLS: {report['tool_call_count']}")
+        print(
+            "SUCCESSFUL TOOL CALLS:",
+            report["successful_tool_call_count"],
+        )
+        print("FAILED TOOL CALLS:", report["failed_tool_call_count"])
+        print(
+            "TOTAL DURATION MS:",
+            round(report["total_duration_ms"], 2),
+        )
+        print("TOTAL PROMPT TOKENS:", report["total_prompt_tokens"])
+        print(
+            "TOTAL COMPLETION TOKENS:",
+            report["total_completion_tokens"],
+        )
+        print("TOTAL TOKENS:", report["total_tokens"])
+        print("TOTAL COST:", round(report["total_cost"], 6))
+        print("CURRENCY:", report["currency"])
+        print("EVIDENCE COUNT:", report["evidence_count"])
+
+    elif args.command == "submit-task-answer":
+        try:
+            task, step, task_path = submit_task_answer(
+                task_id=args.task_id,
+                answer=args.answer,
+                directory=args.directory,
+            )
+        except ValueError as error:
+            print(f"TASK ERROR: {error}")
+            raise SystemExit(1) from error
+
+        print("TASK ANSWER SUBMITTED")
+        print(f"TASK ID: {task.task_id}")
+        print(f"STATUS: {task.status}")
+        print(f"STEP ID: {step.step_id}")
+        print(f"STEP TYPE: {step.step_type}")
+        print(f"STEP STATUS: {step.status}")
+        print(f"ANSWER: {step.output['answer']}")
+        print(f"SAVED: {task_path}")
+
+    elif args.command == "submit-follow-up-answer":
+        try:
+            task, step, task_path = submit_follow_up_answer(
+                task_id=args.task_id,
+                answer=args.answer,
+                directory=args.directory,
+            )
+        except ValueError as error:
+            print(f"TASK ERROR: {error}")
+            raise SystemExit(1) from error
+
+        print("TASK FOLLOW-UP ANSWER SUBMITTED")
+        print(f"TASK ID: {task.task_id}")
+        print(f"STATUS: {task.status}")
+        print(f"STEP ID: {step.step_id}")
+        print(f"STEP TYPE: {step.step_type}")
+        print(f"STEP STATUS: {step.status}")
+        print(f"FOLLOW-UP ANSWER: {step.output['follow_up_answer']}")
+        print(f"SAVED: {task_path}")
+
+    elif args.command == "export-task-markdown":
+        task = get_defense_task(
+            task_id=args.task_id,
+            directory=args.directory,
+        )
+
+        report_path = export_task_markdown_report(
+            task,
+            output_path=args.output,
+        )
+
+        print("TASK MARKDOWN EXPORTED")
+        print(f"TASK ID: {task.task_id}")
+        print(f"STATUS: {task.status}")
+        print(f"REPORT: {report_path}")
 
     elif args.command == "show-task":
         task = get_defense_task(

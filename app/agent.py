@@ -12,15 +12,25 @@ from app.config import (
 )
 from app.cost_estimator import estimate_llm_cost
 from app.llm import get_llm_client
-from app.tools import DEFENSE_QUESTION_TOOL, THESIS_SEARCH_TOOL
+from app.tools import (
+    ANSWER_EVALUATION_TOOL,
+    DEFENSE_QUESTION_TOOL,
+    FOLLOW_UP_TOOL,
+    THESIS_SEARCH_TOOL,
+    TRAINING_RECORD_TOOL,
+)
 from app.tool_executor import execute_tool_call
 from app.agent_models import AgentResult, TokenUsage ,ToolTrace 
 from app.session_models import AgentSession
+from app.session_compactor import SESSION_SUMMARY_METADATA_KEY
 from app.conversation_memory import select_context_messages
 
 AGENT_TOOLS = [
     THESIS_SEARCH_TOOL,
     DEFENSE_QUESTION_TOOL,
+    ANSWER_EVALUATION_TOOL,
+    FOLLOW_UP_TOOL,
+    TRAINING_RECORD_TOOL,
 ]
 
 AGENT_SYSTEM_PROMPT = """
@@ -83,6 +93,7 @@ def build_agent_messages(
     session: AgentSession,
     max_history_turns: int,
     max_history_characters: int,
+    long_term_memory_context: str = "",
 ) -> list[dict]:
     context_messages = select_context_messages(
         messages=session.messages,
@@ -90,19 +101,45 @@ def build_agent_messages(
         max_characters=max_history_characters,
     )
 
-    return [
+    messages = [
         {
             "role": "system",
             "content": AGENT_SYSTEM_PROMPT,
         },
-        *context_messages,
     ]
+    
+    if long_term_memory_context.strip():
+        messages.append(
+            {
+                "role": "system",
+                "content": long_term_memory_context.strip(),
+            }
+        )
+    
+    conversation_summary = str(
+        session.metadata.get(SESSION_SUMMARY_METADATA_KEY, "")
+    ).strip()
+
+    if conversation_summary:
+        messages.append(
+            {
+                "role": "system",
+                "content": (
+                    "Conversation summary:\n"
+                    f"{conversation_summary}"
+                ),
+            }
+        )
+    
+    messages.extend(context_messages)
+    return messages
 
 def run_agent(
         user_message: str,
         max_steps: int = 5,
         max_history_turns: int = 6,
         max_history_characters: int = 12000,
+        long_term_memory_context: str = "",
         append_user_message: bool = True,
         session: AgentSession | None = None,
         llm_call: Callable[[list[dict]], Any] | None = None,
@@ -139,6 +176,7 @@ def run_agent(
         session=session,
         max_history_turns=max_history_turns,
         max_history_characters=max_history_characters,
+        long_term_memory_context=long_term_memory_context,
     )
 
 

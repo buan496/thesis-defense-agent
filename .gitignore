@@ -11,7 +11,9 @@ data/query_embedding_cache.json
 data/vector_store_meta.json
 data/reports/
 data/traces/
+data/task_reports/
 docs/.obsidian/
 docs/.trash/
 data/agent_sessions/
 data/defense_tasks/
+data/long_term_memory.json

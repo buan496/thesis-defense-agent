@@ -3,13 +3,12 @@ tags:
   - roadmap
   - agent-engineering
 status: active
-updated: 2026-06-17
+updated: 2026-06-22
 ---
 
 # Agent 完整学习路线
 
-> [!note]
-> 路线按依赖顺序排列。未完成前置阶段时，不为了“技术栈多”而提前堆框架。
+> 路线按依赖顺序推进。没有完成前置阶段时，不为了“技术栈好看”提前堆框架。
 
 ## 阶段 0：Python 工程基础
 
@@ -17,8 +16,8 @@ updated: 2026-06-17
 - [x] Python 包、模块和 `python -m`
 - [x] 类型标注、异常、dataclass
 - [x] list、dict、JSON 和文件读写
-- [x] pytest、fixture、`tmp_path`
-- [x] Git 暂存、提交和 `.gitignore`
+- [x] pytest、fixture、tmp_path
+- [x] Git 暂存、提交、分支、`.gitignore`
 - [ ] 格式化、静态检查和类型检查
 
 基础知识：
@@ -31,8 +30,8 @@ updated: 2026-06-17
 ## 阶段 1：LLM 应用基础
 
 - [x] API 客户端
-- [x] system/user message
-- [x] temperature 与 max tokens
+- [x] system / user message
+- [x] temperature 和 max tokens
 - [x] Prompt Engineering
 - [x] 结构化 JSON 输出
 - [x] 输出清洗和异常处理
@@ -58,7 +57,7 @@ updated: 2026-06-17
 - [x] metadata 和缓存失效
 - [x] 检索与溯源
 - [x] benchmark 和质量门禁
-- [ ] 混合检索 BM25 + Vector
+- [ ] 混合检索：BM25 + Vector
 - [ ] reranker
 - [ ] 查询改写与多查询检索
 - [ ] Qdrant 或 Milvus
@@ -76,7 +75,7 @@ updated: 2026-06-17
 - [x] Tool Schema
 - [x] 工具注册表
 - [x] 工具白名单
-- [x] LLM 自动选工具
+- [x] LLM 自动选择工具
 - [x] Agent Loop
 - [x] 最大步数
 - [x] 异常恢复
@@ -86,10 +85,11 @@ updated: 2026-06-17
 - [x] Trace 持久化
 - [x] Trace 分析
 - [x] 工具调用成功 / 失败记录
-- [ ] 工具超时
-- [ ] 工具重试策略
-- [ ] 工具结果长度限制
-- [ ] 多工具选择
+- [x] 工具超时
+- [x] 工具重试策略
+- [x] 工具结果长度限制
+- [x] 工具错误标准化
+- [ ] 多工具选择策略
 - [ ] 并行工具调用
 
 基础知识：
@@ -112,27 +112,42 @@ updated: 2026-06-17
 - [x] 历史字符预算
 - [x] session metadata
 - [x] token / cost 写入 session metadata
-- [ ] 长期用户记忆
-- [ ] 记忆写入策略
-- [ ] 记忆检索与遗忘
-- [ ] 上下文压缩和摘要
+- [x] 长期用户记忆
+- [x] 记忆写入策略
+- [x] 记忆检索与遗忘
+- [x] 上下文压缩和摘要
+
+已完成能力：
+
+- `long_term_memory.json`
+- 用户画像：例如论文方向
+- 薄弱点写入：由 CLI 或任务总结写入
+- 训练总结写入：由 CLI 或 `summarize_training` 写入
+- 相关记忆检索：按当前问题选择相关 weakness / summary
+- 记忆注入开关：`--disable-memory`
+- 记忆注入预算：`--max-memory-weaknesses`、`--max-memory-summaries`
+- 记忆裁剪：`memory-prune`
+- Session 摘要压缩：旧对话进入 `conversation_summary`
+- Session 压缩开关：`--disable-session-compaction`
+- Session 摘要长度限制：`--compact-summary-max-characters`
 
 基础知识：
 
 - 状态与生命周期
-- 数据库事务
-- 并发写入
-- 隐私和数据保留
+- 数据保留策略
+- 原子写入
+- 隐私和数据边界
+- 上下文压缩
 
 ## 阶段 5：多工具和 Skill
 
 - [x] 论文检索工具
 - [x] 答辩问题生成工具
-- [ ] 回答评分工具
-- [ ] 追问工具
-- [ ] 训练记录查询工具
+- [x] 回答评分工具
+- [x] 追问工具
+- [x] 训练记录查询工具
 - [ ] Skill 定义和动态加载
-- [ ] 工具权限与审计
+- [ ] 工具权限与审计策略升级
 - [ ] Workspace 隔离
 
 目标：从固定答辩流程升级为模型自主编排能力。
@@ -152,9 +167,9 @@ updated: 2026-06-17
 - [x] 指标下降检测
 - [x] 预测翻转检测
 - [x] 稳定性退化检测
+- [x] 回归数据集
 - [ ] 人工盲评
 - [ ] Trace 回放
-- [x] 回归数据集
 - [ ] 反馈闭环
 
 ## 阶段 7：异步与长任务
@@ -167,7 +182,7 @@ updated: 2026-06-17
 - [x] 向量库构建 checkpoint
 - [x] 向量库构建断点恢复
 - [ ] 幂等性
-- [ ] Agent 任务恢复
+- [x] Agent 任务恢复
 
 基础知识：
 
@@ -184,9 +199,16 @@ updated: 2026-06-17
 - [ ] Conditional Edge
 - [ ] Checkpointer
 - [ ] Human-in-the-loop
-- [ ] 将当前手写 Agent Loop 迁移到 LangGraph
+- [ ] 将当前手写 Agent Loop 旁路迁移到 LangGraph
 
-原则：先理解手写 Harness，再使用框架。
+原则：
+
+- 先理解手写 Harness，再使用框架。
+- LangGraph 迁移必须旁路实现。
+- 新增独立目录，例如 `app/langgraph_workflow/`。
+- 新增独立 CLI，例如 `python -m app.cli graph-demo-task`。
+- 不覆盖 `app/task_*`、`app/agent.py` 等现有手写实现。
+- 保留两套实现用于对照学习。
 
 ## 阶段 9：MCP 与 Sub-Agent
 
@@ -200,6 +222,8 @@ updated: 2026-06-17
 - [ ] 失败回收和预算控制
 
 ## 阶段 10：服务化与界面
+
+> 当前机器暂不推进服务器部署相关学习。FastAPI、Web 前端、数据库、Docker、K8s 等内容后续放到另一台服务器笔记本上继续。
 
 - [ ] FastAPI
 - [ ] Pydantic 请求模型
@@ -215,41 +239,82 @@ updated: 2026-06-17
 - [x] 结构化日志
 - [x] Agent trace JSONL
 - [x] token / cost 审计
+- [x] CI
+- [x] GitHub Actions 离线质量门禁
+- [x] CI 失败诊断和修复
 - [ ] Langfuse
 - [ ] Prometheus 指标
 - [ ] 错误告警
 - [ ] Docker
-- [x] CI
-- [x] GitHub Actions 离线质量门禁
-- [x] CI 失败诊断和修复
 - [ ] PostgreSQL
 - [ ] Qdrant / Milvus
 - [ ] K8s 基础部署
 - [ ] 私有化配置和密钥管理
 
-## 当前阶段：Task State / 可恢复任务型 Agent
+## 当前阶段：本机学习版 Agent Harness 完整闭环
 
-当前项目已经完成 RAG 原型、手写 Agent Harness、Tool Calling、Session、短期记忆、成本审计和离线评估门禁。下一阶段不是继续堆新框架，而是把 `mock-defense` 从线性脚本升级为可恢复、可审计、可评估的任务型 Agent。
+当前项目已经完成本机学习版 Agent Harness 的完整闭环：
 
-重点任务：
+```text
+RAG
+→ Tool Calling
+→ Agent Loop
+→ Session
+→ Long-term Memory
+→ Trace
+→ Evaluation
+→ CI
+→ Task State
+→ Resumable Workflow
+→ Markdown Export
+```
 
-- [x] 设计 `DefenseTask` 数据结构
-- [x] 设计 `TaskStep` 数据结构
-- [x] 定义提问、回答、评价、改写、追问、总结的状态流转
-- [x] 实现任务 JSON 保存和加载
-- [x] 实现任务推进 service
-- [x] 接入 Task CLI
-- [x] 为任务模型、存储、状态推进、服务层和 CLI 补 pytest
-- [ ] 将每一步的输入、输出、证据、工具调用、token 和 cost 写入任务记录
-- [ ] 支持任务中断后 resume
-- [ ] 支持任务级 trace 汇总
-- [ ] 将任务步骤接入真实 RAG 和 LLM
+已经完成的 Task State 能力：
 
-这一阶段对应企业级 Agent 中的 `Task / Workspace / Session / Trace` 边界，是从“能回答问题的 Agent”走向“能执行稳定流程的 Agent”的关键一步。
+- [x] `DefenseTask / TaskStep`
+- [x] 任务 JSON 保存和加载
+- [x] 任务推进 service
+- [x] Task CLI
+- [x] `retrieve_context`
+- [x] `generate_question`
+- [x] `wait_for_answer`
+- [x] `evaluate_answer`
+- [x] `rewrite_answer`
+- [x] `generate_follow_up`
+- [x] `wait_for_follow_up_answer`
+- [x] `evaluate_follow_up_answer`
+- [x] `summarize_training`
+- [x] `submit-task-answer`
+- [x] `submit-follow-up-answer`
+- [x] `resume-task`
+- [x] `analyze-task`
+- [x] `export-task-markdown`
+- [x] 任务总结自动写入长期记忆
+
+边界说明：
+
+- LangGraph 后续只做旁路迁移，不覆盖当前手写 Task State / Agent Harness 源码。
+- FastAPI、Docker、K8s、数据库、服务器部署和私有化运行环境放到另一台服务器笔记本学习。
+
+## 下一步学习重点
+
+下一阶段进入 **Trace 回放与反馈闭环**：
+
+1. 离线回放某次 Agent / Task 运行
+2. 对比新旧输出
+3. 检测工具选择变化、评价分数变化和 faithfulness 变化
+4. 将用户反馈写入 benchmark 候选集
+
+之后再进入：
+
+1. BM25 + Vector 混合检索
+2. reranker
+3. query rewrite
+4. LangGraph 旁路迁移
 
 ## 最终简历能力目标
 
-- 能独立解释并实现 Agent Harness，而不只会调用框架
+- 能独立解释并实现 Agent Harness，而不只是调用框架
 - 能完成 RAG 数据链路、评估和优化
 - 能治理工具权限、异常、超时、审计和成本
 - 能设计 Session、Memory、Workspace 和 Skill 边界
