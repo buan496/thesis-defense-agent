@@ -60,7 +60,8 @@ updated: 2026-06-23
 - [x] 混合检索：BM25 + Vector
 - [x] Hybrid 权重扫描
 - [x] 规则版 reranker
-- [ ] 查询改写与多查询检索
+- [x] 规则版查询改写
+- [ ] 多查询检索
 - [ ] Qdrant 或 Milvus
 
 基础知识：
@@ -299,9 +300,9 @@ RAG
 
 ## 下一步学习重点
 
-Trace 回放与反馈闭环已完成，BM25 + Vector 混合检索、Hybrid 权重扫描和规则版 reranker 评估也已完成，下一阶段进入：
+Trace 回放与反馈闭环已完成，BM25 + Vector 混合检索、Hybrid 权重扫描、规则版 reranker 和规则版查询改写评估也已完成，下一阶段进入：
 
-1. query rewrite
+1. 多查询检索
 2. 模型版 reranker 或 cross-encoder reranker
 3. LangGraph 旁路迁移
 
@@ -427,3 +428,49 @@ reranker 不一定天然提升效果。
 - 增强英文术语 token 匹配。
 - 为专业名词设置同义词表。
 - 引入模型版 reranker 或 cross-encoder reranker。
+
+<!-- roadmap-update-2026-06-23-query-rewrite -->
+
+## 2026-06-23 路线同步：规则版 Query Rewrite 已完成
+
+本阶段新增完成能力：
+
+- [x] `app/query_rewriter.py`
+- [x] `rewrite_query(query)`
+- [x] 系统架构类问题补充模块术语
+- [x] 数据集类问题补充 AISHELL / LibriSpeech 等术语
+- [x] 语言感知类问题补充 `LanguageAwareFrontend`、`BiLSTM`、注意力池化等术语
+- [x] 后续改进类问题补充预训练微调、流式识别、数据扩展、模型压缩
+- [x] `evaluate-rag --rewrite-query`
+- [x] 报告中保留 `query` 和 `rewritten_query`
+- [x] query rewrite 前后 benchmark 对比
+
+本轮真实 benchmark 对比：
+
+```text
+hybrid no query rewrite: average_score = 0.8667
+hybrid with query rewrite: average_score = 1.0
+hybrid with query rewrite + rerank x3: average_score = 0.925
+```
+
+阶段结论：
+
+```text
+规则版 query rewrite 对当前 benchmark 有明显收益。
+当前推荐实验策略是 hybrid + query rewrite。
+当前不推荐默认叠加规则版 reranker。
+```
+
+学到的关键点：
+
+```text
+query rewrite 发生在检索前，解决“拿什么去搜”的问题。
+reranker 发生在检索后，解决“搜到后怎么排”的问题。
+二者都必须通过 benchmark 独立验证，不能凭感觉打开。
+```
+
+后续可继续学习：
+
+- 多查询检索：为同一问题生成多个 query 后合并结果。
+- LLM query rewrite：用模型根据用户问题生成更自然的检索 query。
+- 查询改写质量评估：对比 rewrite 前后召回、MISSING 和 token/cost。

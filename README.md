@@ -65,6 +65,7 @@ PDF / TXT 论文
 - 支持 BM25 关键词检索、Vector 语义检索和 Hybrid 融合检索
 - 支持检索器对比和 Hybrid 权重扫描，用 benchmark 自动选择检索参数
 - 支持规则版 reranker，并可用 benchmark 对比 rerank 前后效果
+- 支持规则版 query rewrite，并可用 benchmark 对比改写前后效果
 
 ### Tool Calling 与 Agent Harness
 
@@ -348,10 +349,11 @@ app/cli.py                       统一 CLI
 
 ## 下一步学习
 
-当前 Session / Memory 主线已经完成到本机学习版闭环，Trace 回放与反馈闭环也已完成，BM25 + Vector 混合检索、权重扫描和规则版 reranker 评估也已接入。下一步按路线进入：
+当前 Session / Memory 主线已经完成到本机学习版闭环，Trace 回放与反馈闭环也已完成，BM25 + Vector 混合检索、权重扫描、规则版 reranker 和 query rewrite 评估也已接入。下一步按路线进入：
 
-1. query rewrite
-2. LangGraph 旁路迁移，不覆盖现有手写 Harness
+1. 多查询检索
+2. 模型版 reranker 或 cross-encoder reranker
+3. LangGraph 旁路迁移，不覆盖现有手写 Harness
 
 服务化、Docker、数据库和服务器部署继续后移到另一台服务器笔记本。
 <!-- docs-update-2026-06-23-feedback-loop -->
@@ -445,6 +447,45 @@ hybrid rerank x5: average_score = 0.8333
 - 主要原因是规则打分偏向中文关键词命中，对 `LanguageAwareFrontend`、`BiLSTM` 等英文术语混合问题不够友好。
 - 当前默认 RAG 检索不启用 reranker，保留 `--rerank` 作为实验开关。
 - reranker 的价值不是“加上就更好”，而是必须通过 benchmark 验证是否真的改善召回质量。
+
+<!-- docs-update-2026-06-23-query-rewrite -->
+
+## 2026-06-23 更新：规则版 Query Rewrite 与 Benchmark 对比
+
+当前已新增规则版 query rewrite，用于在检索前改写用户问题：
+
+```text
+用户原始问题
+→ 按规则补充论文中的关键术语
+→ 使用改写后的 query 执行 hybrid 检索
+→ 保留原 query 和 rewritten query 进入评估报告
+```
+
+新增命令示例：
+
+```powershell
+python -m app.cli evaluate-rag `
+  --retriever hybrid `
+  --vector-weight 0.7 `
+  --bm25-weight 0.3 `
+  --rewrite-query
+```
+
+本轮真实 benchmark 对比：
+
+```text
+hybrid no query rewrite: average_score = 0.8667
+hybrid with query rewrite: average_score = 1.0
+hybrid with query rewrite + rerank x3: average_score = 0.925
+```
+
+结论：
+
+- 规则版 query rewrite 对当前 benchmark 有明显正收益。
+- 它主要修复了“语言感知前端”问题中英文术语召回不足的问题。
+- 当前推荐默认实验策略是：`hybrid + query rewrite`。
+- 当前不推荐默认叠加规则版 reranker，因为 `rewrite + rerank` 会从 `1.0` 降到 `0.925`。
+- query rewrite 改变的是“拿什么去搜”，reranker 改变的是“搜到后怎么排”。两者都必须单独做 benchmark 对比。
 
 ### Trace 回放与对比
 
