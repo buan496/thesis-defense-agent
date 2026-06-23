@@ -61,7 +61,7 @@ updated: 2026-06-23
 - [x] Hybrid 权重扫描
 - [x] 规则版 reranker
 - [x] 规则版查询改写
-- [ ] 多查询检索
+- [x] 多查询检索
 - [ ] Qdrant 或 Milvus
 
 基础知识：
@@ -300,10 +300,10 @@ RAG
 
 ## 下一步学习重点
 
-Trace 回放与反馈闭环已完成，BM25 + Vector 混合检索、Hybrid 权重扫描、规则版 reranker 和规则版查询改写评估也已完成，下一阶段进入：
+Trace 回放与反馈闭环已完成，BM25 + Vector 混合检索、Hybrid 权重扫描、规则版 reranker、规则版查询改写和多查询检索评估也已完成，下一阶段进入：
 
-1. 多查询检索
-2. 模型版 reranker 或 cross-encoder reranker
+1. 模型版 reranker 或 cross-encoder reranker
+2. LLM query rewrite
 3. LangGraph 旁路迁移
 
 ## 最终简历能力目标
@@ -474,3 +474,47 @@ reranker 发生在检索后，解决“搜到后怎么排”的问题。
 - 多查询检索：为同一问题生成多个 query 后合并结果。
 - LLM query rewrite：用模型根据用户问题生成更自然的检索 query。
 - 查询改写质量评估：对比 rewrite 前后召回、MISSING 和 token/cost。
+
+<!-- roadmap-update-2026-06-23-multi-query -->
+
+## 2026-06-23 路线同步：多查询检索已完成
+
+本阶段新增完成能力：
+
+- [x] `app/multi_query_rewriter.py`
+- [x] `generate_multi_queries(query)`
+- [x] 为系统架构、数据集、语言感知前端、后续改进等问题生成多个检索 query
+- [x] 多 query 检索结果合并
+- [x] 按 chunk id / source + text 去重
+- [x] 保留 `search_queries` 进入评估报告
+- [x] `evaluate-rag --multi-query`
+- [x] `compare-retrievers --multi-query`
+- [x] `scan-hybrid-weights --multi-query`
+- [x] multi-query benchmark 对比
+
+本轮真实 benchmark 结果：
+
+```text
+hybrid + multi-query: average_score = 1.0
+```
+
+阶段结论：
+
+```text
+multi-query retrieval 对当前 benchmark 有正收益，能够通过多个检索视角提升召回稳定性。
+它不是替代 query rewrite，而是把“一个增强 query”扩展为“多个 query 并行召回后合并”。
+```
+
+学到的关键点：
+
+```text
+query rewrite 关注单个 query 如何写得更准。
+multi-query 关注同一个问题能不能从多个角度去搜。
+多查询检索会增加 embedding 调用和检索成本，因此必须记录 cache hits / misses，并用 benchmark 验证收益。
+```
+
+后续可继续学习：
+
+- 模型版 reranker 或 cross-encoder reranker。
+- LLM query rewrite。
+- 对比 `query rewrite`、`multi-query`、`query rewrite + multi-query` 的召回收益与成本。

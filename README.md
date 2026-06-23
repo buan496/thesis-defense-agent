@@ -38,7 +38,7 @@ PDF / TXT 论文
 最新本地测试基线：
 
 ```text
-371 passed
+473 passed
 ```
 
 ## 已实现能力
@@ -66,6 +66,7 @@ PDF / TXT 论文
 - 支持检索器对比和 Hybrid 权重扫描，用 benchmark 自动选择检索参数
 - 支持规则版 reranker，并可用 benchmark 对比 rerank 前后效果
 - 支持规则版 query rewrite，并可用 benchmark 对比改写前后效果
+- 支持 multi-query retrieval，为同一问题生成多个检索 query 后合并结果，提高召回稳定性
 
 ### Tool Calling 与 Agent Harness
 
@@ -349,10 +350,10 @@ app/cli.py                       统一 CLI
 
 ## 下一步学习
 
-当前 Session / Memory 主线已经完成到本机学习版闭环，Trace 回放与反馈闭环也已完成，BM25 + Vector 混合检索、权重扫描、规则版 reranker 和 query rewrite 评估也已接入。下一步按路线进入：
+当前 Session / Memory 主线已经完成到本机学习版闭环，Trace 回放与反馈闭环也已完成，BM25 + Vector 混合检索、权重扫描、规则版 reranker、query rewrite 和 multi-query retrieval 评估也已接入。下一步按路线进入：
 
-1. 多查询检索
-2. 模型版 reranker 或 cross-encoder reranker
+1. 模型版 reranker 或 cross-encoder reranker
+2. LLM query rewrite
 3. LangGraph 旁路迁移，不覆盖现有手写 Harness
 
 服务化、Docker、数据库和服务器部署继续后移到另一台服务器笔记本。
@@ -377,7 +378,7 @@ Agent Trace
 最新本地测试基线：
 
 ```text
-432 passed
+473 passed
 ```
 
 <!-- docs-update-2026-06-23-hybrid-retrieval -->
@@ -486,6 +487,43 @@ hybrid with query rewrite + rerank x3: average_score = 0.925
 - 当前推荐默认实验策略是：`hybrid + query rewrite`。
 - 当前不推荐默认叠加规则版 reranker，因为 `rewrite + rerank` 会从 `1.0` 降到 `0.925`。
 - query rewrite 改变的是“拿什么去搜”，reranker 改变的是“搜到后怎么排”。两者都必须单独做 benchmark 对比。
+
+<!-- docs-update-2026-06-23-multi-query -->
+
+## 2026-06-23 更新：Multi-Query Retrieval 与 Benchmark 对比
+
+当前已新增规则版 multi-query retrieval，用于为同一个用户问题生成多个检索视角：
+
+```text
+用户原始问题
+→ 生成多个 search query
+→ 分别执行检索
+→ 合并去重候选结果
+→ 按分数截取最终 top_k
+```
+
+新增命令示例：
+
+```powershell
+python -m app.cli evaluate-rag `
+  --retriever hybrid `
+  --vector-weight 0.7 `
+  --bm25-weight 0.3 `
+  --multi-query
+```
+
+本轮真实 benchmark 结果：
+
+```text
+hybrid + multi-query: average_score = 1.0
+```
+
+结论：
+
+- multi-query retrieval 对当前 benchmark 能达到满分召回。
+- 它解决的是“同一个问题可以从多个检索角度表达”的问题。
+- 与 query rewrite 不同，query rewrite 生成一个增强后的 query，multi-query 会保留多个 query 并合并检索结果。
+- 当前已验证 `hybrid + multi-query` 可用，后续可以继续对比 `hybrid + query rewrite`、`hybrid + query rewrite + multi-query` 的成本和稳定性。
 
 ### Trace 回放与对比
 

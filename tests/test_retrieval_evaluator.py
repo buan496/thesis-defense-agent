@@ -6,6 +6,7 @@ from app.retrieval_evaluator import (
     compare_retrievers,
     evaluate_retrieval,
     scan_hybrid_weights,
+    search_multi_query_store,
 )
 
 
@@ -59,6 +60,9 @@ def test_evaluate_retrieval(tmp_path):
     assert report["results"][0]["rewritten_query"] == (
         "系统架构包括什么？"
     )
+    assert report["results"][0]["search_queries"] == [
+        "系统架构包括什么？"
+    ]
     assert report["results"][0]["hit_count"] == 1
     assert report["embedding_cache"]["hits"] == 0
     assert report["embedding_cache"]["misses"] == 1
@@ -354,6 +358,67 @@ def test_evaluate_retrieval_supports_query_rewrite(tmp_path):
     assert report["average_score"] == 1.0
 
 
+def test_evaluate_retrieval_supports_multi_query(tmp_path):
+    benchmark_path = tmp_path / "benchmark.json"
+    vector_store_path = tmp_path / "vector_store.json"
+    cache_path = tmp_path / "cache.json"
+    benchmark = [
+        {
+            "query": "系统有哪些模块？",
+            "expected_keywords": ["特征处理"],
+        }
+    ]
+    store = [
+        {
+            "id": 0,
+            "text": "普通内容",
+            "source": "test",
+            "embedding": [0.8, 0.2],
+        },
+        {
+            "id": 1,
+            "text": "系统架构包括特征处理模块",
+            "source": "test",
+            "embedding": [0.0, 1.0],
+        },
+    ]
+    benchmark_path.write_text(
+        json.dumps(benchmark, ensure_ascii=False),
+        encoding="utf-8",
+    )
+    vector_store_path.write_text(
+        json.dumps(store, ensure_ascii=False),
+        encoding="utf-8",
+    )
+
+    def multi_query_for_test(query: str) -> list[str]:
+        return [query, "特征处理"]
+
+    def embedding_for_test(text: str) -> list[float]:
+        if "特征处理" in text:
+            return [0.0, 1.0]
+
+        return [1.0, 0.0]
+
+    report = evaluate_retrieval(
+        benchmark_path=str(benchmark_path),
+        vector_store_path=str(vector_store_path),
+        top_k=1,
+        embedding_fn=embedding_for_test,
+        embedding_cache_path=str(cache_path),
+        embedding_model="test-model",
+        use_multi_query=True,
+        multi_query_generator=multi_query_for_test,
+    )
+
+    assert report["use_multi_query"] is True
+    assert report["results"][0]["search_queries"] == [
+        "系统有哪些模块？",
+        "特征处理",
+    ]
+    assert report["average_score"] == 1.0
+
+
 def test_evaluate_retrieval_rejects_invalid_rerank_multiplier(tmp_path):
     benchmark_path = tmp_path / "benchmark.json"
     vector_store_path = tmp_path / "vector_store.json"
@@ -413,6 +478,7 @@ def test_compare_retrievers(tmp_path):
         use_reranker=True,
         rerank_candidate_multiplier=2,
         use_query_rewrite=True,
+        use_multi_query=True,
     )
 
     assert report["top_k"] == 1
@@ -421,6 +487,7 @@ def test_compare_retrievers(tmp_path):
     assert report["use_reranker"] is True
     assert report["rerank_candidate_multiplier"] == 2
     assert report["use_query_rewrite"] is True
+    assert report["use_multi_query"] is True
     assert report["best_retriever"] in {"vector", "bm25", "hybrid"}
     assert [
         item["retriever"]
@@ -466,12 +533,14 @@ def test_scan_hybrid_weights(tmp_path):
         use_reranker=True,
         rerank_candidate_multiplier=2,
         use_query_rewrite=True,
+        use_multi_query=True,
     )
 
     assert report["top_k"] == 1
     assert report["use_reranker"] is True
     assert report["rerank_candidate_multiplier"] == 2
     assert report["use_query_rewrite"] is True
+    assert report["use_multi_query"] is True
     assert report["best_average_score"] == 1.0
     assert len(report["reports"]) == 2
     assert [
@@ -481,3 +550,27 @@ def test_scan_hybrid_weights(tmp_path):
         )
         for item in report["reports"]
     ] == [(1.0, 0.0), (0.5, 0.5)]
+
+
+def test_search_multi_query_store_deduplicates_results():
+    store = [
+        {
+            "id": 0,
+            "text": "系统架构包括特征处理模块",
+            "source": "test",
+            "embedding": [1.0, 0.0],
+        },
+    ]
+
+    results = search_multi_query_store(
+        queries=["系统架构", "特征处理"],
+        store=store,
+        top_k=2,
+        retriever="vector",
+        embedding_fn=lambda text: [1.0, 0.0],
+        vector_weight=0.7,
+        bm25_weight=0.3,
+    )
+
+    assert len(results) == 1
+    assert results[0]["matched_queries"] == ["系统架构", "特征处理"]

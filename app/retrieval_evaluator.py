@@ -7,6 +7,7 @@ from app.vector_store_metadata import load_vector_store_metadata
 from app.bm25_retriever import search_bm25
 from app.embeddings import create_embedding
 from app.hybrid_retriever import search_hybrid
+from app.multi_query_rewriter import generate_multi_queries
 from app.query_rewriter import rewrite_query
 from app.reranker import rerank_results
 from app.vector_store import search_vector_store
@@ -32,6 +33,8 @@ def evaluate_retrieval(
     rerank_candidate_multiplier: int = 3,
     use_query_rewrite: bool = False,
     query_rewriter: Callable[[str], str] = rewrite_query,
+    use_multi_query: bool = False,
+    multi_query_generator: Callable[[str], list[str]] = generate_multi_queries,
 ) -> dict:
     if retriever not in {"vector", "bm25", "hybrid"}:
         raise ValueError("retriever must be vector, bm25, or hybrid")
@@ -74,6 +77,11 @@ def evaluate_retrieval(
     for item in benchmark:
         query = item["query"]
         search_query = query_rewriter(query) if use_query_rewrite else query
+        search_queries = (
+            multi_query_generator(search_query)
+            if use_multi_query
+            else [search_query]
+        )
         expected_keywords = item["expected_keywords"]
 
         candidate_top_k = top_k
@@ -81,8 +89,8 @@ def evaluate_retrieval(
         if use_reranker:
             candidate_top_k = top_k * rerank_candidate_multiplier
 
-        search_results = search_retrieval_store(
-            query=search_query,
+        search_results = search_multi_query_store(
+            queries=search_queries,
             store=store,
             top_k=candidate_top_k,
             retriever=retriever,
@@ -125,6 +133,7 @@ def evaluate_retrieval(
             {
                 "query": query,
                 "rewritten_query": search_query,
+                "search_queries": search_queries,
                 "hit_count": hit_count,
                 "total": len(expected_keywords),
                 "missing": missing_keywords,
@@ -154,6 +163,7 @@ def evaluate_retrieval(
         "use_reranker": use_reranker,
         "rerank_candidate_multiplier": rerank_candidate_multiplier,
         "use_query_rewrite": use_query_rewrite,
+        "use_multi_query": use_multi_query,
         "average_score": average_score,
         "results": results,
     }
@@ -172,6 +182,8 @@ def compare_retrievers(
     rerank_candidate_multiplier: int = 3,
     use_query_rewrite: bool = False,
     query_rewriter: Callable[[str], str] = rewrite_query,
+    use_multi_query: bool = False,
+    multi_query_generator: Callable[[str], list[str]] = generate_multi_queries,
     retrievers: list[str] | None = None,
 ) -> dict:
     retriever_names = retrievers or ["vector", "bm25", "hybrid"]
@@ -193,6 +205,8 @@ def compare_retrievers(
                 rerank_candidate_multiplier=rerank_candidate_multiplier,
                 use_query_rewrite=use_query_rewrite,
                 query_rewriter=query_rewriter,
+                use_multi_query=use_multi_query,
+                multi_query_generator=multi_query_generator,
             )
         )
 
@@ -210,6 +224,7 @@ def compare_retrievers(
         "use_reranker": use_reranker,
         "rerank_candidate_multiplier": rerank_candidate_multiplier,
         "use_query_rewrite": use_query_rewrite,
+        "use_multi_query": use_multi_query,
         "best_retriever": (
             best_report["retriever"]
             if best_report is not None
@@ -231,6 +246,8 @@ def scan_hybrid_weights(
     rerank_candidate_multiplier: int = 3,
     use_query_rewrite: bool = False,
     query_rewriter: Callable[[str], str] = rewrite_query,
+    use_multi_query: bool = False,
+    multi_query_generator: Callable[[str], list[str]] = generate_multi_queries,
 ) -> dict:
     pairs = weight_pairs or [
         (1.0, 0.0),
@@ -258,6 +275,8 @@ def scan_hybrid_weights(
                 rerank_candidate_multiplier=rerank_candidate_multiplier,
                 use_query_rewrite=use_query_rewrite,
                 query_rewriter=query_rewriter,
+                use_multi_query=use_multi_query,
+                multi_query_generator=multi_query_generator,
             )
         )
 
@@ -273,6 +292,7 @@ def scan_hybrid_weights(
         "use_reranker": use_reranker,
         "rerank_candidate_multiplier": rerank_candidate_multiplier,
         "use_query_rewrite": use_query_rewrite,
+        "use_multi_query": use_multi_query,
         "best_vector_weight": (
             best_report["vector_weight"]
             if best_report is not None
@@ -327,4 +347,61 @@ def search_retrieval_store(
         )
 
     raise ValueError("retriever must be vector, bm25, or hybrid")
+
+
+def search_multi_query_store(
+    queries: list[str],
+    store: list[dict],
+    top_k: int,
+    retriever: str,
+    embedding_fn: Callable[[str], list[float]],
+    vector_weight: float,
+    bm25_weight: float,
+) -> list[dict]:
+    merged_results = {}
+
+    for query in queries:
+        results = search_retrieval_store(
+            query=query,
+            store=store,
+            top_k=top_k,
+            retriever=retriever,
+            embedding_fn=embedding_fn,
+            vector_weight=vector_weight,
+            bm25_weight=bm25_weight,
+        )
+
+        for result in results:
+            result_key = _retrieval_result_key(result)
+            existing_result = merged_results.get(result_key)
+
+            if existing_result is None:
+                merged_result = dict(result)
+                merged_result["matched_queries"] = [query]
+                merged_results[result_key] = merged_result
+                continue
+
+            existing_result["matched_queries"].append(query)
+
+            if result.get("score", 0.0) > existing_result.get("score", 0.0):
+                best_result = dict(result)
+                best_result["matched_queries"] = existing_result[
+                    "matched_queries"
+                ]
+                merged_results[result_key] = best_result
+
+    sorted_results = sorted(
+        merged_results.values(),
+        key=lambda item: item.get("score", 0.0),
+        reverse=True,
+    )
+
+    return sorted_results[:top_k]
+
+
+def _retrieval_result_key(result: dict) -> str:
+    if "id" in result:
+        return f"id:{result['id']}"
+
+    return f"{result.get('source', '')}:{result.get('text', '')}"
 
