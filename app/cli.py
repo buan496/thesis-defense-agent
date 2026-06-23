@@ -249,6 +249,11 @@ def main():
         default=3,
         help="Retrieve top_k times this multiplier before reranking",
     )
+    evaluate_parser.add_argument(
+        "--rewrite-query",
+        action="store_true",
+        help="Rewrite benchmark queries before retrieval",
+    )
 
     compare_retrievers_parser = subparsers.add_parser(
         "compare-retrievers",
@@ -289,6 +294,11 @@ def main():
         default=3,
         help="Retrieve top_k times this multiplier before reranking",
     )
+    compare_retrievers_parser.add_argument(
+        "--rewrite-query",
+        action="store_true",
+        help="Rewrite benchmark queries before retrieval",
+    )
 
     scan_hybrid_parser = subparsers.add_parser(
         "scan-hybrid-weights",
@@ -322,6 +332,11 @@ def main():
         type=int,
         default=3,
         help="Retrieve top_k times this multiplier before reranking",
+    )
+    scan_hybrid_parser.add_argument(
+        "--rewrite-query",
+        action="store_true",
+        help="Rewrite benchmark queries before retrieval",
     )
     trace_parser = subparsers.add_parser(
         "analyze-traces",
@@ -1140,11 +1155,13 @@ def main():
             bm25_weight=args.bm25_weight,
             use_reranker=args.rerank,
             rerank_candidate_multiplier=args.rerank_candidate_multiplier,
+            use_query_rewrite=args.rewrite_query,
         )
 
         for item in report["results"]:
             print(
                 f"QUERY: {item['query']}\n"
+                f"REWRITTEN QUERY: {item['rewritten_query']}\n"
                 f"HIT: {item['hit_count']} / {item['total']}\n"
                 f"MISSING: {item['missing']}\n"
                 f"SCORE: {item['score']}\n"
@@ -1160,6 +1177,7 @@ def main():
             "RERANK CANDIDATE MULTIPLIER:",
             report["rerank_candidate_multiplier"],
         )
+        print("USE QUERY REWRITE:", report["use_query_rewrite"])
         print("AVERAGE SCORE:", report["average_score"])
         print("CACHE HITS:", report["embedding_cache"]["hits"])
         print("CACHE MISSES:", report["embedding_cache"]["misses"])
@@ -1199,6 +1217,7 @@ def main():
             bm25_weight=args.bm25_weight,
             use_reranker=args.rerank,
             rerank_candidate_multiplier=args.rerank_candidate_multiplier,
+            use_query_rewrite=args.rewrite_query,
         )
 
         print("RETRIEVER COMPARISON")
@@ -1210,6 +1229,7 @@ def main():
             "RERANK CANDIDATE MULTIPLIER:",
             report["rerank_candidate_multiplier"],
         )
+        print("USE QUERY REWRITE:", report["use_query_rewrite"])
         print("BEST RETRIEVER:", report["best_retriever"])
 
         for retriever_report in report["reports"]:
@@ -1228,6 +1248,7 @@ def main():
             for item in retriever_report["results"]:
                 print(
                     f"QUERY: {item['query']} | "
+                    f"REWRITTEN QUERY: {item['rewritten_query']} | "
                     f"SCORE: {item['score']} | "
                     f"MISSING: {item['missing']}"
                 )
@@ -1260,6 +1281,7 @@ def main():
             weight_pairs=weight_pairs,
             use_reranker=args.rerank,
             rerank_candidate_multiplier=args.rerank_candidate_multiplier,
+            use_query_rewrite=args.rewrite_query,
         )
 
         print("HYBRID WEIGHT SCAN")
@@ -1269,6 +1291,7 @@ def main():
             "RERANK CANDIDATE MULTIPLIER:",
             report["rerank_candidate_multiplier"],
         )
+        print("USE QUERY REWRITE:", report["use_query_rewrite"])
         print("BEST VECTOR WEIGHT:", report["best_vector_weight"])
         print("BEST BM25 WEIGHT:", report["best_bm25_weight"])
         print("BEST AVERAGE SCORE:", report["best_average_score"])

@@ -21,6 +21,7 @@ def test_evaluate_rag_command_accepts_retriever_options(
             "results": [
                 {
                     "query": "系统架构",
+                    "rewritten_query": "系统架构 特征处理",
                     "hit_count": 1,
                     "total": 1,
                     "missing": [],
@@ -35,6 +36,7 @@ def test_evaluate_rag_command_accepts_retriever_options(
             "rerank_candidate_multiplier": (
                 kwargs["rerank_candidate_multiplier"]
             ),
+            "use_query_rewrite": kwargs["use_query_rewrite"],
             "average_score": 1.0,
             "embedding_cache": {
                 "hits": 0,
@@ -63,6 +65,7 @@ def test_evaluate_rag_command_accepts_retriever_options(
             "--rerank",
             "--rerank-candidate-multiplier",
             "2",
+            "--rewrite-query",
         ],
     )
 
@@ -76,10 +79,13 @@ def test_evaluate_rag_command_accepts_retriever_options(
     assert captured["bm25_weight"] == 0.4
     assert captured["use_reranker"] is True
     assert captured["rerank_candidate_multiplier"] == 2
+    assert captured["use_query_rewrite"] is True
     assert "RETRIEVER: hybrid" in output
     assert "VECTOR WEIGHT: 0.6" in output
     assert "BM25 WEIGHT: 0.4" in output
     assert "USE RERANKER: True" in output
+    assert "USE QUERY REWRITE: True" in output
+    assert "REWRITTEN QUERY: 系统架构 特征处理" in output
 
 
 def test_compare_retrievers_command(
@@ -100,6 +106,7 @@ def test_compare_retrievers_command(
             "rerank_candidate_multiplier": (
                 kwargs["rerank_candidate_multiplier"]
             ),
+            "use_query_rewrite": kwargs["use_query_rewrite"],
             "best_retriever": "hybrid",
             "reports": [
                 {
@@ -112,6 +119,7 @@ def test_compare_retrievers_command(
                     "results": [
                         {
                             "query": "系统架构",
+                            "rewritten_query": "系统架构 特征处理",
                             "score": 0.8,
                             "missing": ["训练模块"],
                         }
@@ -127,6 +135,7 @@ def test_compare_retrievers_command(
                     "results": [
                         {
                             "query": "系统架构",
+                            "rewritten_query": "系统架构 特征处理",
                             "score": 1.0,
                             "missing": [],
                         }
@@ -156,6 +165,7 @@ def test_compare_retrievers_command(
             "--rerank",
             "--rerank-candidate-multiplier",
             "2",
+            "--rewrite-query",
         ],
     )
 
@@ -168,9 +178,11 @@ def test_compare_retrievers_command(
     assert captured["bm25_weight"] == 0.4
     assert captured["use_reranker"] is True
     assert captured["rerank_candidate_multiplier"] == 2
+    assert captured["use_query_rewrite"] is True
     assert "RETRIEVER COMPARISON" in output
     assert "BEST RETRIEVER: hybrid" in output
     assert "USE RERANKER: True" in output
+    assert "USE QUERY REWRITE: True" in output
     assert "RETRIEVER: vector" in output
     assert "RETRIEVER: hybrid" in output
     assert "REPORT SAVED:" in output
@@ -196,6 +208,7 @@ def test_scan_hybrid_weights_command(
             "rerank_candidate_multiplier": (
                 kwargs["rerank_candidate_multiplier"]
             ),
+            "use_query_rewrite": kwargs["use_query_rewrite"],
             "reports": [
                 {
                     "vector_weight": 1.0,
@@ -237,6 +250,7 @@ def test_scan_hybrid_weights_command(
             "--rerank",
             "--rerank-candidate-multiplier",
             "2",
+            "--rewrite-query",
         ],
     )
 
@@ -248,8 +262,10 @@ def test_scan_hybrid_weights_command(
     assert captured["weight_pairs"] == [(1.0, 0.0), (0.7, 0.3)]
     assert captured["use_reranker"] is True
     assert captured["rerank_candidate_multiplier"] == 2
+    assert captured["use_query_rewrite"] is True
     assert "HYBRID WEIGHT SCAN" in output
     assert "USE RERANKER: True" in output
+    assert "USE QUERY REWRITE: True" in output
     assert "BEST VECTOR WEIGHT: 0.7" in output
     assert "BEST BM25 WEIGHT: 0.3" in output
     assert "REPORT SAVED:" in output

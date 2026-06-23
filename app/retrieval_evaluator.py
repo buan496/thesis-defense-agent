@@ -7,6 +7,7 @@ from app.vector_store_metadata import load_vector_store_metadata
 from app.bm25_retriever import search_bm25
 from app.embeddings import create_embedding
 from app.hybrid_retriever import search_hybrid
+from app.query_rewriter import rewrite_query
 from app.reranker import rerank_results
 from app.vector_store import search_vector_store
 from app.vector_store_io import load_vector_store
@@ -29,6 +30,8 @@ def evaluate_retrieval(
     bm25_weight: float = 0.3,
     use_reranker: bool = False,
     rerank_candidate_multiplier: int = 3,
+    use_query_rewrite: bool = False,
+    query_rewriter: Callable[[str], str] = rewrite_query,
 ) -> dict:
     if retriever not in {"vector", "bm25", "hybrid"}:
         raise ValueError("retriever must be vector, bm25, or hybrid")
@@ -70,6 +73,7 @@ def evaluate_retrieval(
 
     for item in benchmark:
         query = item["query"]
+        search_query = query_rewriter(query) if use_query_rewrite else query
         expected_keywords = item["expected_keywords"]
 
         candidate_top_k = top_k
@@ -78,7 +82,7 @@ def evaluate_retrieval(
             candidate_top_k = top_k * rerank_candidate_multiplier
 
         search_results = search_retrieval_store(
-            query=query,
+            query=search_query,
             store=store,
             top_k=candidate_top_k,
             retriever=retriever,
@@ -89,7 +93,7 @@ def evaluate_retrieval(
 
         if use_reranker:
             search_results = rerank_results(
-                query=query,
+                query=search_query,
                 results=search_results,
                 top_k=top_k,
             )
@@ -120,6 +124,7 @@ def evaluate_retrieval(
         results.append(
             {
                 "query": query,
+                "rewritten_query": search_query,
                 "hit_count": hit_count,
                 "total": len(expected_keywords),
                 "missing": missing_keywords,
@@ -148,6 +153,7 @@ def evaluate_retrieval(
         "bm25_weight": bm25_weight,
         "use_reranker": use_reranker,
         "rerank_candidate_multiplier": rerank_candidate_multiplier,
+        "use_query_rewrite": use_query_rewrite,
         "average_score": average_score,
         "results": results,
     }
@@ -164,6 +170,8 @@ def compare_retrievers(
     bm25_weight: float = 0.3,
     use_reranker: bool = False,
     rerank_candidate_multiplier: int = 3,
+    use_query_rewrite: bool = False,
+    query_rewriter: Callable[[str], str] = rewrite_query,
     retrievers: list[str] | None = None,
 ) -> dict:
     retriever_names = retrievers or ["vector", "bm25", "hybrid"]
@@ -183,6 +191,8 @@ def compare_retrievers(
                 bm25_weight=bm25_weight,
                 use_reranker=use_reranker,
                 rerank_candidate_multiplier=rerank_candidate_multiplier,
+                use_query_rewrite=use_query_rewrite,
+                query_rewriter=query_rewriter,
             )
         )
 
@@ -199,6 +209,7 @@ def compare_retrievers(
         "bm25_weight": bm25_weight,
         "use_reranker": use_reranker,
         "rerank_candidate_multiplier": rerank_candidate_multiplier,
+        "use_query_rewrite": use_query_rewrite,
         "best_retriever": (
             best_report["retriever"]
             if best_report is not None
@@ -218,6 +229,8 @@ def scan_hybrid_weights(
     embedding_model: str = EMBEDDING_MODEL,
     use_reranker: bool = False,
     rerank_candidate_multiplier: int = 3,
+    use_query_rewrite: bool = False,
+    query_rewriter: Callable[[str], str] = rewrite_query,
 ) -> dict:
     pairs = weight_pairs or [
         (1.0, 0.0),
@@ -243,6 +256,8 @@ def scan_hybrid_weights(
                 bm25_weight=bm25_weight,
                 use_reranker=use_reranker,
                 rerank_candidate_multiplier=rerank_candidate_multiplier,
+                use_query_rewrite=use_query_rewrite,
+                query_rewriter=query_rewriter,
             )
         )
 
@@ -257,6 +272,7 @@ def scan_hybrid_weights(
         "top_k": top_k,
         "use_reranker": use_reranker,
         "rerank_candidate_multiplier": rerank_candidate_multiplier,
+        "use_query_rewrite": use_query_rewrite,
         "best_vector_weight": (
             best_report["vector_weight"]
             if best_report is not None
