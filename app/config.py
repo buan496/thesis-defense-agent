@@ -59,6 +59,14 @@ FAITHFULNESS_BENCHMARK_PATH = os.getenv(
     "FAITHFULNESS_BENCHMARK_PATH",
     "data/faithfulness_benchmark.json",
 )
+FEEDBACK_STORE_PATH = os.getenv(
+    "FEEDBACK_STORE_PATH",
+    "data/feedback/feedback.jsonl",
+)
+BENCHMARK_CANDIDATE_DIRECTORY = os.getenv(
+    "BENCHMARK_CANDIDATE_DIRECTORY",
+    "data/benchmark_candidates",
+)
 
 if not DEEPSEEK_API_KEY:
     raise ValueError("DEEPSEEK_API_KEY is not set")

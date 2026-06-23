@@ -27,6 +27,8 @@ from app.config import (
     AGENT_TRACE_PATH,
     DEEPSEEK_MODEL,
     FAITHFULNESS_BENCHMARK_PATH,
+    FEEDBACK_STORE_PATH,
+    BENCHMARK_CANDIDATE_DIRECTORY,
     LONG_TERM_MEMORY_PATH,
     RAG_BENCHMARK_PATH,
     RAG_CHUNK_OVERLAP,
@@ -37,6 +39,10 @@ from app.config import (
 )
 from app.agent_routing_evaluator import evaluate_agent_routing
 from app.agent_trace_analyzer import analyze_agent_traces
+from app.agent_trace_replayer import (
+    compare_agent_trace_records,
+    replay_agent_trace,
+)
 from app.session_service import run_agent_session
 from app.budget_guard import (
     BudgetExceededError ,
@@ -64,6 +70,36 @@ from app.task_resume import get_resumable_task_status
 from app.task_trace_analyzer import analyze_task_trace
 from app.task_markdown_exporter import export_task_markdown_report
 from app.task_store import DEFAULT_TASK_DIRECTORY
+from app.feedback_store import (
+    create_feedback_record,
+    load_feedback_records,
+    save_feedback_record,
+    summarize_feedback_records,
+)
+from app.benchmark_candidate_exporter import (
+    build_default_candidate_output_path,
+    export_feedback_benchmark_candidates,
+)
+from app.benchmark_candidate_reviewer import (
+    load_candidate_report,
+    review_benchmark_candidate,
+    save_candidate_report,
+    summarize_candidate_review_status,
+)
+from app.benchmark_draft_exporter import (
+    build_default_benchmark_draft_output_path,
+    export_accepted_candidates_to_benchmark_draft,
+)
+from app.benchmark_draft_validator import (
+    load_benchmark_draft,
+    validate_benchmark_draft,
+)
+from app.benchmark_draft_converter import (
+    export_validated_benchmark_draft,
+)
+from app.benchmark_draft_converter import (
+    export_validated_benchmark_draft,
+)
 
 
 def parse_json_argument(
@@ -163,6 +199,236 @@ def main():
         type=str,
         default=AGENT_TRACE_PATH,
         help="Agent trace JSONL file path",
+    )
+    
+    replay_trace_parser = subparsers.add_parser(
+        "replay-agent-trace",
+        help="Replay one Agent JSONL trace record",
+    )
+    replay_trace_parser.add_argument(
+        "--file",
+        type=str,
+        default=AGENT_TRACE_PATH,
+        help="Agent trace JSONL file path",
+    )
+    replay_trace_parser.add_argument(
+        "--line-number",
+        type=int,
+        default=None,
+        help="Trace line number to replay. Defaults to the latest record.",
+    )
+    
+    compare_trace_parser = subparsers.add_parser(
+        "compare-agent-traces",
+        help="Compare two Agent trace replay records",
+    )
+    compare_trace_parser.add_argument(
+        "--baseline-file",
+        type=str,
+        required=True,
+        help="Baseline Agent trace JSONL file path",
+    )
+    compare_trace_parser.add_argument(
+        "--current-file",
+        type=str,
+        required=True,
+        help="Current Agent trace JSONL file path",
+    )
+    compare_trace_parser.add_argument(
+        "--baseline-line-number",
+        type=int,
+        default=None,
+        help="Baseline trace line number. Defaults to latest record.",
+    )
+    compare_trace_parser.add_argument(
+        "--current-line-number",
+        type=int,
+        default=None,
+        help="Current trace line number. Defaults to latest record.",
+    )
+
+    feedback_parser = subparsers.add_parser(
+        "record-feedback",
+        help="Record user feedback for an Agent output, task, or trace",
+    )
+    feedback_parser.add_argument(
+        "--source-type",
+        type=str,
+        required=True,
+        help="Feedback source type, such as agent_trace or defense_task",
+    )
+    feedback_parser.add_argument(
+        "--source-id",
+        type=str,
+        required=True,
+        help="Source identifier, such as task ID or trace line number",
+    )
+    feedback_parser.add_argument(
+        "--rating",
+        type=int,
+        required=True,
+        help="Feedback rating from 1 to 5",
+    )
+    feedback_parser.add_argument(
+        "--comment",
+        type=str,
+        required=True,
+        help="Human feedback comment",
+    )
+    feedback_parser.add_argument(
+        "--tag",
+        action="append",
+        default=[],
+        help="Feedback tag. Can be passed multiple times.",
+    )
+    feedback_parser.add_argument(
+        "--metadata",
+        type=str,
+        default=None,
+        help="Optional metadata JSON object",
+    )
+    feedback_parser.add_argument(
+        "--file",
+        type=str,
+        default=FEEDBACK_STORE_PATH,
+        help="Feedback JSONL file path",
+    )
+
+    feedback_summary_parser = subparsers.add_parser(
+        "summarize-feedback",
+        help="Summarize recorded user feedback",
+    )
+    feedback_summary_parser.add_argument(
+        "--file",
+        type=str,
+        default=FEEDBACK_STORE_PATH,
+        help="Feedback JSONL file path",
+    )
+
+    feedback_candidate_parser = subparsers.add_parser(
+        "export-feedback-candidates",
+        help="Export feedback records as benchmark candidate JSON",
+    )
+    feedback_candidate_parser.add_argument(
+        "--feedback-file",
+        type=str,
+        default=FEEDBACK_STORE_PATH,
+        help="Feedback JSONL file path",
+    )
+    feedback_candidate_parser.add_argument(
+        "--output",
+        type=str,
+        default=None,
+        help="Output benchmark candidate JSON path",
+    )
+    feedback_candidate_parser.add_argument(
+        "--max-rating",
+        type=int,
+        default=2,
+        help="Export feedback with rating less than or equal to this value",
+    )
+    feedback_candidate_parser.add_argument(
+        "--tag",
+        action="append",
+        default=[],
+        help="Export feedback with this tag. Can be passed multiple times.",
+    )
+
+    review_candidate_parser = subparsers.add_parser(
+        "review-benchmark-candidate",
+        help="Mark a benchmark candidate as accepted or rejected",
+    )
+    review_candidate_parser.add_argument(
+        "--file",
+        type=str,
+        required=True,
+        help="Benchmark candidate JSON file path",
+    )
+    review_candidate_parser.add_argument(
+        "--candidate-id",
+        type=str,
+        required=True,
+        help="Candidate ID to review",
+    )
+    review_candidate_parser.add_argument(
+        "--status",
+        type=str,
+        required=True,
+        choices=["accepted", "rejected"],
+        help="Review status",
+    )
+    review_candidate_parser.add_argument(
+        "--reviewer",
+        type=str,
+        required=True,
+        help="Reviewer name",
+    )
+    review_candidate_parser.add_argument(
+        "--reason",
+        type=str,
+        required=True,
+        help="Review reason",
+    )
+
+    summarize_candidate_parser = subparsers.add_parser(
+        "summarize-benchmark-candidates",
+        help="Summarize benchmark candidate review status",
+    )
+    summarize_candidate_parser.add_argument(
+        "--file",
+        type=str,
+        required=True,
+        help="Benchmark candidate JSON file path",
+    )
+
+    benchmark_draft_parser = subparsers.add_parser(
+        "export-benchmark-draft",
+        help="Export accepted benchmark candidates as a benchmark draft JSON",
+    )
+    benchmark_draft_parser.add_argument(
+        "--candidate-file",
+        type=str,
+        required=True,
+        help="Benchmark candidate JSON file path",
+    )
+    benchmark_draft_parser.add_argument(
+        "--output",
+        type=str,
+        default=None,
+        help="Output benchmark draft JSON path",
+    )
+
+    validate_draft_parser = subparsers.add_parser(
+        "validate-benchmark-draft",
+        help="Validate whether benchmark draft fields are complete",
+    )
+    validate_draft_parser.add_argument(
+        "--file",
+        type=str,
+        required=True,
+        help="Benchmark draft JSON file path",
+    )
+    validate_draft_parser.add_argument(
+        "--fail-on-error",
+        action="store_true",
+        help="Exit with code 1 when draft validation fails",
+    )
+
+    export_validated_draft_parser = subparsers.add_parser(
+        "export-validated-benchmark-draft",
+        help="Convert a validated benchmark draft into benchmark JSON drafts",
+    )
+    export_validated_draft_parser.add_argument(
+        "--draft-file",
+        type=str,
+        required=True,
+        help="Validated benchmark draft JSON file path",
+    )
+    export_validated_draft_parser.add_argument(
+        "--output-directory",
+        type=str,
+        default=BENCHMARK_CANDIDATE_DIRECTORY,
+        help="Directory for generated benchmark draft files",
     )
 
     routing_parser = subparsers.add_parser(
@@ -827,6 +1093,280 @@ def main():
 
         for tool_name, count in report["tool_counts"].items():
             print(f"  {tool_name}: {count}")
+
+    elif args.command == "replay-agent-trace":
+        try:
+            replay = replay_agent_trace(
+                file_path=args.file,
+                line_number=args.line_number,
+            )
+        except (FileNotFoundError, ValueError) as error:
+            print(f"TRACE REPLAY ERROR: {error}")
+            raise SystemExit(1) from error
+
+        print("AGENT TRACE REPLAY")
+        print("LINE NUMBER:", replay["line_number"])
+        print("CREATED AT:", replay["created_at"])
+        print("USER MESSAGE:")
+        print(replay["user_message"])
+        print("FINAL OUTPUT:")
+        print(replay["final_output"])
+        print("STEPS:", replay["steps"])
+        print("TOOL CALLS:", replay["tool_call_count"])
+        print("SUCCESSFUL TOOL CALLS:", replay["successful_tool_calls"])
+        print("FAILED TOOL CALLS:", replay["failed_tool_calls"])
+        print("TOTAL TOOL DURATION MS:", replay["total_duration_ms"])
+        print("TOKEN USAGE:")
+        print("  PROMPT TOKENS:", replay["token_usage"]["prompt_tokens"])
+        print(
+            "  COMPLETION TOKENS:",
+            replay["token_usage"]["completion_tokens"],
+        )
+        print("  TOTAL TOKENS:", replay["token_usage"]["total_tokens"])
+        print("COST ESTIMATE:")
+        print("  INPUT COST:", replay["cost_estimate"]["input_cost"])
+        print("  OUTPUT COST:", replay["cost_estimate"]["output_cost"])
+        print("  TOTAL COST:", replay["cost_estimate"]["total_cost"])
+        print("  CURRENCY:", replay["cost_estimate"]["currency"])
+        print("TOOL TRACE:")
+
+        for index, tool_trace in enumerate(
+            replay["tool_traces"],
+            start=1,
+        ):
+            print(f"  #{index}")
+            print("    STEP:", tool_trace.get("step"))
+            print("    TOOL:", tool_trace.get("tool_name"))
+            print("    SUCCESS:", tool_trace.get("success"))
+            print("    DURATION_MS:", tool_trace.get("duration_ms"))
+            print("    ARGUMENTS:", tool_trace.get("arguments"))
+
+    elif args.command == "compare-agent-traces":
+        try:
+            comparison = compare_agent_trace_records(
+                baseline_file_path=args.baseline_file,
+                current_file_path=args.current_file,
+                baseline_line_number=args.baseline_line_number,
+                current_line_number=args.current_line_number,
+            )
+        except (FileNotFoundError, ValueError) as error:
+            print(f"TRACE COMPARISON ERROR: {error}")
+            raise SystemExit(1) from error
+
+        print("AGENT TRACE COMPARISON")
+        print("BASELINE LINE:", comparison["baseline_line_number"])
+        print("CURRENT LINE:", comparison["current_line_number"])
+        print("SAME USER MESSAGE:", comparison["same_user_message"])
+        print("SAME FINAL OUTPUT:", comparison["same_final_output"])
+        print("SAME TOOL SEQUENCE:", comparison["same_tool_sequence"])
+        print(
+            "BASELINE TOOLS:",
+            comparison["baseline_tool_sequence"],
+        )
+        print("CURRENT TOOLS:", comparison["current_tool_sequence"])
+        print(
+            "SAME TOOL SUCCESS SEQUENCE:",
+            comparison["same_tool_success_sequence"],
+        )
+        print(
+            "TOOL CALL COUNT DELTA:",
+            comparison["tool_call_count_delta"],
+        )
+        print(
+            "FAILED TOOL CALL DELTA:",
+            comparison["failed_tool_call_delta"],
+        )
+        print("TOTAL TOKENS DELTA:", comparison["total_tokens_delta"])
+        print("TOTAL COST DELTA:", comparison["total_cost_delta"])
+        print("DURATION MS DELTA:", comparison["duration_ms_delta"])
+        print("REGRESSIONS:", comparison["regressions"])
+
+    elif args.command == "record-feedback":
+        try:
+            metadata = {}
+
+            if args.metadata is not None:
+                metadata = parse_json_argument(
+                    args.metadata,
+                    "--metadata",
+                )
+
+            feedback_record = create_feedback_record(
+                source_type=args.source_type,
+                source_id=args.source_id,
+                rating=args.rating,
+                comment=args.comment,
+                tags=args.tag,
+                metadata=metadata,
+            )
+
+            saved_path = save_feedback_record(
+                file_path=args.file,
+                feedback_record=feedback_record,
+            )
+        except ValueError as error:
+            print(f"FEEDBACK ERROR: {error}")
+            raise SystemExit(1) from error
+
+        print("FEEDBACK RECORDED")
+        print("FEEDBACK ID:", feedback_record["id"])
+        print("SOURCE TYPE:", feedback_record["source_type"])
+        print("SOURCE ID:", feedback_record["source_id"])
+        print("RATING:", feedback_record["rating"])
+        print("TAGS:", feedback_record["tags"])
+        print("SAVED:", saved_path)
+
+    elif args.command == "summarize-feedback":
+        try:
+            feedback_records = load_feedback_records(args.file)
+        except ValueError as error:
+            print(f"FEEDBACK SUMMARY ERROR: {error}")
+            raise SystemExit(1) from error
+
+        summary = summarize_feedback_records(feedback_records)
+
+        print("FEEDBACK SUMMARY")
+        print("FILE:", args.file)
+        print("COUNT:", summary["count"])
+        print("AVERAGE RATING:", summary["average_rating"])
+        print("SOURCE TYPE COUNTS:", summary["source_type_counts"])
+        print("TAG COUNTS:", summary["tag_counts"])
+
+    elif args.command == "export-feedback-candidates":
+        try:
+            feedback_records = load_feedback_records(args.feedback_file)
+        except ValueError as error:
+            print(f"FEEDBACK CANDIDATE ERROR: {error}")
+            raise SystemExit(1) from error
+
+        output_path = args.output
+
+        if output_path is None:
+            output_path = build_default_candidate_output_path(
+                BENCHMARK_CANDIDATE_DIRECTORY
+            )
+
+        candidate_tags = args.tag or None
+
+        report = export_feedback_benchmark_candidates(
+            feedback_records=feedback_records,
+            output_file_path=output_path,
+            max_rating=args.max_rating,
+            candidate_tags=candidate_tags,
+        )
+
+        print("FEEDBACK CANDIDATES EXPORTED")
+        print("SOURCE FEEDBACK FILE:", args.feedback_file)
+        print("OUTPUT:", output_path)
+        print("MAX RATING:", report["max_rating"])
+        print("CANDIDATE TAGS:", report["candidate_tags"])
+        print("CANDIDATE COUNT:", report["count"])
+
+    elif args.command == "review-benchmark-candidate":
+        try:
+            candidate_report = load_candidate_report(args.file)
+            candidate = review_benchmark_candidate(
+                candidate_report=candidate_report,
+                candidate_id=args.candidate_id,
+                status=args.status,
+                reviewer=args.reviewer,
+                reason=args.reason,
+            )
+            saved_path = save_candidate_report(
+                args.file,
+                candidate_report,
+            )
+        except (FileNotFoundError, ValueError) as error:
+            print(f"BENCHMARK CANDIDATE REVIEW ERROR: {error}")
+            raise SystemExit(1) from error
+
+        print("BENCHMARK CANDIDATE REVIEWED")
+        print("FILE:", saved_path)
+        print("CANDIDATE ID:", candidate["candidate_id"])
+        print("STATUS:", candidate["status"])
+        print("REVIEWER:", candidate["review"]["reviewer"])
+        print("REASON:", candidate["review"]["reason"])
+
+    elif args.command == "summarize-benchmark-candidates":
+        try:
+            candidate_report = load_candidate_report(args.file)
+        except FileNotFoundError as error:
+            print(f"BENCHMARK CANDIDATE SUMMARY ERROR: {error}")
+            raise SystemExit(1) from error
+
+        summary = summarize_candidate_review_status(candidate_report)
+
+        print("BENCHMARK CANDIDATE SUMMARY")
+        print("FILE:", args.file)
+        print("COUNT:", summary["count"])
+        print("STATUS COUNTS:", summary["status_counts"])
+
+    elif args.command == "export-benchmark-draft":
+        try:
+            candidate_report = load_candidate_report(args.candidate_file)
+        except FileNotFoundError as error:
+            print(f"BENCHMARK DRAFT ERROR: {error}")
+            raise SystemExit(1) from error
+
+        output_path = args.output
+
+        if output_path is None:
+            output_path = build_default_benchmark_draft_output_path(
+                BENCHMARK_CANDIDATE_DIRECTORY
+            )
+
+        draft = export_accepted_candidates_to_benchmark_draft(
+            candidate_report=candidate_report,
+            output_file_path=output_path,
+        )
+
+        print("BENCHMARK DRAFT EXPORTED")
+        print("CANDIDATE FILE:", args.candidate_file)
+        print("OUTPUT:", output_path)
+        print("DRAFT COUNT:", draft["count"])
+
+    elif args.command == "validate-benchmark-draft":
+        try:
+            draft = load_benchmark_draft(args.file)
+        except FileNotFoundError as error:
+            print(f"BENCHMARK DRAFT VALIDATION ERROR: {error}")
+            raise SystemExit(1) from error
+
+        report = validate_benchmark_draft(draft)
+
+        print("BENCHMARK DRAFT VALIDATION")
+        print("FILE:", args.file)
+        print("PASSED:", report["passed"])
+        print("ITEM COUNT:", report["item_count"])
+        print("VALID COUNT:", report["valid_count"])
+        print("INVALID COUNT:", report["invalid_count"])
+
+        for item in report["items"]:
+            print("DRAFT ID:", item["draft_id"])
+            print("BENCHMARK TYPE:", item["benchmark_type"])
+            print("ITEM PASSED:", item["passed"])
+            print("ERRORS:", item["errors"])
+            print("-" * 40)
+
+        if args.fail_on_error and not report["passed"]:
+            raise SystemExit(1)
+
+    elif args.command == "export-validated-benchmark-draft":
+        try:
+            draft = load_benchmark_draft(args.draft_file)
+            report = export_validated_benchmark_draft(
+                draft=draft,
+                output_directory=args.output_directory,
+            )
+        except (FileNotFoundError, ValueError) as error:
+            print(f"VALIDATED BENCHMARK EXPORT ERROR: {error}")
+            raise SystemExit(1) from error
+
+        print("VALIDATED BENCHMARK DRAFT EXPORTED")
+        print("DRAFT FILE:", args.draft_file)
+        print("OUTPUT DIRECTORY:", report["output_directory"])
+        print("COUNTS:", report["counts"])
+        print("FILES:", report["files"])
 
     elif args.command == "evaluate-agent-routing":
         report = evaluate_agent_routing(
