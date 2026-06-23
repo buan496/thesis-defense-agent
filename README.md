@@ -62,6 +62,8 @@ PDF / TXT 论文
 - 支持向量库 metadata、参数一致性检查、断点恢复和增量跳过
 - 支持 query embedding cache，减少重复评估时的 API 调用
 - 支持 RAG benchmark，统计 Top-K 召回关键字覆盖率
+- 支持 BM25 关键词检索、Vector 语义检索和 Hybrid 融合检索
+- 支持检索器对比和 Hybrid 权重扫描，用 benchmark 自动选择检索参数
 
 ### Tool Calling 与 Agent Harness
 
@@ -345,12 +347,154 @@ app/cli.py                       统一 CLI
 
 ## 下一步学习
 
-当前 Session / Memory 主线已经完成到本机学习版闭环。下一步按路线进入：
+当前 Session / Memory 主线已经完成到本机学习版闭环，Trace 回放与反馈闭环也已完成，BM25 + Vector 混合检索和权重扫描也已接入。下一步按路线进入：
 
-1. Trace 回放与反馈闭环
-2. 将用户反馈沉淀为 benchmark 候选数据
-3. BM25 + Vector 混合检索
-4. reranker 与 query rewrite
-5. LangGraph 旁路迁移，不覆盖现有手写 Harness
+1. reranker 与 query rewrite
+2. LangGraph 旁路迁移，不覆盖现有手写 Harness
 
 服务化、Docker、数据库和服务器部署继续后移到另一台服务器笔记本。
+<!-- docs-update-2026-06-23-feedback-loop -->
+
+## 2026-06-23 更新：Trace 回放与反馈驱动 Benchmark 闭环
+
+当前本机学习版 Agent Harness 已补齐一条完整的数据闭环：
+
+```text
+Agent Trace
+→ Trace 回放
+→ Trace 对比
+→ 用户反馈记录
+→ Benchmark 候选集导出
+→ 人工复核候选样本
+→ Accepted Candidate 导出为 Benchmark Draft
+→ Draft 字段校验
+→ Validated Draft 转成正式 Benchmark 草稿文件
+```
+
+最新本地测试基线：
+
+```text
+432 passed
+```
+
+<!-- docs-update-2026-06-23-hybrid-retrieval -->
+
+## 2026-06-23 更新：BM25 + Vector 混合检索与权重扫描
+
+当前 RAG 链路已从单一路径向量检索扩展为三种检索模式：
+
+```text
+vector：语义检索，适合改写后的自然语言问题
+bm25：关键词检索，适合模块名、数据集名、算法名等精确术语
+hybrid：融合 vector 与 bm25，兼顾语义理解和关键词命中
+```
+
+新增命令：
+
+```powershell
+python -m app.cli compare-retrievers --output data/reports/retriever_comparison.json
+
+python -m app.cli scan-hybrid-weights `
+  --weights "1:0,0.9:0.1,0.8:0.2,0.7:0.3,0.6:0.4,0.5:0.5,0.4:0.6,0.3:0.7,0.2:0.8,0.1:0.9,0:1" `
+  --output data/reports/hybrid_weight_scan.json
+```
+
+本步骤学习重点：
+
+- 不凭感觉选择 Hybrid 权重。
+- 使用 RAG benchmark 自动扫描 `vector_weight` 与 `bm25_weight`。
+- 对比 `AVERAGE SCORE`、`MISSING` 和不同 Top-K 下的表现。
+- 若多个权重得分相同，优先选择更稳妥的默认值，例如 `vector_weight=0.7`、`bm25_weight=0.3`。
+
+### Trace 回放与对比
+
+```powershell
+python -m app.cli replay-agent-trace
+
+python -m app.cli compare-agent-traces `
+  --baseline-file data/traces/agent_trace.jsonl `
+  --current-file data/traces/agent_trace.jsonl `
+  --baseline-line-number 1 `
+  --current-line-number 2
+```
+
+Trace 对比会检查工具调用顺序、工具成功 / 失败序列、失败工具数、最终回答是否变空，以及 token、cost、duration 的变化。
+
+### Feedback → Benchmark 数据闭环
+
+记录反馈：
+
+```powershell
+python -m app.cli record-feedback `
+  --source-type agent_trace `
+  --source-id line:1 `
+  --rating 2 `
+  --comment "工具选择不稳定，需要加入回归样本" `
+  --tag needs_benchmark `
+  --tag routing_error
+```
+
+查看反馈统计：
+
+```powershell
+python -m app.cli summarize-feedback
+```
+
+导出候选样本：
+
+```powershell
+python -m app.cli export-feedback-candidates `
+  --feedback-file data/feedback/feedback.jsonl `
+  --output data/benchmark_candidates/candidates.json `
+  --max-rating 2 `
+  --tag needs_benchmark
+```
+
+人工复核候选样本：
+
+```powershell
+python -m app.cli review-benchmark-candidate `
+  --file data/benchmark_candidates/candidates.json `
+  --candidate-id feedback-xxx `
+  --status accepted `
+  --reviewer buan496 `
+  --reason "适合作为工具路由回归样本"
+
+python -m app.cli summarize-benchmark-candidates `
+  --file data/benchmark_candidates/candidates.json
+```
+
+导出 benchmark draft：
+
+```powershell
+python -m app.cli export-benchmark-draft `
+  --candidate-file data/benchmark_candidates/candidates.json `
+  --output data/benchmark_candidates/benchmark_draft.json
+```
+
+校验 benchmark draft：
+
+```powershell
+python -m app.cli validate-benchmark-draft `
+  --file data/benchmark_candidates/benchmark_draft.json `
+  --fail-on-error
+```
+
+将校验通过的 draft 转成正式 benchmark 格式的新文件：
+
+```powershell
+python -m app.cli export-validated-benchmark-draft `
+  --draft-file data/benchmark_candidates/benchmark_draft.json `
+  --output-directory data/benchmark_candidates
+```
+
+可能生成：
+
+```text
+rag_benchmark_draft.json
+faithfulness_benchmark_draft.json
+agent_routing_benchmark_draft.json
+manual_benchmark_draft.json
+```
+
+这些文件仍然是草稿，不会覆盖现有正式 benchmark。正式合并前需要人工检查。

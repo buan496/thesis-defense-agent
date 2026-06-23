@@ -3,7 +3,7 @@ tags:
   - roadmap
   - agent-engineering
 status: active
-updated: 2026-06-22
+updated: 2026-06-23
 ---
 
 # Agent 完整学习路线
@@ -57,7 +57,8 @@ updated: 2026-06-22
 - [x] metadata 和缓存失效
 - [x] 检索与溯源
 - [x] benchmark 和质量门禁
-- [ ] 混合检索：BM25 + Vector
+- [x] 混合检索：BM25 + Vector
+- [x] Hybrid 权重扫描
 - [ ] reranker
 - [ ] 查询改写与多查询检索
 - [ ] Qdrant 或 Milvus
@@ -169,8 +170,8 @@ updated: 2026-06-22
 - [x] 稳定性退化检测
 - [x] 回归数据集
 - [ ] 人工盲评
-- [ ] Trace 回放
-- [ ] 反馈闭环
+- [x] Trace 回放
+- [x] 反馈闭环
 
 ## 阶段 7：异步与长任务
 
@@ -298,19 +299,11 @@ RAG
 
 ## 下一步学习重点
 
-下一阶段进入 **Trace 回放与反馈闭环**：
+Trace 回放与反馈闭环已完成，BM25 + Vector 混合检索和 Hybrid 权重扫描也已完成，下一阶段进入：
 
-1. 离线回放某次 Agent / Task 运行
-2. 对比新旧输出
-3. 检测工具选择变化、评价分数变化和 faithfulness 变化
-4. 将用户反馈写入 benchmark 候选集
-
-之后再进入：
-
-1. BM25 + Vector 混合检索
-2. reranker
-3. query rewrite
-4. LangGraph 旁路迁移
+1. reranker
+2. query rewrite
+3. LangGraph 旁路迁移
 
 ## 最终简历能力目标
 
@@ -321,3 +314,72 @@ RAG
 - 能实现 Agent Trace、LLM-as-Judge 和反馈闭环
 - 能将 Agent 通过 API、数据库、容器和监控交付
 - 能使用 LangGraph、MCP 和 Sub-Agent，但不被框架绑架
+<!-- roadmap-update-2026-06-23-feedback-loop -->
+
+## 2026-06-23 路线同步：Trace 回放与反馈闭环已完成
+
+本阶段新增完成能力：
+
+- [x] Agent Trace 回放
+- [x] Agent Trace 新旧对比
+- [x] 用户反馈记录
+- [x] Feedback JSONL 本地存储
+- [x] Feedback 统计
+- [x] Feedback 导出 Benchmark Candidate
+- [x] Benchmark Candidate 人工复核
+- [x] Accepted Candidate 导出 Benchmark Draft
+- [x] Benchmark Draft 字段校验
+- [x] Validated Draft 转成正式 Benchmark 草稿文件
+
+当前数据闭环：
+
+```text
+replay-agent-trace
+→ compare-agent-traces
+→ record-feedback
+→ export-feedback-candidates
+→ review-benchmark-candidate
+→ export-benchmark-draft
+→ validate-benchmark-draft
+→ export-validated-benchmark-draft
+```
+
+当前本地测试基线：
+
+```text
+432 passed
+```
+
+注意：导出的 benchmark 文件仍然是草稿，不直接覆盖现有正式 benchmark。正式合并前必须人工检查。
+
+<!-- roadmap-update-2026-06-23-hybrid-retrieval -->
+
+## 2026-06-23 路线同步：BM25 + Vector 混合检索已完成
+
+本阶段新增完成能力：
+
+- [x] BM25 关键词检索
+- [x] Vector 语义检索与 BM25 检索结果融合
+- [x] Hybrid score 归一化与加权合并
+- [x] `evaluate-rag --retriever vector|bm25|hybrid`
+- [x] `compare-retrievers`
+- [x] `scan-hybrid-weights`
+- [x] 使用 benchmark 自动扫描 `vector_weight` / `bm25_weight`
+
+本阶段学到的核心方法：
+
+```text
+不要凭感觉选 hybrid 权重。
+先用 benchmark 比较 vector、bm25、hybrid。
+再扫描多组 vector_weight / bm25_weight。
+最后根据 average_score、missing keywords 和稳定性选择默认参数。
+```
+
+当前建议默认值：
+
+```text
+vector_weight=0.7
+bm25_weight=0.3
+```
+
+理由：该配置保留语义检索为主，同时让模块名、数据集名、算法名等关键词命中参与排序。

@@ -4,7 +4,9 @@ from pathlib import Path
 
 from app.config import QUERY_EMBEDDING_CACHE_PATH, RAG_VECTOR_STORE_META_PATH,EMBEDDING_MODEL
 from app.vector_store_metadata import load_vector_store_metadata
+from app.bm25_retriever import search_bm25
 from app.embeddings import create_embedding
+from app.hybrid_retriever import search_hybrid
 from app.vector_store import search_vector_store
 from app.vector_store_io import load_vector_store
 from app.embedding_cache import (
@@ -21,7 +23,13 @@ def evaluate_retrieval(
     embedding_fn: Callable[[str], list[float]] = create_embedding,
     embedding_cache_path: str = QUERY_EMBEDDING_CACHE_PATH,
     embedding_model: str = EMBEDDING_MODEL,
+    retriever: str = "vector",
+    vector_weight: float = 0.7,
+    bm25_weight: float = 0.3,
 ) -> dict:
+    if retriever not in {"vector", "bm25", "hybrid"}:
+        raise ValueError("retriever must be vector, bm25, or hybrid")
+
     store = load_vector_store(vector_store_path)
     embedding_cache = load_embedding_cache(
         embedding_cache_path,
@@ -56,11 +64,14 @@ def evaluate_retrieval(
         query = item["query"]
         expected_keywords = item["expected_keywords"]
 
-        search_results = search_vector_store(
-            query,
-            store,
+        search_results = search_retrieval_store(
+            query=query,
+            store=store,
             top_k=top_k,
+            retriever=retriever,
             embedding_fn=cached_embedding_fn,
+            vector_weight=vector_weight,
+            bm25_weight=bm25_weight,
         )
 
         retrieved_text = "\n".join(
@@ -112,7 +123,158 @@ def evaluate_retrieval(
             "misses": cache_stats["misses"],
         },
         "top_k": top_k,
+        "retriever": retriever,
+        "vector_weight": vector_weight,
+        "bm25_weight": bm25_weight,
         "average_score": average_score,
         "results": results,
     }
+
+
+def compare_retrievers(
+    benchmark_path: str,
+    vector_store_path: str,
+    top_k: int,
+    embedding_fn: Callable[[str], list[float]] = create_embedding,
+    embedding_cache_path: str = QUERY_EMBEDDING_CACHE_PATH,
+    embedding_model: str = EMBEDDING_MODEL,
+    vector_weight: float = 0.7,
+    bm25_weight: float = 0.3,
+    retrievers: list[str] | None = None,
+) -> dict:
+    retriever_names = retrievers or ["vector", "bm25", "hybrid"]
+    reports = []
+
+    for retriever in retriever_names:
+        reports.append(
+            evaluate_retrieval(
+                benchmark_path=benchmark_path,
+                vector_store_path=vector_store_path,
+                top_k=top_k,
+                embedding_fn=embedding_fn,
+                embedding_cache_path=embedding_cache_path,
+                embedding_model=embedding_model,
+                retriever=retriever,
+                vector_weight=vector_weight,
+                bm25_weight=bm25_weight,
+            )
+        )
+
+    best_report = max(
+        reports,
+        key=lambda report: report["average_score"],
+    ) if reports else None
+
+    return {
+        "benchmark_path": benchmark_path,
+        "vector_store_path": vector_store_path,
+        "top_k": top_k,
+        "vector_weight": vector_weight,
+        "bm25_weight": bm25_weight,
+        "best_retriever": (
+            best_report["retriever"]
+            if best_report is not None
+            else None
+        ),
+        "reports": reports,
+    }
+
+
+def scan_hybrid_weights(
+    benchmark_path: str,
+    vector_store_path: str,
+    top_k: int,
+    weight_pairs: list[tuple[float, float]] | None = None,
+    embedding_fn: Callable[[str], list[float]] = create_embedding,
+    embedding_cache_path: str = QUERY_EMBEDDING_CACHE_PATH,
+    embedding_model: str = EMBEDDING_MODEL,
+) -> dict:
+    pairs = weight_pairs or [
+        (1.0, 0.0),
+        (0.8, 0.2),
+        (0.7, 0.3),
+        (0.5, 0.5),
+        (0.3, 0.7),
+        (0.0, 1.0),
+    ]
+    reports = []
+
+    for vector_weight, bm25_weight in pairs:
+        reports.append(
+            evaluate_retrieval(
+                benchmark_path=benchmark_path,
+                vector_store_path=vector_store_path,
+                top_k=top_k,
+                embedding_fn=embedding_fn,
+                embedding_cache_path=embedding_cache_path,
+                embedding_model=embedding_model,
+                retriever="hybrid",
+                vector_weight=vector_weight,
+                bm25_weight=bm25_weight,
+            )
+        )
+
+    best_report = max(
+        reports,
+        key=lambda report: report["average_score"],
+    ) if reports else None
+
+    return {
+        "benchmark_path": benchmark_path,
+        "vector_store_path": vector_store_path,
+        "top_k": top_k,
+        "best_vector_weight": (
+            best_report["vector_weight"]
+            if best_report is not None
+            else None
+        ),
+        "best_bm25_weight": (
+            best_report["bm25_weight"]
+            if best_report is not None
+            else None
+        ),
+        "best_average_score": (
+            best_report["average_score"]
+            if best_report is not None
+            else None
+        ),
+        "reports": reports,
+    }
+
+
+def search_retrieval_store(
+    query: str,
+    store: list[dict],
+    top_k: int,
+    retriever: str,
+    embedding_fn: Callable[[str], list[float]],
+    vector_weight: float,
+    bm25_weight: float,
+) -> list[dict]:
+    if retriever == "vector":
+        return search_vector_store(
+            query,
+            store,
+            top_k=top_k,
+            embedding_fn=embedding_fn,
+        )
+
+    if retriever == "bm25":
+        return search_bm25(
+            query,
+            store,
+            top_k=top_k,
+        )
+
+    if retriever == "hybrid":
+        return search_hybrid(
+            query=query,
+            store=store,
+            top_k=top_k,
+            embedding_fn=embedding_fn,
+            vector_weight=vector_weight,
+            bm25_weight=bm25_weight,
+        )
+
+    raise ValueError("retriever must be vector, bm25, or hybrid")
 

@@ -20,7 +20,11 @@ from app.evaluation_report_comparator import (
     compare_evaluation_report_files,
     save_evaluation_comparison_markdown,
 )
-from app.retrieval_evaluator import evaluate_retrieval
+from app.retrieval_evaluator import (
+    compare_retrievers,
+    evaluate_retrieval,
+    scan_hybrid_weights,
+)
 from app.vector_store_builder import build_pdf_vector_store
 from app.config import (
     AGENT_ROUTING_BENCHMARK_PATH,
@@ -120,6 +124,32 @@ def parse_json_argument(
 
     return data
 
+
+def parse_weight_pairs(value: str) -> list[tuple[float, float]]:
+    pairs = []
+
+    for raw_pair in value.split(","):
+        raw_pair = raw_pair.strip()
+
+        if not raw_pair:
+            continue
+
+        parts = raw_pair.split(":")
+
+        if len(parts) != 2:
+            raise ValueError(
+                "--weights must use VECTOR:BM25 pairs separated by commas"
+            )
+
+        vector_weight = float(parts[0])
+        bm25_weight = float(parts[1])
+        pairs.append((vector_weight, bm25_weight))
+
+    if not pairs:
+        raise ValueError("--weights must contain at least one pair")
+
+    return pairs
+
 def main():
     parser = argparse.ArgumentParser(
         description="Thesis Defense Agent CLI"
@@ -188,6 +218,77 @@ def main():
         type=float,
         default=None,
         help="Minimum average score required to pass evaluation",
+    )
+    evaluate_parser.add_argument(
+        "--retriever",
+        type=str,
+        default="vector",
+        choices=["vector", "bm25", "hybrid"],
+        help="Retriever used for RAG evaluation",
+    )
+    evaluate_parser.add_argument(
+        "--vector-weight",
+        type=float,
+        default=0.7,
+        help="Vector score weight for hybrid retrieval",
+    )
+    evaluate_parser.add_argument(
+        "--bm25-weight",
+        type=float,
+        default=0.3,
+        help="BM25 score weight for hybrid retrieval",
+    )
+
+    compare_retrievers_parser = subparsers.add_parser(
+        "compare-retrievers",
+        help="Compare vector, BM25, and hybrid retrieval on the RAG benchmark",
+    )
+    compare_retrievers_parser.add_argument(
+        "--top-k",
+        type=int,
+        default=None,
+        help="Number of chunks to retrieve",
+    )
+    compare_retrievers_parser.add_argument(
+        "--vector-weight",
+        type=float,
+        default=0.7,
+        help="Vector score weight for hybrid retrieval",
+    )
+    compare_retrievers_parser.add_argument(
+        "--bm25-weight",
+        type=float,
+        default=0.3,
+        help="BM25 score weight for hybrid retrieval",
+    )
+    compare_retrievers_parser.add_argument(
+        "--output",
+        type=str,
+        default=None,
+        help="Path to save retriever comparison report as JSON",
+    )
+
+    scan_hybrid_parser = subparsers.add_parser(
+        "scan-hybrid-weights",
+        help="Scan multiple hybrid retrieval weight pairs",
+    )
+    scan_hybrid_parser.add_argument(
+        "--top-k",
+        type=int,
+        default=None,
+        help="Number of chunks to retrieve",
+    )
+    scan_hybrid_parser.add_argument(
+        "--weights",
+        type=str,
+        default=None,
+        help="Weight pairs like 1:0,0.7:0.3,0.5:0.5",
+    )
+    scan_hybrid_parser.add_argument(
+        "--output",
+        type=str,
+        default=None,
+        help="Path to save hybrid weight scan report as JSON",
     )
     trace_parser = subparsers.add_parser(
         "analyze-traces",
@@ -1001,6 +1102,9 @@ def main():
             benchmark_path=RAG_BENCHMARK_PATH,
             vector_store_path=RAG_VECTOR_STORE_PATH,
             top_k=top_k,
+            retriever=args.retriever,
+            vector_weight=args.vector_weight,
+            bm25_weight=args.bm25_weight,
         )
 
         for item in report["results"]:
@@ -1013,6 +1117,9 @@ def main():
             )
 
         print("TOP_K:", report["top_k"])
+        print("RETRIEVER:", report["retriever"])
+        print("VECTOR WEIGHT:", report["vector_weight"])
+        print("BM25 WEIGHT:", report["bm25_weight"])
         print("AVERAGE SCORE:", report["average_score"])
         print("CACHE HITS:", report["embedding_cache"]["hits"])
         print("CACHE MISSES:", report["embedding_cache"]["misses"])
@@ -1041,6 +1148,92 @@ def main():
                 encoding="utf-8",
             )
 
+            print("REPORT SAVED:", output_path)
+    elif args.command == "compare-retrievers":
+        top_k = args.top_k if args.top_k is not None else RAG_TOP_K
+        report = compare_retrievers(
+            benchmark_path=RAG_BENCHMARK_PATH,
+            vector_store_path=RAG_VECTOR_STORE_PATH,
+            top_k=top_k,
+            vector_weight=args.vector_weight,
+            bm25_weight=args.bm25_weight,
+        )
+
+        print("RETRIEVER COMPARISON")
+        print("TOP_K:", report["top_k"])
+        print("VECTOR WEIGHT:", report["vector_weight"])
+        print("BM25 WEIGHT:", report["bm25_weight"])
+        print("BEST RETRIEVER:", report["best_retriever"])
+
+        for retriever_report in report["reports"]:
+            print("-" * 40)
+            print("RETRIEVER:", retriever_report["retriever"])
+            print("AVERAGE SCORE:", retriever_report["average_score"])
+            print(
+                "CACHE HITS:",
+                retriever_report["embedding_cache"]["hits"],
+            )
+            print(
+                "CACHE MISSES:",
+                retriever_report["embedding_cache"]["misses"],
+            )
+
+            for item in retriever_report["results"]:
+                print(
+                    f"QUERY: {item['query']} | "
+                    f"SCORE: {item['score']} | "
+                    f"MISSING: {item['missing']}"
+                )
+
+        if args.output is not None:
+            output_path = Path(args.output)
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            output_path.write_text(
+                json.dumps(report, ensure_ascii=False, indent=2),
+                encoding="utf-8",
+            )
+            print("REPORT SAVED:", output_path)
+    elif args.command == "scan-hybrid-weights":
+        top_k = args.top_k if args.top_k is not None else RAG_TOP_K
+
+        try:
+            weight_pairs = (
+                parse_weight_pairs(args.weights)
+                if args.weights is not None
+                else None
+            )
+        except ValueError as error:
+            print(f"HYBRID WEIGHT SCAN ERROR: {error}")
+            raise SystemExit(1) from error
+
+        report = scan_hybrid_weights(
+            benchmark_path=RAG_BENCHMARK_PATH,
+            vector_store_path=RAG_VECTOR_STORE_PATH,
+            top_k=top_k,
+            weight_pairs=weight_pairs,
+        )
+
+        print("HYBRID WEIGHT SCAN")
+        print("TOP_K:", report["top_k"])
+        print("BEST VECTOR WEIGHT:", report["best_vector_weight"])
+        print("BEST BM25 WEIGHT:", report["best_bm25_weight"])
+        print("BEST AVERAGE SCORE:", report["best_average_score"])
+
+        for item in report["reports"]:
+            print("-" * 40)
+            print("VECTOR WEIGHT:", item["vector_weight"])
+            print("BM25 WEIGHT:", item["bm25_weight"])
+            print("AVERAGE SCORE:", item["average_score"])
+            print("CACHE HITS:", item["embedding_cache"]["hits"])
+            print("CACHE MISSES:", item["embedding_cache"]["misses"])
+
+        if args.output is not None:
+            output_path = Path(args.output)
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            output_path.write_text(
+                json.dumps(report, ensure_ascii=False, indent=2),
+                encoding="utf-8",
+            )
             print("REPORT SAVED:", output_path)
     elif args.command == "analyze-traces":
         report = analyze_agent_traces(args.file)
