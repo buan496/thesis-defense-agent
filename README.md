@@ -64,6 +64,7 @@ PDF / TXT 论文
 - 支持 RAG benchmark，统计 Top-K 召回关键字覆盖率
 - 支持 BM25 关键词检索、Vector 语义检索和 Hybrid 融合检索
 - 支持检索器对比和 Hybrid 权重扫描，用 benchmark 自动选择检索参数
+- 支持规则版 reranker，并可用 benchmark 对比 rerank 前后效果
 
 ### Tool Calling 与 Agent Harness
 
@@ -347,9 +348,9 @@ app/cli.py                       统一 CLI
 
 ## 下一步学习
 
-当前 Session / Memory 主线已经完成到本机学习版闭环，Trace 回放与反馈闭环也已完成，BM25 + Vector 混合检索和权重扫描也已接入。下一步按路线进入：
+当前 Session / Memory 主线已经完成到本机学习版闭环，Trace 回放与反馈闭环也已完成，BM25 + Vector 混合检索、权重扫描和规则版 reranker 评估也已接入。下一步按路线进入：
 
-1. reranker 与 query rewrite
+1. query rewrite
 2. LangGraph 旁路迁移，不覆盖现有手写 Harness
 
 服务化、Docker、数据库和服务器部署继续后移到另一台服务器笔记本。
@@ -405,6 +406,45 @@ python -m app.cli scan-hybrid-weights `
 - 使用 RAG benchmark 自动扫描 `vector_weight` 与 `bm25_weight`。
 - 对比 `AVERAGE SCORE`、`MISSING` 和不同 Top-K 下的表现。
 - 若多个权重得分相同，优先选择更稳妥的默认值，例如 `vector_weight=0.7`、`bm25_weight=0.3`。
+
+<!-- docs-update-2026-06-23-reranker -->
+
+## 2026-06-23 更新：规则版 Reranker 与 Benchmark 对比
+
+当前已新增规则版 reranker，用于在第一阶段检索后进行二次排序：
+
+```text
+query
+→ hybrid 检索召回候选 chunk
+→ reranker 根据关键词命中、章节特征、短文本惩罚重新排序
+→ 截取最终 top_k 进入 RAG 评分或回答生成
+```
+
+新增命令示例：
+
+```powershell
+python -m app.cli evaluate-rag `
+  --retriever hybrid `
+  --vector-weight 0.7 `
+  --bm25-weight 0.3 `
+  --rerank `
+  --rerank-candidate-multiplier 3
+```
+
+本轮真实 benchmark 对比：
+
+```text
+hybrid no rerank: average_score = 0.8667
+hybrid rerank x3: average_score = 0.8333
+hybrid rerank x5: average_score = 0.8333
+```
+
+结论：
+
+- 当前规则版 reranker 没有提升这份 benchmark，反而降低了平均分。
+- 主要原因是规则打分偏向中文关键词命中，对 `LanguageAwareFrontend`、`BiLSTM` 等英文术语混合问题不够友好。
+- 当前默认 RAG 检索不启用 reranker，保留 `--rerank` 作为实验开关。
+- reranker 的价值不是“加上就更好”，而是必须通过 benchmark 验证是否真的改善召回质量。
 
 ### Trace 回放与对比
 

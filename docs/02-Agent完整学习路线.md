@@ -59,7 +59,7 @@ updated: 2026-06-23
 - [x] benchmark 和质量门禁
 - [x] 混合检索：BM25 + Vector
 - [x] Hybrid 权重扫描
-- [ ] reranker
+- [x] 规则版 reranker
 - [ ] 查询改写与多查询检索
 - [ ] Qdrant 或 Milvus
 
@@ -299,10 +299,10 @@ RAG
 
 ## 下一步学习重点
 
-Trace 回放与反馈闭环已完成，BM25 + Vector 混合检索和 Hybrid 权重扫描也已完成，下一阶段进入：
+Trace 回放与反馈闭环已完成，BM25 + Vector 混合检索、Hybrid 权重扫描和规则版 reranker 评估也已完成，下一阶段进入：
 
-1. reranker
-2. query rewrite
+1. query rewrite
+2. 模型版 reranker 或 cross-encoder reranker
 3. LangGraph 旁路迁移
 
 ## 最终简历能力目标
@@ -383,3 +383,47 @@ bm25_weight=0.3
 ```
 
 理由：该配置保留语义检索为主，同时让模块名、数据集名、算法名等关键词命中参与排序。
+
+<!-- roadmap-update-2026-06-23-reranker -->
+
+## 2026-06-23 路线同步：规则版 Reranker 已完成
+
+本阶段新增完成能力：
+
+- [x] `app/reranker.py`
+- [x] `rerank_results(query, results, top_k)`
+- [x] 关键词命中奖励
+- [x] 章节特征奖励
+- [x] 短文本惩罚
+- [x] `evaluate-rag --rerank`
+- [x] `--rerank-candidate-multiplier`
+- [x] rerank 前后 benchmark 对比
+
+本轮真实 benchmark 对比：
+
+```text
+hybrid no rerank: average_score = 0.8667
+hybrid rerank x3: average_score = 0.8333
+hybrid rerank x5: average_score = 0.8333
+```
+
+阶段结论：
+
+```text
+规则版 reranker 已完成工程闭环，但当前规则对这份 benchmark 没有收益。
+因此默认不启用 reranker，只保留为实验开关。
+```
+
+学到的关键点：
+
+```text
+reranker 是第二阶段排序器，不是召回器。
+reranker 不一定天然提升效果。
+必须用 benchmark 验证 rerank 前后 average_score 和 missing keywords。
+```
+
+后续若继续优化 reranker，可以考虑：
+
+- 增强英文术语 token 匹配。
+- 为专业名词设置同义词表。
+- 引入模型版 reranker 或 cross-encoder reranker。
