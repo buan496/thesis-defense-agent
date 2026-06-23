@@ -238,6 +238,17 @@ def main():
         default=0.3,
         help="BM25 score weight for hybrid retrieval",
     )
+    evaluate_parser.add_argument(
+        "--rerank",
+        action="store_true",
+        help="Rerank retrieved candidates before scoring",
+    )
+    evaluate_parser.add_argument(
+        "--rerank-candidate-multiplier",
+        type=int,
+        default=3,
+        help="Retrieve top_k times this multiplier before reranking",
+    )
 
     compare_retrievers_parser = subparsers.add_parser(
         "compare-retrievers",
@@ -267,6 +278,17 @@ def main():
         default=None,
         help="Path to save retriever comparison report as JSON",
     )
+    compare_retrievers_parser.add_argument(
+        "--rerank",
+        action="store_true",
+        help="Rerank retrieved candidates before scoring",
+    )
+    compare_retrievers_parser.add_argument(
+        "--rerank-candidate-multiplier",
+        type=int,
+        default=3,
+        help="Retrieve top_k times this multiplier before reranking",
+    )
 
     scan_hybrid_parser = subparsers.add_parser(
         "scan-hybrid-weights",
@@ -289,6 +311,17 @@ def main():
         type=str,
         default=None,
         help="Path to save hybrid weight scan report as JSON",
+    )
+    scan_hybrid_parser.add_argument(
+        "--rerank",
+        action="store_true",
+        help="Rerank retrieved candidates before scoring",
+    )
+    scan_hybrid_parser.add_argument(
+        "--rerank-candidate-multiplier",
+        type=int,
+        default=3,
+        help="Retrieve top_k times this multiplier before reranking",
     )
     trace_parser = subparsers.add_parser(
         "analyze-traces",
@@ -1105,6 +1138,8 @@ def main():
             retriever=args.retriever,
             vector_weight=args.vector_weight,
             bm25_weight=args.bm25_weight,
+            use_reranker=args.rerank,
+            rerank_candidate_multiplier=args.rerank_candidate_multiplier,
         )
 
         for item in report["results"]:
@@ -1120,6 +1155,11 @@ def main():
         print("RETRIEVER:", report["retriever"])
         print("VECTOR WEIGHT:", report["vector_weight"])
         print("BM25 WEIGHT:", report["bm25_weight"])
+        print("USE RERANKER:", report["use_reranker"])
+        print(
+            "RERANK CANDIDATE MULTIPLIER:",
+            report["rerank_candidate_multiplier"],
+        )
         print("AVERAGE SCORE:", report["average_score"])
         print("CACHE HITS:", report["embedding_cache"]["hits"])
         print("CACHE MISSES:", report["embedding_cache"]["misses"])
@@ -1157,12 +1197,19 @@ def main():
             top_k=top_k,
             vector_weight=args.vector_weight,
             bm25_weight=args.bm25_weight,
+            use_reranker=args.rerank,
+            rerank_candidate_multiplier=args.rerank_candidate_multiplier,
         )
 
         print("RETRIEVER COMPARISON")
         print("TOP_K:", report["top_k"])
         print("VECTOR WEIGHT:", report["vector_weight"])
         print("BM25 WEIGHT:", report["bm25_weight"])
+        print("USE RERANKER:", report["use_reranker"])
+        print(
+            "RERANK CANDIDATE MULTIPLIER:",
+            report["rerank_candidate_multiplier"],
+        )
         print("BEST RETRIEVER:", report["best_retriever"])
 
         for retriever_report in report["reports"]:
@@ -1211,10 +1258,17 @@ def main():
             vector_store_path=RAG_VECTOR_STORE_PATH,
             top_k=top_k,
             weight_pairs=weight_pairs,
+            use_reranker=args.rerank,
+            rerank_candidate_multiplier=args.rerank_candidate_multiplier,
         )
 
         print("HYBRID WEIGHT SCAN")
         print("TOP_K:", report["top_k"])
+        print("USE RERANKER:", report["use_reranker"])
+        print(
+            "RERANK CANDIDATE MULTIPLIER:",
+            report["rerank_candidate_multiplier"],
+        )
         print("BEST VECTOR WEIGHT:", report["best_vector_weight"])
         print("BEST BM25 WEIGHT:", report["best_bm25_weight"])
         print("BEST AVERAGE SCORE:", report["best_average_score"])

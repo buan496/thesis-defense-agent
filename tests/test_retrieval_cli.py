@@ -31,6 +31,10 @@ def test_evaluate_rag_command_accepts_retriever_options(
             "retriever": kwargs["retriever"],
             "vector_weight": kwargs["vector_weight"],
             "bm25_weight": kwargs["bm25_weight"],
+            "use_reranker": kwargs["use_reranker"],
+            "rerank_candidate_multiplier": (
+                kwargs["rerank_candidate_multiplier"]
+            ),
             "average_score": 1.0,
             "embedding_cache": {
                 "hits": 0,
@@ -56,6 +60,9 @@ def test_evaluate_rag_command_accepts_retriever_options(
             "0.6",
             "--bm25-weight",
             "0.4",
+            "--rerank",
+            "--rerank-candidate-multiplier",
+            "2",
         ],
     )
 
@@ -67,9 +74,12 @@ def test_evaluate_rag_command_accepts_retriever_options(
     assert captured["retriever"] == "hybrid"
     assert captured["vector_weight"] == 0.6
     assert captured["bm25_weight"] == 0.4
+    assert captured["use_reranker"] is True
+    assert captured["rerank_candidate_multiplier"] == 2
     assert "RETRIEVER: hybrid" in output
     assert "VECTOR WEIGHT: 0.6" in output
     assert "BM25 WEIGHT: 0.4" in output
+    assert "USE RERANKER: True" in output
 
 
 def test_compare_retrievers_command(
@@ -86,6 +96,10 @@ def test_compare_retrievers_command(
             "top_k": kwargs["top_k"],
             "vector_weight": kwargs["vector_weight"],
             "bm25_weight": kwargs["bm25_weight"],
+            "use_reranker": kwargs["use_reranker"],
+            "rerank_candidate_multiplier": (
+                kwargs["rerank_candidate_multiplier"]
+            ),
             "best_retriever": "hybrid",
             "reports": [
                 {
@@ -139,6 +153,9 @@ def test_compare_retrievers_command(
             "0.4",
             "--output",
             str(output_path),
+            "--rerank",
+            "--rerank-candidate-multiplier",
+            "2",
         ],
     )
 
@@ -149,8 +166,11 @@ def test_compare_retrievers_command(
     assert captured["top_k"] == 5
     assert captured["vector_weight"] == 0.6
     assert captured["bm25_weight"] == 0.4
+    assert captured["use_reranker"] is True
+    assert captured["rerank_candidate_multiplier"] == 2
     assert "RETRIEVER COMPARISON" in output
     assert "BEST RETRIEVER: hybrid" in output
+    assert "USE RERANKER: True" in output
     assert "RETRIEVER: vector" in output
     assert "RETRIEVER: hybrid" in output
     assert "REPORT SAVED:" in output
@@ -172,6 +192,10 @@ def test_scan_hybrid_weights_command(
             "best_vector_weight": 0.7,
             "best_bm25_weight": 0.3,
             "best_average_score": 1.0,
+            "use_reranker": kwargs["use_reranker"],
+            "rerank_candidate_multiplier": (
+                kwargs["rerank_candidate_multiplier"]
+            ),
             "reports": [
                 {
                     "vector_weight": 1.0,
@@ -210,6 +234,9 @@ def test_scan_hybrid_weights_command(
             "1:0,0.7:0.3",
             "--output",
             str(output_path),
+            "--rerank",
+            "--rerank-candidate-multiplier",
+            "2",
         ],
     )
 
@@ -219,7 +246,10 @@ def test_scan_hybrid_weights_command(
 
     assert captured["top_k"] == 5
     assert captured["weight_pairs"] == [(1.0, 0.0), (0.7, 0.3)]
+    assert captured["use_reranker"] is True
+    assert captured["rerank_candidate_multiplier"] == 2
     assert "HYBRID WEIGHT SCAN" in output
+    assert "USE RERANKER: True" in output
     assert "BEST VECTOR WEIGHT: 0.7" in output
     assert "BEST BM25 WEIGHT: 0.3" in output
     assert "REPORT SAVED:" in output

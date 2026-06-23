@@ -240,6 +240,76 @@ def test_evaluate_retrieval_rejects_unknown_retriever(tmp_path):
         )
 
 
+def test_evaluate_retrieval_supports_reranker(tmp_path):
+    benchmark_path = tmp_path / "benchmark.json"
+    vector_store_path = tmp_path / "vector_store.json"
+    cache_path = tmp_path / "cache.json"
+    benchmark = [
+        {
+            "query": "系统架构 模块",
+            "expected_keywords": ["特征处理"],
+        }
+    ]
+    store = [
+        {
+            "id": 0,
+            "text": "这是普通内容",
+            "source": "test",
+            "embedding": [1.0, 0.0],
+        },
+        {
+            "id": 1,
+            "text": "系统架构包括特征处理模块",
+            "source": "test",
+            "embedding": [0.6, 0.4],
+        },
+    ]
+    benchmark_path.write_text(
+        json.dumps(benchmark, ensure_ascii=False),
+        encoding="utf-8",
+    )
+    vector_store_path.write_text(
+        json.dumps(store, ensure_ascii=False),
+        encoding="utf-8",
+    )
+
+    report = evaluate_retrieval(
+        benchmark_path=str(benchmark_path),
+        vector_store_path=str(vector_store_path),
+        top_k=1,
+        embedding_fn=lambda text: [1.0, 0.0],
+        embedding_cache_path=str(cache_path),
+        embedding_model="test-model",
+        use_reranker=True,
+        rerank_candidate_multiplier=2,
+    )
+
+    assert report["use_reranker"] is True
+    assert report["rerank_candidate_multiplier"] == 2
+    assert report["average_score"] == 1.0
+    assert report["results"][0]["missing"] == []
+
+
+def test_evaluate_retrieval_rejects_invalid_rerank_multiplier(tmp_path):
+    benchmark_path = tmp_path / "benchmark.json"
+    vector_store_path = tmp_path / "vector_store.json"
+    cache_path = tmp_path / "cache.json"
+    benchmark_path.write_text("[]", encoding="utf-8")
+    vector_store_path.write_text("[]", encoding="utf-8")
+
+    with pytest.raises(ValueError):
+        evaluate_retrieval(
+            benchmark_path=str(benchmark_path),
+            vector_store_path=str(vector_store_path),
+            top_k=1,
+            embedding_fn=fake_embedding,
+            embedding_cache_path=str(cache_path),
+            embedding_model="test-model",
+            use_reranker=True,
+            rerank_candidate_multiplier=0,
+        )
+
+
 def test_compare_retrievers(tmp_path):
     benchmark_path = tmp_path / "benchmark.json"
     vector_store_path = tmp_path / "vector_store.json"
@@ -276,11 +346,15 @@ def test_compare_retrievers(tmp_path):
         embedding_model="test-model",
         vector_weight=0.6,
         bm25_weight=0.4,
+        use_reranker=True,
+        rerank_candidate_multiplier=2,
     )
 
     assert report["top_k"] == 1
     assert report["vector_weight"] == 0.6
     assert report["bm25_weight"] == 0.4
+    assert report["use_reranker"] is True
+    assert report["rerank_candidate_multiplier"] == 2
     assert report["best_retriever"] in {"vector", "bm25", "hybrid"}
     assert [
         item["retriever"]
@@ -323,9 +397,13 @@ def test_scan_hybrid_weights(tmp_path):
         embedding_fn=lambda text: [1.0, 0.0],
         embedding_cache_path=str(cache_path),
         embedding_model="test-model",
+        use_reranker=True,
+        rerank_candidate_multiplier=2,
     )
 
     assert report["top_k"] == 1
+    assert report["use_reranker"] is True
+    assert report["rerank_candidate_multiplier"] == 2
     assert report["best_average_score"] == 1.0
     assert len(report["reports"]) == 2
     assert [

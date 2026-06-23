@@ -7,6 +7,7 @@ from app.vector_store_metadata import load_vector_store_metadata
 from app.bm25_retriever import search_bm25
 from app.embeddings import create_embedding
 from app.hybrid_retriever import search_hybrid
+from app.reranker import rerank_results
 from app.vector_store import search_vector_store
 from app.vector_store_io import load_vector_store
 from app.embedding_cache import (
@@ -26,9 +27,16 @@ def evaluate_retrieval(
     retriever: str = "vector",
     vector_weight: float = 0.7,
     bm25_weight: float = 0.3,
+    use_reranker: bool = False,
+    rerank_candidate_multiplier: int = 3,
 ) -> dict:
     if retriever not in {"vector", "bm25", "hybrid"}:
         raise ValueError("retriever must be vector, bm25, or hybrid")
+    
+    if use_reranker and rerank_candidate_multiplier <= 0:
+        raise ValueError(
+            "rerank_candidate_multiplier must be greater than 0"
+        )
 
     store = load_vector_store(vector_store_path)
     embedding_cache = load_embedding_cache(
@@ -64,15 +72,27 @@ def evaluate_retrieval(
         query = item["query"]
         expected_keywords = item["expected_keywords"]
 
+        candidate_top_k = top_k
+
+        if use_reranker:
+            candidate_top_k = top_k * rerank_candidate_multiplier
+
         search_results = search_retrieval_store(
             query=query,
             store=store,
-            top_k=top_k,
+            top_k=candidate_top_k,
             retriever=retriever,
             embedding_fn=cached_embedding_fn,
             vector_weight=vector_weight,
             bm25_weight=bm25_weight,
         )
+
+        if use_reranker:
+            search_results = rerank_results(
+                query=query,
+                results=search_results,
+                top_k=top_k,
+            )
 
         retrieved_text = "\n".join(
             result["text"] for result in search_results
@@ -126,6 +146,8 @@ def evaluate_retrieval(
         "retriever": retriever,
         "vector_weight": vector_weight,
         "bm25_weight": bm25_weight,
+        "use_reranker": use_reranker,
+        "rerank_candidate_multiplier": rerank_candidate_multiplier,
         "average_score": average_score,
         "results": results,
     }
@@ -140,6 +162,8 @@ def compare_retrievers(
     embedding_model: str = EMBEDDING_MODEL,
     vector_weight: float = 0.7,
     bm25_weight: float = 0.3,
+    use_reranker: bool = False,
+    rerank_candidate_multiplier: int = 3,
     retrievers: list[str] | None = None,
 ) -> dict:
     retriever_names = retrievers or ["vector", "bm25", "hybrid"]
@@ -157,6 +181,8 @@ def compare_retrievers(
                 retriever=retriever,
                 vector_weight=vector_weight,
                 bm25_weight=bm25_weight,
+                use_reranker=use_reranker,
+                rerank_candidate_multiplier=rerank_candidate_multiplier,
             )
         )
 
@@ -171,6 +197,8 @@ def compare_retrievers(
         "top_k": top_k,
         "vector_weight": vector_weight,
         "bm25_weight": bm25_weight,
+        "use_reranker": use_reranker,
+        "rerank_candidate_multiplier": rerank_candidate_multiplier,
         "best_retriever": (
             best_report["retriever"]
             if best_report is not None
@@ -188,6 +216,8 @@ def scan_hybrid_weights(
     embedding_fn: Callable[[str], list[float]] = create_embedding,
     embedding_cache_path: str = QUERY_EMBEDDING_CACHE_PATH,
     embedding_model: str = EMBEDDING_MODEL,
+    use_reranker: bool = False,
+    rerank_candidate_multiplier: int = 3,
 ) -> dict:
     pairs = weight_pairs or [
         (1.0, 0.0),
@@ -211,6 +241,8 @@ def scan_hybrid_weights(
                 retriever="hybrid",
                 vector_weight=vector_weight,
                 bm25_weight=bm25_weight,
+                use_reranker=use_reranker,
+                rerank_candidate_multiplier=rerank_candidate_multiplier,
             )
         )
 
@@ -223,6 +255,8 @@ def scan_hybrid_weights(
         "benchmark_path": benchmark_path,
         "vector_store_path": vector_store_path,
         "top_k": top_k,
+        "use_reranker": use_reranker,
+        "rerank_candidate_multiplier": rerank_candidate_multiplier,
         "best_vector_weight": (
             best_report["vector_weight"]
             if best_report is not None
