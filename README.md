@@ -345,6 +345,7 @@ app/task_service.py              Task 服务层
 app/task_resume.py               Task 恢复判断
 app/task_trace_analyzer.py       Task trace 汇总
 app/task_markdown_exporter.py    Task Markdown 报告导出
+app/langgraph_workflow/          LangGraph 旁路学习 demo，不覆盖手写 Task State
 app/faithfulness_evaluator.py    Faithfulness Judge
 app/evaluation_report.py         评估报告生成
 app/evaluation_report_comparator.py 评估报告回归对比
@@ -354,10 +355,18 @@ docs/05-Task-State工作流复盘.md   Task State 状态机、节点、边和 La
 
 ## 下一步学习
 
-当前 Session / Memory 主线已经完成到本机学习版闭环，Trace 回放与反馈闭环也已完成，BM25 + Vector 混合检索、权重扫描、规则版 reranker、模型版 reranker、规则版 query rewrite、LLM query rewrite、multi-query retrieval 和检索策略组合对比评估也已接入。下一步按路线进入：
+当前 Session / Memory 主线已经完成到本机学习版闭环，Trace 回放与反馈闭环也已完成，BM25 + Vector 混合检索、权重扫描、规则版 reranker、模型版 reranker、规则版 query rewrite、LLM query rewrite、multi-query retrieval 和检索策略组合对比评估也已接入。LangGraph 已开始旁路迁移，当前完成最小 demo：
 
-1. LangGraph 旁路迁移前的代码整理与学习笔记
-2. LangGraph 旁路迁移，不覆盖现有手写 Harness
+```text
+retrieve_context
+→ generate_question
+→ wait_for_answer
+```
+
+下一步按路线进入：
+
+1. LangGraph human-in-the-loop / interrupt 对照学习
+2. LangGraph checkpointer 对照学习
 3. MCP / Sub-Agent 前置概念学习
 
 服务化、Docker、数据库和服务器部署继续后移到另一台服务器笔记本。

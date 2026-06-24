@@ -198,12 +198,13 @@ updated: 2026-06-23
 
 ## 阶段 8：LangGraph
 
-- [ ] State
-- [ ] Node
-- [ ] Edge
+- [x] State
+- [x] Node
+- [x] Edge
 - [ ] Conditional Edge
 - [ ] Checkpointer
 - [ ] Human-in-the-loop
+- [x] 最小旁路 demo：`retrieve_context -> generate_question -> wait_for_answer`
 - [ ] 将当前手写 Agent Loop 旁路迁移到 LangGraph
 
 原则：
@@ -303,10 +304,10 @@ RAG
 
 ## 下一步学习重点
 
-Trace 回放与反馈闭环已完成，BM25 + Vector 混合检索、Hybrid 权重扫描、规则版 reranker、模型版 reranker、规则版查询改写、LLM 查询改写、多查询检索和检索策略组合对比评估也已完成，下一阶段进入：
+Trace 回放与反馈闭环已完成，BM25 + Vector 混合检索、Hybrid 权重扫描、规则版 reranker、模型版 reranker、规则版查询改写、LLM 查询改写、多查询检索和检索策略组合对比评估也已完成。LangGraph 已开始旁路迁移，当前完成最小 demo。下一阶段进入：
 
-1. LangGraph 旁路迁移前的代码整理与学习笔记
-2. LangGraph 旁路迁移，不覆盖现有手写 Harness
+1. LangGraph human-in-the-loop / interrupt 对照学习
+2. LangGraph checkpointer 对照学习
 3. MCP / Sub-Agent 前置概念学习
 
 ## 最终简历能力目标
@@ -667,3 +668,53 @@ reranker 和盲目叠加组合在当前 benchmark 上没有收益。
 - LangGraph 旁路迁移前的手写状态机复盘。
 - 画出当前 Task State 的节点、边、状态和人工输入点。
 - 后续 LangGraph 只做旁路对照，不覆盖当前实现。
+
+<!-- roadmap-update-2026-06-24-langgraph-demo-task -->
+
+## 2026-06-24 路线同步：LangGraph 最小旁路 Demo 已完成
+
+本阶段新增完成能力：
+
+- [x] 新增 `langgraph` 项目依赖
+- [x] 新增独立目录 `app/langgraph_workflow/`
+- [x] 新增 `LangGraphDefenseState`
+- [x] 新增 `retrieve_context_node`
+- [x] 新增 `generate_question_node`
+- [x] 新增 `wait_for_answer_node`
+- [x] 新增 `build_demo_task_graph`
+- [x] 新增 `run_demo_task`
+- [x] 新增 CLI：`graph-demo-task`
+- [x] 保持旁路实现，不覆盖 `app/task_*` 和 `app/agent.py`
+
+当前最小图：
+
+```text
+retrieve_context
+-> generate_question
+-> wait_for_answer
+```
+
+对应 LangGraph 概念：
+
+```text
+LangGraphDefenseState -> State
+retrieve_context_node -> Node
+generate_question_node -> Node
+wait_for_answer_node  -> Node
+add_edge(...)         -> Edge
+graph.compile()       -> 可执行 graph
+```
+
+当前没有勾选的原因：
+
+```text
+Conditional Edge：还没有条件分支。
+Checkpointer：还没有接持久化 checkpoint。
+Human-in-the-loop：当前只是普通 wait_for_answer 节点，还没有使用 LangGraph interrupt / resume。
+```
+
+下一步学习：
+
+- 学习 LangGraph interrupt / resume，把 `wait_for_answer` 从普通节点升级为真正的人机中断点。
+- 再学习 checkpointer，把图执行状态持久化。
+- 所有 LangGraph 实验继续保留在 `app/langgraph_workflow/`，不替换手写 Task State。
