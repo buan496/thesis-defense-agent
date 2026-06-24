@@ -202,10 +202,11 @@ updated: 2026-06-23
 - [x] Node
 - [x] Edge
 - [ ] Conditional Edge
-- [ ] Checkpointer
+- [x] Checkpointer
 - [x] Human-in-the-loop
 - [x] 最小旁路 demo：`retrieve_context -> generate_question -> wait_for_answer`
 - [x] Interrupt / resume demo：`retrieve_context -> generate_question -> interrupt -> resume`
+- [x] Checkpointer 状态观察 demo
 - [ ] 将当前手写 Agent Loop 旁路迁移到 LangGraph
 
 原则：
@@ -305,10 +306,10 @@ RAG
 
 ## 下一步学习重点
 
-Trace 回放与反馈闭环已完成，BM25 + Vector 混合检索、Hybrid 权重扫描、规则版 reranker、模型版 reranker、规则版查询改写、LLM 查询改写、多查询检索和检索策略组合对比评估也已完成。LangGraph 已开始旁路迁移，当前完成最小 demo 和 interrupt / resume demo。下一阶段进入：
+Trace 回放与反馈闭环已完成，BM25 + Vector 混合检索、Hybrid 权重扫描、规则版 reranker、模型版 reranker、规则版查询改写、LLM 查询改写、多查询检索和检索策略组合对比评估也已完成。LangGraph 已开始旁路迁移，当前完成最小 demo、interrupt / resume demo 和 checkpointer 状态观察 demo。下一阶段进入：
 
-1. LangGraph checkpointer 对照学习
-2. LangGraph 条件边 / 分支路由
+1. LangGraph 条件边 / 分支路由
+2. LangGraph 持久化 checkpointer 对照学习
 3. MCP / Sub-Agent 前置概念学习
 
 ## 最终简历能力目标
@@ -790,3 +791,62 @@ checkpointer 是 LangGraph 可恢复执行的关键基础设施。
 - LangGraph checkpointer 对照学习。
 - 比较 InMemorySaver 与持久化 checkpointer 的差异。
 - 明确它和当前 `task_store.py` JSON 落盘机制的对应关系。
+
+<!-- roadmap-update-2026-06-24-langgraph-checkpointer-demo -->
+
+## 2026-06-24 路线同步：LangGraph Checkpointer 状态观察 Demo 已完成
+
+本阶段新增完成能力：
+
+- [x] 新增 `app/langgraph_workflow/checkpointer_demo.py`
+- [x] 复用 interrupt demo 构建可中断图
+- [x] 显式创建并返回 `InMemorySaver`
+- [x] 使用 `graph.get_state(config)` 观察 checkpoint 状态
+- [x] 输出 `checkpoint_id`
+- [x] 输出 `next`
+- [x] 输出 `values`
+- [x] 输出 `interrupts`
+- [x] 新增 `graph-checkpointer-demo` CLI
+- [x] 新增 checkpointer 单元测试
+- [x] 保持旁路实现，不覆盖 `app/task_*` 和 `app/agent.py`
+
+本阶段观察到的状态变化：
+
+```text
+第一次 invoke 后：
+next = ["answer_interrupt"]
+interrupts = [{"type": "answer_required", ...}]
+values 中已有 topic / query / context / question
+
+Command(resume=...) 后：
+next = []
+interrupts = []
+values 中新增 answer
+```
+
+CLI 示例：
+
+```powershell
+uv run python -m app.cli graph-checkpointer-demo `
+  --topic "系统架构"
+
+uv run python -m app.cli graph-checkpointer-demo `
+  --topic "系统架构" `
+  --answer "系统按职责拆分模块，便于定位问题。"
+```
+
+学到的关键点：
+
+```text
+thread_id 标识同一条图执行线程。
+checkpointer 保存图执行到哪一步，以及当前 state values。
+interrupt 后如果没有 checkpointer，就无法 resume。
+InMemorySaver 只适合同一进程学习和测试，不适合跨进程持久恢复。
+当前项目里的 task_store.py 是手写 JSON 持久化；LangGraph checkpointer 是框架级状态保存接口。
+```
+
+下一步学习：
+
+- LangGraph 条件边 / 分支路由。
+- 用一个简单判断：如果已有 answer，则跳过 interrupt；如果没有 answer，则进入 interrupt。
+- 后续再学习持久化 checkpointer，不在当前机器做数据库部署。

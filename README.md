@@ -363,12 +363,15 @@ retrieve_context -> generate_question -> wait_for_answer
 
 graph-interrupt-demo:
 retrieve_context -> generate_question -> interrupt -> resume
+
+graph-checkpointer-demo:
+interrupt checkpoint -> resume checkpoint
 ```
 
 下一步按路线进入：
 
-1. LangGraph checkpointer 对照学习
-2. LangGraph 条件边 / 分支路由
+1. LangGraph 条件边 / 分支路由
+2. LangGraph 持久化 checkpointer 对照学习
 3. MCP / Sub-Agent 前置概念学习
 
 服务化、Docker、数据库和服务器部署继续后移到另一台服务器笔记本。
@@ -392,6 +395,18 @@ uv run python -m app.cli graph-interrupt-demo `
 ```
 
 说明：当前 `graph-interrupt-demo` 使用 `InMemorySaver`，用于学习同一进程内的 interrupt / resume；跨进程持久恢复会在下一步 checkpointer 学习中继续完善。
+
+Checkpointer 状态观察 demo：
+
+```powershell
+uv run python -m app.cli graph-checkpointer-demo --topic "系统架构"
+
+uv run python -m app.cli graph-checkpointer-demo `
+  --topic "系统架构" `
+  --answer "系统按职责拆分模块，便于定位问题。"
+```
+
+说明：当前 `graph-checkpointer-demo` 观察 `InMemorySaver` 中的 `checkpoint_id`、`next`、`values` 和 `interrupts`，用于理解 LangGraph 如何保存中断点和恢复后的状态。它仍是同进程学习版，不等同于跨进程持久恢复。
 <!-- docs-update-2026-06-23-feedback-loop -->
 
 ## 2026-06-23 更新：Trace 回放与反馈驱动 Benchmark 闭环
