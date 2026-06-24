@@ -6,22 +6,10 @@ from app.config import (
     TOOL_RESULT_MAX_CHARACTERS,
     TOOL_TIMEOUT_SECONDS,
 )
-from app.tools import (
-    create_defense_questions,
-    evaluate_student_answer,
-    generate_follow_up,
-    query_training_record,
-    search_thesis,
-)
+from app.tool_registry import build_tool_function_registry
 
 
-TOOL_REGISTRY = {
-    "create_defense_questions": create_defense_questions,
-    "evaluate_student_answer": evaluate_student_answer,
-    "generate_follow_up": generate_follow_up,
-    "query_training_record": query_training_record,
-    "search_thesis": search_thesis,
-}
+TOOL_REGISTRY = build_tool_function_registry()
 
 
 def build_tool_error_result(
