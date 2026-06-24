@@ -98,6 +98,7 @@ from app.sub_agent_plan_trace import (
     summarize_sub_agent_plan_traces,
 )
 from app.sub_agent_dry_run import dry_run_sub_agent_tool_call
+from app.sub_agent_plan_comparator import compare_sub_agent_plan_records
 from app.feedback_store import (
     create_feedback_record,
     load_feedback_records,
@@ -1494,6 +1495,21 @@ def main():
         "--file",
         default=SUB_AGENT_PLAN_TRACE_PATH,
         help="Sub-Agent plan trace JSONL file path",
+    )
+
+    compare_sub_agent_plans_parser = subparsers.add_parser(
+        "compare-sub-agent-plans",
+        help="Compare two Sub-Agent plan trace JSONL files",
+    )
+    compare_sub_agent_plans_parser.add_argument(
+        "--baseline",
+        required=True,
+        help="Baseline Sub-Agent plan trace JSONL file",
+    )
+    compare_sub_agent_plans_parser.add_argument(
+        "--candidate",
+        required=True,
+        help="Candidate Sub-Agent plan trace JSONL file",
     )
 
     dry_run_sub_agent_call_parser = subparsers.add_parser(
@@ -3270,6 +3286,43 @@ def main():
         print("TOTAL:", summary["total"])
         print("BY_SUB_AGENT:", summary["by_sub_agent"])
         print("BY_TOOL:", summary["by_tool"])
+
+    elif args.command == "compare-sub-agent-plans":
+        baseline_records = load_sub_agent_plan_traces(args.baseline)
+        candidate_records = load_sub_agent_plan_traces(args.candidate)
+        report = compare_sub_agent_plan_records(
+            baseline_records=baseline_records,
+            candidate_records=candidate_records,
+        )
+
+        print("SUB-AGENT PLAN COMPARISON")
+        print("BASELINE:", args.baseline)
+        print("CANDIDATE:", args.candidate)
+        print("BASELINE COUNT:", report["baseline_count"])
+        print("CANDIDATE COUNT:", report["candidate_count"])
+        print("ADDED:", report["added_count"])
+        print("REMOVED:", report["removed_count"])
+        print("CHANGED:", report["changed_count"])
+        print("STABLE:", report["stable_count"])
+        print("PASSED:", report["passed"])
+
+        if report["added"]:
+            print("ADDED ITEMS:", json.dumps(
+                report["added"],
+                ensure_ascii=False,
+            ))
+
+        if report["removed"]:
+            print("REMOVED ITEMS:", json.dumps(
+                report["removed"],
+                ensure_ascii=False,
+            ))
+
+        if report["changed"]:
+            print("CHANGED ITEMS:", json.dumps(
+                report["changed"],
+                ensure_ascii=False,
+            ))
 
     elif args.command == "dry-run-sub-agent-call":
         try:

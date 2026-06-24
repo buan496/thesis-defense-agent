@@ -1178,3 +1178,39 @@ dry-run 是真实执行前的安全演练。
 - 做 Sub-Agent dry-run report replay / comparison。
 - 或实现最小真实 Sub-Agent executor，但限制为单工具、单步执行。
 - 不进入复杂多 Agent 自动协作，也不替换现有手写 Agent Harness。
+
+<!-- roadmap-update-2026-06-24-sub-agent-plan-comparison -->
+
+## 2026-06-24 路线同步：Sub-Agent Plan Replay / Comparison 已完成
+
+本阶段新增完成能力：
+
+- [x] 新增 `app/sub_agent_plan_comparator.py`
+- [x] 支持对比 baseline / candidate 两份 plan trace
+- [x] 支持检测新增计划
+- [x] 支持检测删除计划
+- [x] 支持检测稳定字段变化
+- [x] 新增 `compare-sub-agent-plans` CLI
+- [x] 新增 Sub-Agent plan comparison 测试
+
+学到的关键点：
+
+```text
+多 Agent 系统的回归测试不应该只看最终答案。
+执行前的计划也需要被比较。
+如果同样的 Sub-Agent、工具和参数突然生成了不同 max_steps、输出字段或状态，就说明调度层稳定性可能退化。
+```
+
+当前比较边界：
+
+```text
+忽略 plan_id 和 created_at。
+它们是运行时生成字段，不适合用于稳定性判断。
+当前只比较计划身份和关键稳定字段。
+```
+
+下一步学习：
+
+- 实现最小真实 Sub-Agent executor。
+- 仍然只允许单 Sub-Agent、单工具、单步执行。
+- 执行前必须复用 permission guard 和 execution plan。

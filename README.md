@@ -1075,3 +1075,38 @@ uv run python -m app.cli dry-run-sub-agent-call `
 dry-run 是真实执行前的安全演练。
 它让系统先回答“谁要调用什么工具、参数是什么、权限是否允许、计划是否可审计”，再决定是否进入真实执行。
 ```
+
+<!-- docs-update-2026-06-24-sub-agent-plan-comparison -->
+
+## 2026-06-24 更新：Sub-Agent Plan Replay / Comparison
+
+本阶段新增 Sub-Agent 计划级回归对比能力：
+
+- 新增 `app/sub_agent_plan_comparator.py`
+- 新增 `compare_sub_agent_plan_records()`
+- 新增 `compare-sub-agent-plans` CLI
+- 支持比较两份 Sub-Agent plan trace
+- 自动检测新增、删除、字段变化和稳定计划数量
+
+对比两份 trace：
+
+```powershell
+uv run python -m app.cli compare-sub-agent-plans `
+  --baseline data/traces/sub_agent_plan_baseline.jsonl `
+  --candidate data/traces/sub_agent_plan_candidate.jsonl
+```
+
+当前比较策略：
+
+```text
+忽略 plan_id 和 created_at，因为它们每次生成都会变化。
+以 sub_agent_name + tool_name + tool_arguments 作为计划身份。
+对 role、expected_output_fields、max_steps、status 做稳定性对比。
+```
+
+这一步的意义：
+
+```text
+在真正执行 Sub-Agent 前，先保证“计划”本身可以做回归检测。
+如果某次改动让同样输入生成了不同计划，系统应该能提前发现。
+```
