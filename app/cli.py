@@ -88,6 +88,7 @@ from app.langgraph_workflow.persistent_checkpoint_demo import (
     run_persistent_checkpoint_demo,
 )
 from app.tool_registry import list_registered_tools
+from app.sub_agent_specs import list_sub_agent_specs
 from app.feedback_store import (
     create_feedback_record,
     load_feedback_records,
@@ -1393,6 +1394,11 @@ def main():
         "--include-disabled",
         action="store_true",
         help="Also show disabled tools",
+    )
+
+    subparsers.add_parser(
+        "list-sub-agents",
+        help="List local Sub-Agent specs without running them",
     )
     
     args = parser.parse_args()
@@ -3041,6 +3047,22 @@ def main():
             print("RETRY_COUNT:", tool.retry_count)
             print("RESULT_MAX_CHARACTERS:", tool.result_max_characters)
             print("DESCRIPTION:", tool.description)
+
+    elif args.command == "list-sub-agents":
+        specs = list_sub_agent_specs()
+
+        print("SUB-AGENT SPECS")
+        print("COUNT:", len(specs))
+
+        for spec in specs:
+            print("-" * 40)
+            print("NAME:", spec.name)
+            print("ROLE:", spec.role)
+            print("MAX_STEPS:", spec.max_steps)
+            print("ALLOWED_TOOLS:", spec.allowed_tools)
+            print("INPUT_FIELDS:", spec.input_fields)
+            print("OUTPUT_FIELDS:", spec.output_fields)
+            print("DESCRIPTION:", spec.description)
 
     elif args.command == "show-task":
         task = get_defense_task(
