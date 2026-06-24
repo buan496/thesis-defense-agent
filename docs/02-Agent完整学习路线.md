@@ -900,3 +900,47 @@ Conditional Edge 根据 state 动态选择下一步。
 
 - LangGraph 持久化 checkpointer 对照学习。
 - MCP / Sub-Agent 前置概念学习。
+
+<!-- roadmap-update-2026-06-24-langgraph-persistent-checkpoint-snapshot-demo -->
+
+## 2026-06-24 路线同步：LangGraph Persistent Checkpoint Snapshot Demo 已完成
+
+本阶段新增完成能力：
+
+- [x] 新增 `app/langgraph_workflow/persistent_checkpoint_demo.py`
+- [x] 将 interrupted / resumed checkpoint state 导出为 JSON 快照
+- [x] 新增 `graph-persistent-checkpoint-demo` CLI
+- [x] 新增 checkpoint snapshot 保存、读取、摘要测试
+- [x] 保持旁路实现，不覆盖 `app/task_*` 和 `app/agent.py`
+
+当前学习边界：
+
+```text
+InMemorySaver 负责同一进程内的 LangGraph interrupt / resume。
+JSON snapshot 负责把可观察 checkpoint state 保存下来，用于审计、对比和学习。
+它不是数据库级持久化 checkpointer，也不承诺跨进程恢复 graph 执行。
+真正的数据库版持久化 checkpointer 留到服务器 / 数据库学习阶段。
+```
+
+CLI 示例：
+
+```powershell
+uv run python -m app.cli graph-persistent-checkpoint-demo `
+  --topic "系统架构" `
+  --answer "系统按职责拆分模块，便于定位问题。" `
+  --output data/langgraph_checkpoints/system_architecture.json
+```
+
+学到的关键点：
+
+```text
+checkpoint 是图执行状态，不只是业务输出。
+可观察字段包括 checkpoint_id、next、values、interrupts。
+把 checkpoint state 落盘后，可以做审计、对比和调试复盘。
+执行恢复能力和快照审计能力是两个层次，不能混为一谈。
+```
+
+下一步学习：
+
+- MCP / Sub-Agent 前置概念学习。
+- 或在不接服务器数据库的前提下，继续做 LangGraph 路由与状态对照小 demo。

@@ -367,6 +367,9 @@ retrieve_context -> generate_question -> interrupt -> resume
 graph-checkpointer-demo:
 interrupt checkpoint -> resume checkpoint
 
+graph-persistent-checkpoint-demo:
+interrupt/resume checkpoint -> JSON snapshot
+
 graph-conditional-demo:
 已有 answer -> finalize
 无 answer -> interrupt -> resume -> finalize
@@ -374,8 +377,8 @@ graph-conditional-demo:
 
 下一步按路线进入：
 
-1. LangGraph 持久化 checkpointer 对照学习
-2. MCP / Sub-Agent 前置概念学习
+1. MCP / Sub-Agent 前置概念学习
+2. LangGraph 持久化 checkpointer 的数据库版实现对照学习
 
 服务化、Docker、数据库和服务器部署继续后移到另一台服务器笔记本。
 
@@ -410,6 +413,17 @@ uv run python -m app.cli graph-checkpointer-demo `
 ```
 
 说明：当前 `graph-checkpointer-demo` 观察 `InMemorySaver` 中的 `checkpoint_id`、`next`、`values` 和 `interrupts`，用于理解 LangGraph 如何保存中断点和恢复后的状态。它仍是同进程学习版，不等同于跨进程持久恢复。
+
+持久化 checkpoint 快照 demo：
+
+```powershell
+uv run python -m app.cli graph-persistent-checkpoint-demo `
+  --topic "系统架构" `
+  --answer "系统按职责拆分模块，便于定位问题。" `
+  --output data/langgraph_checkpoints/system_architecture.json
+```
+
+说明：`graph-persistent-checkpoint-demo` 仍然使用 `InMemorySaver` 执行图，但会把中断前后可观察到的 checkpoint state 保存为 JSON 快照。它用于学习 checkpoint 状态落盘、审计和对比，不等同于数据库级跨进程恢复。真正的持久化 checkpointer 数据库实现留到服务器/数据库阶段对照学习。
 
 条件边 / 分支路由 demo：
 
