@@ -971,3 +971,29 @@ MCP / Sub-Agent 学习前，需要先理解工具的可发现性、权限、owne
 
 - 工具权限与 enabled 开关在执行器中的强约束。
 - 然后进入 MCP / Sub-Agent 前置概念学习。
+
+<!-- roadmap-update-2026-06-24-tool-execution-governance -->
+
+## 2026-06-24 路线同步：工具执行治理强约束已完成
+
+本阶段新增完成能力：
+
+- [x] `tool_executor.py` 执行前解析 `ToolMetadata`
+- [x] 强制拒绝 `enabled=False` 的工具
+- [x] 强制拒绝非白名单 permission
+- [x] 支持按工具 metadata 使用 timeout / retry / result length
+- [x] 保留旧 `TOOL_REGISTRY` 作为测试和临时 fake tool 兼容入口
+- [x] 新增 `tests/test_tool_executor_governance.py`
+
+学到的关键点：
+
+```text
+工具注册表是治理入口。
+工具执行器是治理落点。
+只有在执行器里强制校验 enabled、permission、timeout、retry、result limit，工具治理才真正生效。
+```
+
+下一步学习：
+
+- MCP / Sub-Agent 前置概念学习。
+- 先做本地 MCP 概念映射文档，不接真实 MCP 服务器。
