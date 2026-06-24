@@ -366,13 +366,16 @@ retrieve_context -> generate_question -> interrupt -> resume
 
 graph-checkpointer-demo:
 interrupt checkpoint -> resume checkpoint
+
+graph-conditional-demo:
+已有 answer -> finalize
+无 answer -> interrupt -> resume -> finalize
 ```
 
 下一步按路线进入：
 
-1. LangGraph 条件边 / 分支路由
-2. LangGraph 持久化 checkpointer 对照学习
-3. MCP / Sub-Agent 前置概念学习
+1. LangGraph 持久化 checkpointer 对照学习
+2. MCP / Sub-Agent 前置概念学习
 
 服务化、Docker、数据库和服务器部署继续后移到另一台服务器笔记本。
 
@@ -407,6 +410,20 @@ uv run python -m app.cli graph-checkpointer-demo `
 ```
 
 说明：当前 `graph-checkpointer-demo` 观察 `InMemorySaver` 中的 `checkpoint_id`、`next`、`values` 和 `interrupts`，用于理解 LangGraph 如何保存中断点和恢复后的状态。它仍是同进程学习版，不等同于跨进程持久恢复。
+
+条件边 / 分支路由 demo：
+
+```powershell
+uv run python -m app.cli graph-conditional-demo `
+  --topic "系统架构" `
+  --answer "系统按职责拆分模块，便于定位问题。"
+
+uv run python -m app.cli graph-conditional-demo `
+  --topic "系统架构" `
+  --resume-answer "系统按职责拆分模块，便于定位问题。"
+```
+
+说明：`graph-conditional-demo` 使用 `add_conditional_edges` 根据 state 中是否已有 `answer` 决定路由。已有回答时直接进入 `finalize`；没有回答时进入 `answer_interrupt`，再通过 resume 继续到 `finalize`。
 <!-- docs-update-2026-06-23-feedback-loop -->
 
 ## 2026-06-23 更新：Trace 回放与反馈驱动 Benchmark 闭环

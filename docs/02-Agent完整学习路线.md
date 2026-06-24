@@ -201,12 +201,13 @@ updated: 2026-06-23
 - [x] State
 - [x] Node
 - [x] Edge
-- [ ] Conditional Edge
+- [x] Conditional Edge
 - [x] Checkpointer
 - [x] Human-in-the-loop
 - [x] 最小旁路 demo：`retrieve_context -> generate_question -> wait_for_answer`
 - [x] Interrupt / resume demo：`retrieve_context -> generate_question -> interrupt -> resume`
 - [x] Checkpointer 状态观察 demo
+- [x] Conditional edge demo：已有回答跳过 interrupt，无回答进入 interrupt
 - [ ] 将当前手写 Agent Loop 旁路迁移到 LangGraph
 
 原则：
@@ -306,10 +307,10 @@ RAG
 
 ## 下一步学习重点
 
-Trace 回放与反馈闭环已完成，BM25 + Vector 混合检索、Hybrid 权重扫描、规则版 reranker、模型版 reranker、规则版查询改写、LLM 查询改写、多查询检索和检索策略组合对比评估也已完成。LangGraph 已开始旁路迁移，当前完成最小 demo、interrupt / resume demo 和 checkpointer 状态观察 demo。下一阶段进入：
+Trace 回放与反馈闭环已完成，BM25 + Vector 混合检索、Hybrid 权重扫描、规则版 reranker、模型版 reranker、规则版查询改写、LLM 查询改写、多查询检索和检索策略组合对比评估也已完成。LangGraph 已开始旁路迁移，当前完成最小 demo、interrupt / resume demo、checkpointer 状态观察 demo 和 conditional edge demo。下一阶段进入：
 
-1. LangGraph 条件边 / 分支路由
-2. LangGraph 持久化 checkpointer 对照学习
+1. LangGraph 持久化 checkpointer 对照学习
+2. MCP / Sub-Agent 前置概念学习
 3. MCP / Sub-Agent 前置概念学习
 
 ## 最终简历能力目标
@@ -850,3 +851,52 @@ InMemorySaver 只适合同一进程学习和测试，不适合跨进程持久恢
 - LangGraph 条件边 / 分支路由。
 - 用一个简单判断：如果已有 answer，则跳过 interrupt；如果没有 answer，则进入 interrupt。
 - 后续再学习持久化 checkpointer，不在当前机器做数据库部署。
+
+<!-- roadmap-update-2026-06-24-langgraph-conditional-demo -->
+
+## 2026-06-24 路线同步：LangGraph Conditional Edge Demo 已完成
+
+本阶段新增完成能力：
+
+- [x] 新增 `app/langgraph_workflow/conditional_demo.py`
+- [x] 使用 `add_conditional_edges` 实现条件路由
+- [x] 新增 `route_by_answer` 路由函数
+- [x] 新增 `finalize_answer_node` 完成节点
+- [x] 新增 `graph-conditional-demo` CLI
+- [x] 新增条件边单元测试与 CLI 测试
+- [x] 保持旁路实现，不覆盖 `app/task_*` 和 `app/agent.py`
+
+当前条件路由：
+
+```text
+generate_question
+-> route_by_answer
+   -> 已有 answer: finalize
+   -> 没有 answer: answer_interrupt -> finalize
+```
+
+CLI 示例：
+
+```powershell
+uv run python -m app.cli graph-conditional-demo `
+  --topic "系统架构" `
+  --answer "系统按职责拆分模块，便于定位问题。"
+
+uv run python -m app.cli graph-conditional-demo `
+  --topic "系统架构" `
+  --resume-answer "系统按职责拆分模块，便于定位问题。"
+```
+
+学到的关键点：
+
+```text
+Edge 是固定流程。
+Conditional Edge 根据 state 动态选择下一步。
+分支路由函数应保持小而纯，只负责返回路由标签。
+复杂业务逻辑仍放到 node 中。
+```
+
+下一步学习：
+
+- LangGraph 持久化 checkpointer 对照学习。
+- MCP / Sub-Agent 前置概念学习。

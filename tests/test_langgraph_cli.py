@@ -429,3 +429,151 @@ def test_graph_checkpointer_demo_command_reports_value_error(
     output = capsys.readouterr().out
 
     assert "LANGGRAPH CHECKPOINTER ERROR: thread_id cannot be empty" in output
+
+
+def test_graph_conditional_demo_command_with_existing_answer(
+    monkeypatch,
+    capsys,
+):
+    captured = {}
+
+    def fake_run_conditional_demo(**kwargs):
+        captured.update(kwargs)
+        return {
+            "thread_id": kwargs["thread_id"],
+            "route": "finalize",
+            "first_result": {
+                "status": "completed",
+                "current_node": "finalize",
+                "question": "How is the system designed?",
+            },
+            "interrupt_payload": None,
+            "resumed_result": None,
+        }
+
+    monkeypatch.setattr(
+        cli,
+        "run_conditional_demo",
+        fake_run_conditional_demo,
+    )
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "app.cli",
+            "graph-conditional-demo",
+            "--topic",
+            "system architecture",
+            "--thread-id",
+            "thread-1",
+            "--answer",
+            "The system is modular.",
+            "--top-k",
+            "2",
+        ],
+    )
+
+    cli.main()
+
+    output = capsys.readouterr().out
+
+    assert captured["topic"] == "system architecture"
+    assert captured["thread_id"] == "thread-1"
+    assert captured["answer"] == "The system is modular."
+    assert captured["resume_answer"] is None
+    assert captured["top_k"] == 2
+    assert "LANGGRAPH CONDITIONAL DEMO" in output
+    assert "ROUTE: finalize" in output
+    assert "INTERRUPTED: False" in output
+    assert "RESUMED: False" in output
+
+
+def test_graph_conditional_demo_command_with_resume_answer(
+    monkeypatch,
+    capsys,
+):
+    captured = {}
+
+    def fake_run_conditional_demo(**kwargs):
+        captured.update(kwargs)
+        return {
+            "thread_id": kwargs["thread_id"],
+            "route": "answer_interrupt",
+            "first_result": {
+                "status": None,
+                "current_node": None,
+                "question": "How is the system designed?",
+            },
+            "interrupt_payload": {
+                "type": "answer_required",
+                "question": "How is the system designed?",
+            },
+            "resumed_result": {
+                "status": "completed",
+                "current_node": "finalize",
+                "answer": kwargs["resume_answer"],
+            },
+        }
+
+    monkeypatch.setattr(
+        cli,
+        "run_conditional_demo",
+        fake_run_conditional_demo,
+    )
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "app.cli",
+            "graph-conditional-demo",
+            "--topic",
+            "system architecture",
+            "--thread-id",
+            "thread-1",
+            "--resume-answer",
+            "The system is modular.",
+        ],
+    )
+
+    cli.main()
+
+    output = capsys.readouterr().out
+
+    assert captured["answer"] is None
+    assert captured["resume_answer"] == "The system is modular."
+    assert "ROUTE: answer_interrupt" in output
+    assert "INTERRUPTED: True" in output
+    assert "INTERRUPT TYPE: answer_required" in output
+    assert "RESUMED: True" in output
+    assert "RESUMED STATUS: completed" in output
+    assert "ANSWER: The system is modular." in output
+
+
+def test_graph_conditional_demo_command_reports_value_error(
+    monkeypatch,
+    capsys,
+):
+    def fake_run_conditional_demo(**kwargs):
+        raise ValueError("answer cannot be empty")
+
+    monkeypatch.setattr(
+        cli,
+        "run_conditional_demo",
+        fake_run_conditional_demo,
+    )
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "app.cli",
+            "graph-conditional-demo",
+            "--topic",
+            "system architecture",
+        ],
+    )
+
+    try:
+        cli.main()
+    except SystemExit as error:
+        assert error.code == 1
+
+    output = capsys.readouterr().out
+
+    assert "LANGGRAPH CONDITIONAL ERROR: answer cannot be empty" in output

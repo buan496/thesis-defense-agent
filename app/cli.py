@@ -83,6 +83,7 @@ from app.langgraph_workflow.interrupt_demo import (
     start_interrupt_demo,
 )
 from app.langgraph_workflow.checkpointer_demo import run_checkpointer_demo
+from app.langgraph_workflow.conditional_demo import run_conditional_demo
 from app.feedback_store import (
     create_feedback_record,
     load_feedback_records,
@@ -1312,6 +1313,37 @@ def main():
         help="Optional student answer used to resume the graph",
     )
     graph_checkpointer_parser.add_argument(
+        "--top-k",
+        type=int,
+        default=None,
+        help="Number of chunks to retrieve",
+    )
+
+    graph_conditional_parser = subparsers.add_parser(
+        "graph-conditional-demo",
+        help="Run a LangGraph conditional edge routing demo",
+    )
+    graph_conditional_parser.add_argument(
+        "--topic",
+        required=True,
+        help="Defense topic for the LangGraph conditional demo",
+    )
+    graph_conditional_parser.add_argument(
+        "--thread-id",
+        default="conditional-demo-thread",
+        help="LangGraph thread ID used by the checkpointer",
+    )
+    graph_conditional_parser.add_argument(
+        "--answer",
+        default=None,
+        help="Optional existing answer; skips the interrupt route",
+    )
+    graph_conditional_parser.add_argument(
+        "--resume-answer",
+        default=None,
+        help="Optional answer used to resume when the graph interrupts",
+    )
+    graph_conditional_parser.add_argument(
         "--top-k",
         type=int,
         default=None,
@@ -2866,6 +2898,45 @@ def main():
                 "RESUMED VALUE KEYS:",
                 sorted(resumed_checkpoint["values"].keys()),
             )
+
+    elif args.command == "graph-conditional-demo":
+        top_k = args.top_k if args.top_k is not None else RAG_TOP_K
+
+        try:
+            report = run_conditional_demo(
+                topic=args.topic,
+                thread_id=args.thread_id,
+                answer=args.answer,
+                resume_answer=args.resume_answer,
+                top_k=top_k,
+            )
+        except ValueError as error:
+            print(f"LANGGRAPH CONDITIONAL ERROR: {error}")
+            raise SystemExit(1) from error
+
+        first_result = report["first_result"]
+        interrupt_payload = report["interrupt_payload"]
+        resumed_result = report["resumed_result"]
+
+        print("LANGGRAPH CONDITIONAL DEMO")
+        print("THREAD ID:", report["thread_id"])
+        print("ROUTE:", report["route"])
+        print("FIRST STATUS:", first_result.get("status"))
+        print("FIRST CURRENT NODE:", first_result.get("current_node"))
+        print("QUESTION:", first_result.get("question"))
+        print("INTERRUPTED:", interrupt_payload is not None)
+
+        if interrupt_payload is not None:
+            print("INTERRUPT TYPE:", interrupt_payload.get("type"))
+            print("INTERRUPT QUESTION:", interrupt_payload.get("question"))
+
+        if resumed_result is None:
+            print("RESUMED:", False)
+        else:
+            print("RESUMED:", True)
+            print("RESUMED STATUS:", resumed_result.get("status"))
+            print("RESUMED CURRENT NODE:", resumed_result.get("current_node"))
+            print("ANSWER:", resumed_result.get("answer"))
 
     elif args.command == "show-task":
         task = get_defense_task(
