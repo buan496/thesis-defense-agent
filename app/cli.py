@@ -87,6 +87,7 @@ from app.langgraph_workflow.conditional_demo import run_conditional_demo
 from app.langgraph_workflow.persistent_checkpoint_demo import (
     run_persistent_checkpoint_demo,
 )
+from app.tool_registry import list_registered_tools
 from app.feedback_store import (
     create_feedback_record,
     load_feedback_records,
@@ -1382,6 +1383,16 @@ def main():
         type=int,
         default=None,
         help="Number of chunks to retrieve",
+    )
+
+    list_tools_parser = subparsers.add_parser(
+        "list-tools",
+        help="List registered Agent tools and governance metadata",
+    )
+    list_tools_parser.add_argument(
+        "--include-disabled",
+        action="store_true",
+        help="Also show disabled tools",
     )
     
     args = parser.parse_args()
@@ -3011,6 +3022,25 @@ def main():
             print("RESUMED STATUS:", resumed_result.get("status"))
             print("RESUMED CURRENT NODE:", resumed_result.get("current_node"))
             print("ANSWER:", resumed_result.get("answer"))
+
+    elif args.command == "list-tools":
+        tools = list_registered_tools(
+            include_disabled=args.include_disabled,
+        )
+
+        print("REGISTERED TOOLS")
+        print("COUNT:", len(tools))
+
+        for tool in tools:
+            print("-" * 40)
+            print("NAME:", tool.name)
+            print("PERMISSION:", tool.permission)
+            print("OWNER:", tool.owner)
+            print("ENABLED:", tool.enabled)
+            print("TIMEOUT_SECONDS:", tool.timeout_seconds)
+            print("RETRY_COUNT:", tool.retry_count)
+            print("RESULT_MAX_CHARACTERS:", tool.result_max_characters)
+            print("DESCRIPTION:", tool.description)
 
     elif args.command == "show-task":
         task = get_defense_task(

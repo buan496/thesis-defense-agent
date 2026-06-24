@@ -944,3 +944,30 @@ checkpoint 是图执行状态，不只是业务输出。
 
 - MCP / Sub-Agent 前置概念学习。
 - 或在不接服务器数据库的前提下，继续做 LangGraph 路由与状态对照小 demo。
+
+<!-- roadmap-update-2026-06-24-tool-registry-metadata -->
+
+## 2026-06-24 路线同步：Tool Registry 元信息增强已完成
+
+本阶段新增完成能力：
+
+- [x] 新增 `ToolMetadata`
+- [x] 新增 `RegisteredTool`
+- [x] 新增 `app/tool_registry.py`
+- [x] 工具函数、OpenAI Tool Schema、工程治理元信息统一注册
+- [x] `tool_executor.py` 从注册表构建工具函数白名单
+- [x] 新增 `list-tools` CLI
+- [x] 新增工具注册表测试
+
+学到的关键点：
+
+```text
+Tool Schema 解决“模型怎么调用工具”。
+Tool Metadata 解决“工程系统怎么治理工具”。
+MCP / Sub-Agent 学习前，需要先理解工具的可发现性、权限、owner、启停、超时、重试和审计。
+```
+
+下一步学习：
+
+- 工具权限与 enabled 开关在执行器中的强约束。
+- 然后进入 MCP / Sub-Agent 前置概念学习。

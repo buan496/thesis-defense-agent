@@ -330,6 +330,7 @@ app/vector_store_builder.py      PDF 向量库构建，支持断点恢复
 app/rag.py                       RAG 上下文拼接和问答
 app/retrieval_evaluator.py       RAG benchmark
 app/tools/                       Agent 工具定义和实现
+app/tool_registry.py             工具元信息注册表和可发现性管理
 app/tool_executor.py             工具分发、白名单、重试、超时和错误标准化
 app/agent.py                     手写 Agent Harness
 app/session_models.py            AgentSession 数据结构
@@ -823,3 +824,30 @@ manual_benchmark_draft.json
 ```
 
 这些文件仍然是草稿，不会覆盖现有正式 benchmark。正式合并前需要人工检查。
+
+<!-- docs-update-2026-06-24-tool-registry-metadata -->
+
+## 2026-06-24 更新：Tool Registry 元信息增强
+
+本阶段新增工具治理能力：
+
+- 新增 `app/tool_registry.py`
+- 新增 `ToolMetadata` 和 `RegisteredTool`
+- 将工具函数、OpenAI Tool Schema、工程治理元信息统一注册
+- `tool_executor.py` 从注册表构建工具函数白名单
+- 新增 `list-tools` CLI，用于查看工具可发现性与治理参数
+
+查看工具注册表：
+
+```powershell
+uv run python -m app.cli list-tools
+```
+
+这一步区分了两个概念：
+
+```text
+Tool Schema：给 LLM 看的函数调用格式，描述参数怎么传。
+Tool Metadata：给工程系统看的治理信息，描述权限、owner、enabled、timeout、retry、结果长度限制等。
+```
+
+这一步是 MCP / Sub-Agent 的前置基础：MCP 本质上也需要把外部能力标准化为可发现、可描述、可调用、可治理的工具。
