@@ -3,6 +3,7 @@ import json
 import pytest
 
 from app.retrieval_evaluator import (
+    compare_retrieval_strategies,
     compare_retrievers,
     evaluate_retrieval,
     scan_hybrid_weights,
@@ -358,6 +359,65 @@ def test_evaluate_retrieval_supports_query_rewrite(tmp_path):
     assert report["average_score"] == 1.0
 
 
+def test_evaluate_retrieval_supports_llm_query_rewrite(tmp_path):
+    benchmark_path = tmp_path / "benchmark.json"
+    vector_store_path = tmp_path / "vector_store.json"
+    cache_path = tmp_path / "cache.json"
+    benchmark = [
+        {
+            "query": "系统是怎么设计的？",
+            "expected_keywords": ["特征处理"],
+        }
+    ]
+    store = [
+        {
+            "id": 0,
+            "text": "普通内容",
+            "source": "test",
+            "embedding": [0.0, 1.0],
+        },
+        {
+            "id": 1,
+            "text": "系统架构包括特征处理模块",
+            "source": "test",
+            "embedding": [1.0, 0.0],
+        },
+    ]
+    benchmark_path.write_text(
+        json.dumps(benchmark, ensure_ascii=False),
+        encoding="utf-8",
+    )
+    vector_store_path.write_text(
+        json.dumps(store, ensure_ascii=False),
+        encoding="utf-8",
+    )
+
+    def llm_rewrite_for_test(query: str) -> str:
+        return "系统架构 特征处理"
+
+    def embedding_for_test(text: str) -> list[float]:
+        if "特征处理" in text:
+            return [1.0, 0.0]
+
+        return [0.0, 1.0]
+
+    report = evaluate_retrieval(
+        benchmark_path=str(benchmark_path),
+        vector_store_path=str(vector_store_path),
+        top_k=1,
+        embedding_fn=embedding_for_test,
+        embedding_cache_path=str(cache_path),
+        embedding_model="test-model",
+        use_llm_query_rewrite=True,
+        llm_query_rewriter=llm_rewrite_for_test,
+    )
+
+    assert report["use_llm_query_rewrite"] is True
+    assert report["results"][0]["query"] == "系统是怎么设计的？"
+    assert report["results"][0]["rewritten_query"] == "系统架构 特征处理"
+    assert report["average_score"] == 1.0
+
+
 def test_evaluate_retrieval_supports_multi_query(tmp_path):
     benchmark_path = tmp_path / "benchmark.json"
     vector_store_path = tmp_path / "vector_store.json"
@@ -419,6 +479,62 @@ def test_evaluate_retrieval_supports_multi_query(tmp_path):
     assert report["average_score"] == 1.0
 
 
+def test_evaluate_retrieval_supports_model_reranker(tmp_path):
+    benchmark_path = tmp_path / "benchmark.json"
+    vector_store_path = tmp_path / "vector_store.json"
+    cache_path = tmp_path / "cache.json"
+    benchmark = [
+        {
+            "query": "系统架构包括哪些模块？",
+            "expected_keywords": ["特征处理"],
+        }
+    ]
+    store = [
+        {
+            "id": 0,
+            "text": "普通内容",
+            "source": "test",
+            "embedding": [1.0, 0.0],
+        },
+        {
+            "id": 1,
+            "text": "系统架构包括特征处理模块",
+            "source": "test",
+            "embedding": [0.6, 0.4],
+        },
+    ]
+    benchmark_path.write_text(
+        json.dumps(benchmark, ensure_ascii=False),
+        encoding="utf-8",
+    )
+    vector_store_path.write_text(
+        json.dumps(store, ensure_ascii=False),
+        encoding="utf-8",
+    )
+
+    def fake_model_scorer(query: str, candidate: dict) -> float:
+        if "特征处理" in candidate["text"]:
+            return 0.95
+
+        return 0.1
+
+    report = evaluate_retrieval(
+        benchmark_path=str(benchmark_path),
+        vector_store_path=str(vector_store_path),
+        top_k=1,
+        embedding_fn=lambda text: [1.0, 0.0],
+        embedding_cache_path=str(cache_path),
+        embedding_model="test-model",
+        use_model_reranker=True,
+        model_rerank_candidate_multiplier=2,
+        model_reranker_scorer=fake_model_scorer,
+    )
+
+    assert report["use_model_reranker"] is True
+    assert report["model_rerank_candidate_multiplier"] == 2
+    assert report["average_score"] == 1.0
+
+
 def test_evaluate_retrieval_rejects_invalid_rerank_multiplier(tmp_path):
     benchmark_path = tmp_path / "benchmark.json"
     vector_store_path = tmp_path / "vector_store.json"
@@ -436,6 +552,66 @@ def test_evaluate_retrieval_rejects_invalid_rerank_multiplier(tmp_path):
             embedding_model="test-model",
             use_reranker=True,
             rerank_candidate_multiplier=0,
+        )
+
+
+def test_evaluate_retrieval_rejects_invalid_model_rerank_multiplier(tmp_path):
+    benchmark_path = tmp_path / "benchmark.json"
+    vector_store_path = tmp_path / "vector_store.json"
+    cache_path = tmp_path / "cache.json"
+    benchmark_path.write_text("[]", encoding="utf-8")
+    vector_store_path.write_text("[]", encoding="utf-8")
+
+    with pytest.raises(ValueError):
+        evaluate_retrieval(
+            benchmark_path=str(benchmark_path),
+            vector_store_path=str(vector_store_path),
+            top_k=1,
+            embedding_fn=fake_embedding,
+            embedding_cache_path=str(cache_path),
+            embedding_model="test-model",
+            use_model_reranker=True,
+            model_rerank_candidate_multiplier=0,
+        )
+
+
+def test_evaluate_retrieval_rejects_two_rerankers_at_once(tmp_path):
+    benchmark_path = tmp_path / "benchmark.json"
+    vector_store_path = tmp_path / "vector_store.json"
+    cache_path = tmp_path / "cache.json"
+    benchmark_path.write_text("[]", encoding="utf-8")
+    vector_store_path.write_text("[]", encoding="utf-8")
+
+    with pytest.raises(ValueError):
+        evaluate_retrieval(
+            benchmark_path=str(benchmark_path),
+            vector_store_path=str(vector_store_path),
+            top_k=1,
+            embedding_fn=fake_embedding,
+            embedding_cache_path=str(cache_path),
+            embedding_model="test-model",
+            use_reranker=True,
+            use_model_reranker=True,
+        )
+
+
+def test_evaluate_retrieval_rejects_two_query_rewriters_at_once(tmp_path):
+    benchmark_path = tmp_path / "benchmark.json"
+    vector_store_path = tmp_path / "vector_store.json"
+    cache_path = tmp_path / "cache.json"
+    benchmark_path.write_text("[]", encoding="utf-8")
+    vector_store_path.write_text("[]", encoding="utf-8")
+
+    with pytest.raises(ValueError):
+        evaluate_retrieval(
+            benchmark_path=str(benchmark_path),
+            vector_store_path=str(vector_store_path),
+            top_k=1,
+            embedding_fn=fake_embedding,
+            embedding_cache_path=str(cache_path),
+            embedding_model="test-model",
+            use_query_rewrite=True,
+            use_llm_query_rewrite=True,
         )
 
 
@@ -477,7 +653,10 @@ def test_compare_retrievers(tmp_path):
         bm25_weight=0.4,
         use_reranker=True,
         rerank_candidate_multiplier=2,
+        use_model_reranker=False,
+        model_rerank_candidate_multiplier=3,
         use_query_rewrite=True,
+        use_llm_query_rewrite=False,
         use_multi_query=True,
     )
 
@@ -486,7 +665,10 @@ def test_compare_retrievers(tmp_path):
     assert report["bm25_weight"] == 0.4
     assert report["use_reranker"] is True
     assert report["rerank_candidate_multiplier"] == 2
+    assert report["use_model_reranker"] is False
+    assert report["model_rerank_candidate_multiplier"] == 3
     assert report["use_query_rewrite"] is True
+    assert report["use_llm_query_rewrite"] is False
     assert report["use_multi_query"] is True
     assert report["best_retriever"] in {"vector", "bm25", "hybrid"}
     assert [
@@ -532,14 +714,20 @@ def test_scan_hybrid_weights(tmp_path):
         embedding_model="test-model",
         use_reranker=True,
         rerank_candidate_multiplier=2,
+        use_model_reranker=False,
+        model_rerank_candidate_multiplier=3,
         use_query_rewrite=True,
+        use_llm_query_rewrite=False,
         use_multi_query=True,
     )
 
     assert report["top_k"] == 1
     assert report["use_reranker"] is True
     assert report["rerank_candidate_multiplier"] == 2
+    assert report["use_model_reranker"] is False
+    assert report["model_rerank_candidate_multiplier"] == 3
     assert report["use_query_rewrite"] is True
+    assert report["use_llm_query_rewrite"] is False
     assert report["use_multi_query"] is True
     assert report["best_average_score"] == 1.0
     assert len(report["reports"]) == 2
@@ -550,6 +738,146 @@ def test_scan_hybrid_weights(tmp_path):
         )
         for item in report["reports"]
     ] == [(1.0, 0.0), (0.5, 0.5)]
+
+
+def test_compare_retrieval_strategies_excludes_expensive_by_default(tmp_path):
+    benchmark_path = tmp_path / "benchmark.json"
+    vector_store_path = tmp_path / "vector_store.json"
+    cache_path = tmp_path / "cache.json"
+    benchmark = [
+        {
+            "query": "project",
+            "expected_keywords": ["feature"],
+        }
+    ]
+    store = [
+        {
+            "id": 0,
+            "text": "project overview",
+            "source": "test",
+            "embedding": [1.0, 0.0],
+        },
+        {
+            "id": 1,
+            "text": "architecture feature module",
+            "source": "test",
+            "embedding": [0.0, 1.0],
+        },
+    ]
+    benchmark_path.write_text(
+        json.dumps(benchmark, ensure_ascii=False),
+        encoding="utf-8",
+    )
+    vector_store_path.write_text(
+        json.dumps(store, ensure_ascii=False),
+        encoding="utf-8",
+    )
+
+    def embedding_for_test(text: str) -> list[float]:
+        if "feature" in text:
+            return [0.0, 1.0]
+
+        return [1.0, 0.0]
+
+    report = compare_retrieval_strategies(
+        benchmark_path=str(benchmark_path),
+        vector_store_path=str(vector_store_path),
+        top_k=1,
+        embedding_fn=embedding_for_test,
+        embedding_cache_path=str(cache_path),
+        embedding_model="test-model",
+        query_rewriter=lambda query: "feature",
+        multi_query_generator=lambda query: [query, "feature"],
+    )
+
+    strategy_names = [
+        item["strategy_name"]
+        for item in report["reports"]
+    ]
+
+    assert report["include_expensive"] is False
+    assert strategy_names == [
+        "hybrid",
+        "hybrid+query_rewrite",
+        "hybrid+multi_query",
+        "hybrid+query_rewrite+multi_query",
+        "hybrid+reranker",
+    ]
+    assert "hybrid+model_reranker" not in strategy_names
+    assert "hybrid+llm_query_rewrite" not in strategy_names
+    assert report["best_strategy"] == "hybrid+query_rewrite"
+    assert report["best_average_score"] == 1.0
+
+
+def test_compare_retrieval_strategies_can_include_expensive(tmp_path):
+    benchmark_path = tmp_path / "benchmark.json"
+    vector_store_path = tmp_path / "vector_store.json"
+    cache_path = tmp_path / "cache.json"
+    benchmark = [
+        {
+            "query": "project",
+            "expected_keywords": ["feature"],
+        }
+    ]
+    store = [
+        {
+            "id": 0,
+            "text": "project overview",
+            "source": "test",
+            "embedding": [1.0, 0.0],
+        },
+        {
+            "id": 1,
+            "text": "architecture feature module",
+            "source": "test",
+            "embedding": [0.0, 1.0],
+        },
+    ]
+    benchmark_path.write_text(
+        json.dumps(benchmark, ensure_ascii=False),
+        encoding="utf-8",
+    )
+    vector_store_path.write_text(
+        json.dumps(store, ensure_ascii=False),
+        encoding="utf-8",
+    )
+
+    def embedding_for_test(text: str) -> list[float]:
+        if "feature" in text:
+            return [0.0, 1.0]
+
+        return [1.0, 0.0]
+
+    def model_scorer(query: str, candidate: dict) -> float:
+        if "feature" in candidate["text"]:
+            return 1.0
+
+        return 0.0
+
+    report = compare_retrieval_strategies(
+        benchmark_path=str(benchmark_path),
+        vector_store_path=str(vector_store_path),
+        top_k=1,
+        embedding_fn=embedding_for_test,
+        embedding_cache_path=str(cache_path),
+        embedding_model="test-model",
+        query_rewriter=lambda query: "feature",
+        llm_query_rewriter=lambda query: "feature",
+        multi_query_generator=lambda query: [query, "feature"],
+        model_reranker_scorer=model_scorer,
+        include_expensive=True,
+    )
+
+    strategy_names = [
+        item["strategy_name"]
+        for item in report["reports"]
+    ]
+
+    assert report["include_expensive"] is True
+    assert "hybrid+model_reranker" in strategy_names
+    assert "hybrid+llm_query_rewrite" in strategy_names
+    assert "hybrid+llm_query_rewrite+multi_query" in strategy_names
+    assert report["best_average_score"] == 1.0
 
 
 def test_search_multi_query_store_deduplicates_results():

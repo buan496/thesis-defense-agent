@@ -60,8 +60,11 @@ updated: 2026-06-23
 - [x] 混合检索：BM25 + Vector
 - [x] Hybrid 权重扫描
 - [x] 规则版 reranker
+- [x] 模型版 reranker
 - [x] 规则版查询改写
+- [x] LLM 查询改写
 - [x] 多查询检索
+- [x] 检索策略组合对比
 - [ ] Qdrant 或 Milvus
 
 基础知识：
@@ -300,11 +303,11 @@ RAG
 
 ## 下一步学习重点
 
-Trace 回放与反馈闭环已完成，BM25 + Vector 混合检索、Hybrid 权重扫描、规则版 reranker、规则版查询改写和多查询检索评估也已完成，下一阶段进入：
+Trace 回放与反馈闭环已完成，BM25 + Vector 混合检索、Hybrid 权重扫描、规则版 reranker、模型版 reranker、规则版查询改写、LLM 查询改写、多查询检索和检索策略组合对比评估也已完成，下一阶段进入：
 
-1. 模型版 reranker 或 cross-encoder reranker
-2. LLM query rewrite
-3. LangGraph 旁路迁移
+1. LangGraph 旁路迁移前的代码整理与学习笔记
+2. LangGraph 旁路迁移，不覆盖现有手写 Harness
+3. MCP / Sub-Agent 前置概念学习
 
 ## 最终简历能力目标
 
@@ -518,3 +521,149 @@ multi-query 关注同一个问题能不能从多个角度去搜。
 - 模型版 reranker 或 cross-encoder reranker。
 - LLM query rewrite。
 - 对比 `query rewrite`、`multi-query`、`query rewrite + multi-query` 的召回收益与成本。
+
+<!-- roadmap-update-2026-06-23-model-reranker -->
+
+## 2026-06-23 路线同步：模型版 Reranker 已完成
+
+本阶段新增完成能力：
+
+- [x] `app/model_reranker.py`
+- [x] `build_rerank_prompt(query, candidate)`
+- [x] `score_candidate_with_llm(query, candidate)`
+- [x] `rerank_results_with_model(query, results, top_k)`
+- [x] LLM JSON 分数解析
+- [x] 分数裁剪到 0~1
+- [x] `evaluate-rag --model-rerank`
+- [x] `--model-rerank-candidate-multiplier`
+- [x] 模型版 reranker benchmark 对比
+
+本轮真实 benchmark 结果：
+
+```text
+hybrid + model reranker x2: average_score = 0.9667
+missing: 卷积层
+```
+
+阶段结论：
+
+```text
+模型版 reranker 工程链路已经跑通，但当前 benchmark 上没有超过 query rewrite 或 multi-query。
+模型版 reranker 成本更高，因为每个候选 chunk 都需要一次 LLM 评分。
+当前不建议默认启用 model reranker，只保留为实验开关。
+```
+
+学到的关键点：
+
+```text
+第一阶段召回负责把可能相关的 chunk 拉进候选集。
+第二阶段重排负责更精细地判断 query 和 chunk 是否匹配。
+模型版 reranker 比规则版更灵活，但更贵、更慢，也可能误排。
+是否启用 reranker 不能凭感觉，必须看 benchmark、missing keywords 和调用成本。
+```
+
+后续可继续学习：
+
+- LLM query rewrite。
+- 对比 `query rewrite`、`multi-query`、`model reranker` 的组合收益与成本。
+- 后续如需真正 cross-encoder reranker，可单独接本地或 API 模型，不覆盖当前实现。
+
+<!-- roadmap-update-2026-06-23-llm-query-rewrite -->
+
+## 2026-06-23 路线同步：LLM Query Rewrite 已完成
+
+本阶段新增完成能力：
+
+- [x] `app/llm_query_rewriter.py`
+- [x] `build_llm_query_rewrite_prompt(query)`
+- [x] `rewrite_query_with_llm(query)`
+- [x] LLM JSON 输出解析
+- [x] Markdown JSON 代码块清洗
+- [x] 空 query 与缺字段校验
+- [x] `evaluate-rag --llm-rewrite-query`
+- [x] `compare-retrievers --llm-rewrite-query`
+- [x] `scan-hybrid-weights --llm-rewrite-query`
+- [x] LLM query rewrite benchmark 对比
+
+本轮真实 benchmark 对比：
+
+```text
+hybrid + LLM query rewrite: average_score = 0.8333
+hybrid + LLM query rewrite + multi-query: average_score = 1.0
+```
+
+阶段结论：
+
+```text
+LLM query rewrite 单独使用时不稳定，会因为过度概括而丢失论文中的关键术语。
+LLM query rewrite + multi-query 可以恢复召回，但会增加 LLM 调用和 embedding 调用成本。
+当前不建议默认启用 LLM query rewrite，只保留为实验开关。
+```
+
+学到的关键点：
+
+```text
+规则版 query rewrite 稳定、便宜，但覆盖范围有限。
+LLM query rewrite 更灵活，但可能改丢关键术语。
+multi-query 可以补充多个检索视角，但会增加 embedding 成本。
+检索优化不能只看 average_score，还要看 missing keywords、cache hits / misses、LLM 调用次数和整体耗时。
+```
+
+后续可继续学习：
+
+- LangGraph 旁路迁移前，整理手写 Agent Harness 的状态机和节点图。
+
+<!-- roadmap-update-2026-06-23-retrieval-strategy-comparison -->
+
+## 2026-06-23 路线同步：检索策略组合对比已完成
+
+本阶段新增完成能力：
+
+- [x] `compare_retrieval_strategies(...)`
+- [x] `compare-retrieval-strategies`
+- [x] 默认扫描低成本策略组合
+- [x] 使用 `--include-expensive` 显式纳入 LLM query rewrite 和模型版 reranker
+- [x] 输出 `best_strategy`、`best_average_score`、cache hits / misses 和 missing summary
+- [x] 保存组合对比 JSON 报告
+
+默认低成本组合：
+
+```text
+hybrid
+hybrid + query rewrite
+hybrid + multi-query
+hybrid + query rewrite + multi-query
+hybrid + reranker
+```
+
+本轮真实 benchmark 结果：
+
+```text
+hybrid: average_score = 0.8667
+hybrid + query rewrite: average_score = 1.0
+hybrid + multi-query: average_score = 1.0
+hybrid + query rewrite + multi-query: average_score = 0.925
+hybrid + reranker: average_score = 0.8333
+```
+
+阶段结论：
+
+```text
+当前推荐低成本默认策略是 hybrid + query rewrite。
+hybrid + multi-query 同样有效，但查询数量更多，成本更高。
+reranker 和盲目叠加组合在当前 benchmark 上没有收益。
+```
+
+学到的关键点：
+
+```text
+检索优化不是“功能越多越好”。
+每个组合都要放进同一份 benchmark 里比较。
+选择默认策略时要同时看 average_score、missing keywords、cache hits / misses、LLM 调用次数和整体复杂度。
+```
+
+下一步学习：
+
+- LangGraph 旁路迁移前的手写状态机复盘。
+- 画出当前 Task State 的节点、边、状态和人工输入点。
+- 后续 LangGraph 只做旁路对照，不覆盖当前实现。

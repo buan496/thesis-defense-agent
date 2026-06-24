@@ -21,6 +21,7 @@ from app.evaluation_report_comparator import (
     save_evaluation_comparison_markdown,
 )
 from app.retrieval_evaluator import (
+    compare_retrieval_strategies,
     compare_retrievers,
     evaluate_retrieval,
     scan_hybrid_weights,
@@ -250,9 +251,25 @@ def main():
         help="Retrieve top_k times this multiplier before reranking",
     )
     evaluate_parser.add_argument(
+        "--model-rerank",
+        action="store_true",
+        help="Use LLM-based reranker on retrieved candidates",
+    )
+    evaluate_parser.add_argument(
+        "--model-rerank-candidate-multiplier",
+        type=int,
+        default=3,
+        help="Retrieve top_k times this multiplier before model reranking",
+    )
+    evaluate_parser.add_argument(
         "--rewrite-query",
         action="store_true",
         help="Rewrite benchmark queries before retrieval",
+    )
+    evaluate_parser.add_argument(
+        "--llm-rewrite-query",
+        action="store_true",
+        help="Use LLM to rewrite benchmark queries before retrieval",
     )
     evaluate_parser.add_argument(
         "--multi-query",
@@ -300,9 +317,25 @@ def main():
         help="Retrieve top_k times this multiplier before reranking",
     )
     compare_retrievers_parser.add_argument(
+        "--model-rerank",
+        action="store_true",
+        help="Use LLM-based reranker on retrieved candidates",
+    )
+    compare_retrievers_parser.add_argument(
+        "--model-rerank-candidate-multiplier",
+        type=int,
+        default=3,
+        help="Retrieve top_k times this multiplier before model reranking",
+    )
+    compare_retrievers_parser.add_argument(
         "--rewrite-query",
         action="store_true",
         help="Rewrite benchmark queries before retrieval",
+    )
+    compare_retrievers_parser.add_argument(
+        "--llm-rewrite-query",
+        action="store_true",
+        help="Use LLM to rewrite benchmark queries before retrieval",
     )
     compare_retrievers_parser.add_argument(
         "--multi-query",
@@ -344,14 +377,76 @@ def main():
         help="Retrieve top_k times this multiplier before reranking",
     )
     scan_hybrid_parser.add_argument(
+        "--model-rerank",
+        action="store_true",
+        help="Use LLM-based reranker on retrieved candidates",
+    )
+    scan_hybrid_parser.add_argument(
+        "--model-rerank-candidate-multiplier",
+        type=int,
+        default=3,
+        help="Retrieve top_k times this multiplier before model reranking",
+    )
+    scan_hybrid_parser.add_argument(
         "--rewrite-query",
         action="store_true",
         help="Rewrite benchmark queries before retrieval",
     )
     scan_hybrid_parser.add_argument(
+        "--llm-rewrite-query",
+        action="store_true",
+        help="Use LLM to rewrite benchmark queries before retrieval",
+    )
+    scan_hybrid_parser.add_argument(
         "--multi-query",
         action="store_true",
         help="Generate multiple search queries before retrieval",
+    )
+
+    strategy_parser = subparsers.add_parser(
+        "compare-retrieval-strategies",
+        help="Compare retrieval strategy combinations on the RAG benchmark",
+    )
+    strategy_parser.add_argument(
+        "--top-k",
+        type=int,
+        default=None,
+        help="Number of chunks to retrieve",
+    )
+    strategy_parser.add_argument(
+        "--vector-weight",
+        type=float,
+        default=0.7,
+        help="Vector score weight for hybrid retrieval",
+    )
+    strategy_parser.add_argument(
+        "--bm25-weight",
+        type=float,
+        default=0.3,
+        help="BM25 score weight for hybrid retrieval",
+    )
+    strategy_parser.add_argument(
+        "--rerank-candidate-multiplier",
+        type=int,
+        default=3,
+        help="Retrieve top_k times this multiplier before reranking",
+    )
+    strategy_parser.add_argument(
+        "--model-rerank-candidate-multiplier",
+        type=int,
+        default=3,
+        help="Retrieve top_k times this multiplier before model reranking",
+    )
+    strategy_parser.add_argument(
+        "--include-expensive",
+        action="store_true",
+        help="Include LLM rewrite and model reranker strategy combinations",
+    )
+    strategy_parser.add_argument(
+        "--output",
+        type=str,
+        default=None,
+        help="Path to save retrieval strategy comparison report as JSON",
     )
     trace_parser = subparsers.add_parser(
         "analyze-traces",
@@ -1170,7 +1265,12 @@ def main():
             bm25_weight=args.bm25_weight,
             use_reranker=args.rerank,
             rerank_candidate_multiplier=args.rerank_candidate_multiplier,
+            use_model_reranker=args.model_rerank,
+            model_rerank_candidate_multiplier=(
+                args.model_rerank_candidate_multiplier
+            ),
             use_query_rewrite=args.rewrite_query,
+            use_llm_query_rewrite=args.llm_rewrite_query,
             use_multi_query=args.multi_query,
         )
 
@@ -1194,7 +1294,13 @@ def main():
             "RERANK CANDIDATE MULTIPLIER:",
             report["rerank_candidate_multiplier"],
         )
+        print("USE MODEL RERANKER:", report["use_model_reranker"])
+        print(
+            "MODEL RERANK CANDIDATE MULTIPLIER:",
+            report["model_rerank_candidate_multiplier"],
+        )
         print("USE QUERY REWRITE:", report["use_query_rewrite"])
+        print("USE LLM QUERY REWRITE:", report["use_llm_query_rewrite"])
         print("USE MULTI QUERY:", report["use_multi_query"])
         print("AVERAGE SCORE:", report["average_score"])
         print("CACHE HITS:", report["embedding_cache"]["hits"])
@@ -1235,7 +1341,12 @@ def main():
             bm25_weight=args.bm25_weight,
             use_reranker=args.rerank,
             rerank_candidate_multiplier=args.rerank_candidate_multiplier,
+            use_model_reranker=args.model_rerank,
+            model_rerank_candidate_multiplier=(
+                args.model_rerank_candidate_multiplier
+            ),
             use_query_rewrite=args.rewrite_query,
+            use_llm_query_rewrite=args.llm_rewrite_query,
             use_multi_query=args.multi_query,
         )
 
@@ -1248,7 +1359,13 @@ def main():
             "RERANK CANDIDATE MULTIPLIER:",
             report["rerank_candidate_multiplier"],
         )
+        print("USE MODEL RERANKER:", report["use_model_reranker"])
+        print(
+            "MODEL RERANK CANDIDATE MULTIPLIER:",
+            report["model_rerank_candidate_multiplier"],
+        )
         print("USE QUERY REWRITE:", report["use_query_rewrite"])
+        print("USE LLM QUERY REWRITE:", report["use_llm_query_rewrite"])
         print("USE MULTI QUERY:", report["use_multi_query"])
         print("BEST RETRIEVER:", report["best_retriever"])
 
@@ -1302,7 +1419,12 @@ def main():
             weight_pairs=weight_pairs,
             use_reranker=args.rerank,
             rerank_candidate_multiplier=args.rerank_candidate_multiplier,
+            use_model_reranker=args.model_rerank,
+            model_rerank_candidate_multiplier=(
+                args.model_rerank_candidate_multiplier
+            ),
             use_query_rewrite=args.rewrite_query,
+            use_llm_query_rewrite=args.llm_rewrite_query,
             use_multi_query=args.multi_query,
         )
 
@@ -1313,7 +1435,13 @@ def main():
             "RERANK CANDIDATE MULTIPLIER:",
             report["rerank_candidate_multiplier"],
         )
+        print("USE MODEL RERANKER:", report["use_model_reranker"])
+        print(
+            "MODEL RERANK CANDIDATE MULTIPLIER:",
+            report["model_rerank_candidate_multiplier"],
+        )
         print("USE QUERY REWRITE:", report["use_query_rewrite"])
+        print("USE LLM QUERY REWRITE:", report["use_llm_query_rewrite"])
         print("USE MULTI QUERY:", report["use_multi_query"])
         print("BEST VECTOR WEIGHT:", report["best_vector_weight"])
         print("BEST BM25 WEIGHT:", report["best_bm25_weight"])
@@ -1326,6 +1454,61 @@ def main():
             print("AVERAGE SCORE:", item["average_score"])
             print("CACHE HITS:", item["embedding_cache"]["hits"])
             print("CACHE MISSES:", item["embedding_cache"]["misses"])
+
+        if args.output is not None:
+            output_path = Path(args.output)
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            output_path.write_text(
+                json.dumps(report, ensure_ascii=False, indent=2),
+                encoding="utf-8",
+            )
+            print("REPORT SAVED:", output_path)
+    elif args.command == "compare-retrieval-strategies":
+        top_k = args.top_k if args.top_k is not None else RAG_TOP_K
+        report = compare_retrieval_strategies(
+            benchmark_path=RAG_BENCHMARK_PATH,
+            vector_store_path=RAG_VECTOR_STORE_PATH,
+            top_k=top_k,
+            vector_weight=args.vector_weight,
+            bm25_weight=args.bm25_weight,
+            rerank_candidate_multiplier=args.rerank_candidate_multiplier,
+            model_rerank_candidate_multiplier=(
+                args.model_rerank_candidate_multiplier
+            ),
+            include_expensive=args.include_expensive,
+        )
+
+        print("RETRIEVAL STRATEGY COMPARISON")
+        print("TOP_K:", report["top_k"])
+        print("RETRIEVER:", report["retriever"])
+        print("VECTOR WEIGHT:", report["vector_weight"])
+        print("BM25 WEIGHT:", report["bm25_weight"])
+        print("INCLUDE EXPENSIVE:", report["include_expensive"])
+        print("BEST STRATEGY:", report["best_strategy"])
+        print("BEST AVERAGE SCORE:", report["best_average_score"])
+
+        for strategy_report in report["reports"]:
+            print("-" * 40)
+            print("STRATEGY:", strategy_report["strategy_name"])
+            print("AVERAGE SCORE:", strategy_report["average_score"])
+            print(
+                "CACHE HITS:",
+                strategy_report["embedding_cache"]["hits"],
+            )
+            print(
+                "CACHE MISSES:",
+                strategy_report["embedding_cache"]["misses"],
+            )
+
+            missing_summary = [
+                {
+                    "query": item["query"],
+                    "missing": item["missing"],
+                }
+                for item in strategy_report["results"]
+                if item["missing"]
+            ]
+            print("MISSING SUMMARY:", missing_summary)
 
         if args.output is not None:
             output_path = Path(args.output)

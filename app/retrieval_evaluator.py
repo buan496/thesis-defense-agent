@@ -7,7 +7,9 @@ from app.vector_store_metadata import load_vector_store_metadata
 from app.bm25_retriever import search_bm25
 from app.embeddings import create_embedding
 from app.hybrid_retriever import search_hybrid
+from app.llm_query_rewriter import rewrite_query_with_llm
 from app.multi_query_rewriter import generate_multi_queries
+from app.model_reranker import rerank_results_with_model
 from app.query_rewriter import rewrite_query
 from app.reranker import rerank_results
 from app.vector_store import search_vector_store
@@ -31,8 +33,13 @@ def evaluate_retrieval(
     bm25_weight: float = 0.3,
     use_reranker: bool = False,
     rerank_candidate_multiplier: int = 3,
+    use_model_reranker: bool = False,
+    model_rerank_candidate_multiplier: int = 3,
+    model_reranker_scorer: Callable[[str, dict], float] | None = None,
     use_query_rewrite: bool = False,
     query_rewriter: Callable[[str], str] = rewrite_query,
+    use_llm_query_rewrite: bool = False,
+    llm_query_rewriter: Callable[[str], str] = rewrite_query_with_llm,
     use_multi_query: bool = False,
     multi_query_generator: Callable[[str], list[str]] = generate_multi_queries,
 ) -> dict:
@@ -42,6 +49,21 @@ def evaluate_retrieval(
     if use_reranker and rerank_candidate_multiplier <= 0:
         raise ValueError(
             "rerank_candidate_multiplier must be greater than 0"
+        )
+    
+    if use_model_reranker and model_rerank_candidate_multiplier <= 0:
+        raise ValueError(
+            "model_rerank_candidate_multiplier must be greater than 0"
+        )
+    
+    if use_reranker and use_model_reranker:
+        raise ValueError(
+            "use_reranker and use_model_reranker cannot both be true"
+        )
+    
+    if use_query_rewrite and use_llm_query_rewrite:
+        raise ValueError(
+            "use_query_rewrite and use_llm_query_rewrite cannot both be true"
         )
 
     store = load_vector_store(vector_store_path)
@@ -76,7 +98,12 @@ def evaluate_retrieval(
 
     for item in benchmark:
         query = item["query"]
-        search_query = query_rewriter(query) if use_query_rewrite else query
+        if use_query_rewrite:
+            search_query = query_rewriter(query)
+        elif use_llm_query_rewrite:
+            search_query = llm_query_rewriter(query)
+        else:
+            search_query = query
         search_queries = (
             multi_query_generator(search_query)
             if use_multi_query
@@ -88,6 +115,9 @@ def evaluate_retrieval(
 
         if use_reranker:
             candidate_top_k = top_k * rerank_candidate_multiplier
+        
+        if use_model_reranker:
+            candidate_top_k = top_k * model_rerank_candidate_multiplier
 
         search_results = search_multi_query_store(
             queries=search_queries,
@@ -105,6 +135,21 @@ def evaluate_retrieval(
                 results=search_results,
                 top_k=top_k,
             )
+        
+        if use_model_reranker:
+            if model_reranker_scorer is None:
+                search_results = rerank_results_with_model(
+                    query=search_query,
+                    results=search_results,
+                    top_k=top_k,
+                )
+            else:
+                search_results = rerank_results_with_model(
+                    query=search_query,
+                    results=search_results,
+                    top_k=top_k,
+                    scorer=model_reranker_scorer,
+                )
 
         retrieved_text = "\n".join(
             result["text"] for result in search_results
@@ -162,7 +207,12 @@ def evaluate_retrieval(
         "bm25_weight": bm25_weight,
         "use_reranker": use_reranker,
         "rerank_candidate_multiplier": rerank_candidate_multiplier,
+        "use_model_reranker": use_model_reranker,
+        "model_rerank_candidate_multiplier": (
+            model_rerank_candidate_multiplier
+        ),
         "use_query_rewrite": use_query_rewrite,
+        "use_llm_query_rewrite": use_llm_query_rewrite,
         "use_multi_query": use_multi_query,
         "average_score": average_score,
         "results": results,
@@ -180,8 +230,13 @@ def compare_retrievers(
     bm25_weight: float = 0.3,
     use_reranker: bool = False,
     rerank_candidate_multiplier: int = 3,
+    use_model_reranker: bool = False,
+    model_rerank_candidate_multiplier: int = 3,
+    model_reranker_scorer: Callable[[str, dict], float] | None = None,
     use_query_rewrite: bool = False,
     query_rewriter: Callable[[str], str] = rewrite_query,
+    use_llm_query_rewrite: bool = False,
+    llm_query_rewriter: Callable[[str], str] = rewrite_query_with_llm,
     use_multi_query: bool = False,
     multi_query_generator: Callable[[str], list[str]] = generate_multi_queries,
     retrievers: list[str] | None = None,
@@ -203,8 +258,15 @@ def compare_retrievers(
                 bm25_weight=bm25_weight,
                 use_reranker=use_reranker,
                 rerank_candidate_multiplier=rerank_candidate_multiplier,
+                use_model_reranker=use_model_reranker,
+                model_rerank_candidate_multiplier=(
+                    model_rerank_candidate_multiplier
+                ),
+                model_reranker_scorer=model_reranker_scorer,
                 use_query_rewrite=use_query_rewrite,
                 query_rewriter=query_rewriter,
+                use_llm_query_rewrite=use_llm_query_rewrite,
+                llm_query_rewriter=llm_query_rewriter,
                 use_multi_query=use_multi_query,
                 multi_query_generator=multi_query_generator,
             )
@@ -223,7 +285,12 @@ def compare_retrievers(
         "bm25_weight": bm25_weight,
         "use_reranker": use_reranker,
         "rerank_candidate_multiplier": rerank_candidate_multiplier,
+        "use_model_reranker": use_model_reranker,
+        "model_rerank_candidate_multiplier": (
+            model_rerank_candidate_multiplier
+        ),
         "use_query_rewrite": use_query_rewrite,
+        "use_llm_query_rewrite": use_llm_query_rewrite,
         "use_multi_query": use_multi_query,
         "best_retriever": (
             best_report["retriever"]
@@ -244,8 +311,13 @@ def scan_hybrid_weights(
     embedding_model: str = EMBEDDING_MODEL,
     use_reranker: bool = False,
     rerank_candidate_multiplier: int = 3,
+    use_model_reranker: bool = False,
+    model_rerank_candidate_multiplier: int = 3,
+    model_reranker_scorer: Callable[[str, dict], float] | None = None,
     use_query_rewrite: bool = False,
     query_rewriter: Callable[[str], str] = rewrite_query,
+    use_llm_query_rewrite: bool = False,
+    llm_query_rewriter: Callable[[str], str] = rewrite_query_with_llm,
     use_multi_query: bool = False,
     multi_query_generator: Callable[[str], list[str]] = generate_multi_queries,
 ) -> dict:
@@ -273,8 +345,15 @@ def scan_hybrid_weights(
                 bm25_weight=bm25_weight,
                 use_reranker=use_reranker,
                 rerank_candidate_multiplier=rerank_candidate_multiplier,
+                use_model_reranker=use_model_reranker,
+                model_rerank_candidate_multiplier=(
+                    model_rerank_candidate_multiplier
+                ),
+                model_reranker_scorer=model_reranker_scorer,
                 use_query_rewrite=use_query_rewrite,
                 query_rewriter=query_rewriter,
+                use_llm_query_rewrite=use_llm_query_rewrite,
+                llm_query_rewriter=llm_query_rewriter,
                 use_multi_query=use_multi_query,
                 multi_query_generator=multi_query_generator,
             )
@@ -291,7 +370,12 @@ def scan_hybrid_weights(
         "top_k": top_k,
         "use_reranker": use_reranker,
         "rerank_candidate_multiplier": rerank_candidate_multiplier,
+        "use_model_reranker": use_model_reranker,
+        "model_rerank_candidate_multiplier": (
+            model_rerank_candidate_multiplier
+        ),
         "use_query_rewrite": use_query_rewrite,
+        "use_llm_query_rewrite": use_llm_query_rewrite,
         "use_multi_query": use_multi_query,
         "best_vector_weight": (
             best_report["vector_weight"]
@@ -300,6 +384,129 @@ def scan_hybrid_weights(
         ),
         "best_bm25_weight": (
             best_report["bm25_weight"]
+            if best_report is not None
+            else None
+        ),
+        "best_average_score": (
+            best_report["average_score"]
+            if best_report is not None
+            else None
+        ),
+        "reports": reports,
+    }
+
+
+def compare_retrieval_strategies(
+    benchmark_path: str,
+    vector_store_path: str,
+    top_k: int,
+    embedding_fn: Callable[[str], list[float]] = create_embedding,
+    embedding_cache_path: str = QUERY_EMBEDDING_CACHE_PATH,
+    embedding_model: str = EMBEDDING_MODEL,
+    vector_weight: float = 0.7,
+    bm25_weight: float = 0.3,
+    rerank_candidate_multiplier: int = 3,
+    model_rerank_candidate_multiplier: int = 3,
+    model_reranker_scorer: Callable[[str, dict], float] | None = None,
+    query_rewriter: Callable[[str], str] = rewrite_query,
+    llm_query_rewriter: Callable[[str], str] = rewrite_query_with_llm,
+    multi_query_generator: Callable[[str], list[str]] = generate_multi_queries,
+    include_expensive: bool = False,
+) -> dict:
+    strategies = [
+        {
+            "strategy_name": "hybrid",
+        },
+        {
+            "strategy_name": "hybrid+query_rewrite",
+            "use_query_rewrite": True,
+        },
+        {
+            "strategy_name": "hybrid+multi_query",
+            "use_multi_query": True,
+        },
+        {
+            "strategy_name": "hybrid+query_rewrite+multi_query",
+            "use_query_rewrite": True,
+            "use_multi_query": True,
+        },
+        {
+            "strategy_name": "hybrid+reranker",
+            "use_reranker": True,
+        },
+    ]
+
+    if include_expensive:
+        strategies.extend(
+            [
+                {
+                    "strategy_name": "hybrid+model_reranker",
+                    "use_model_reranker": True,
+                },
+                {
+                    "strategy_name": "hybrid+llm_query_rewrite",
+                    "use_llm_query_rewrite": True,
+                },
+                {
+                    "strategy_name": "hybrid+llm_query_rewrite+multi_query",
+                    "use_llm_query_rewrite": True,
+                    "use_multi_query": True,
+                },
+            ]
+        )
+
+    reports = []
+
+    for strategy in strategies:
+        report = evaluate_retrieval(
+            benchmark_path=benchmark_path,
+            vector_store_path=vector_store_path,
+            top_k=top_k,
+            embedding_fn=embedding_fn,
+            embedding_cache_path=embedding_cache_path,
+            embedding_model=embedding_model,
+            retriever="hybrid",
+            vector_weight=vector_weight,
+            bm25_weight=bm25_weight,
+            use_reranker=strategy.get("use_reranker", False),
+            rerank_candidate_multiplier=rerank_candidate_multiplier,
+            use_model_reranker=strategy.get("use_model_reranker", False),
+            model_rerank_candidate_multiplier=(
+                model_rerank_candidate_multiplier
+            ),
+            model_reranker_scorer=model_reranker_scorer,
+            use_query_rewrite=strategy.get("use_query_rewrite", False),
+            query_rewriter=query_rewriter,
+            use_llm_query_rewrite=strategy.get(
+                "use_llm_query_rewrite",
+                False,
+            ),
+            llm_query_rewriter=llm_query_rewriter,
+            use_multi_query=strategy.get("use_multi_query", False),
+            multi_query_generator=multi_query_generator,
+        )
+        report["strategy_name"] = strategy["strategy_name"]
+        reports.append(report)
+
+    best_report = max(
+        reports,
+        key=lambda report: report["average_score"],
+    ) if reports else None
+
+    return {
+        "benchmark_path": benchmark_path,
+        "vector_store_path": vector_store_path,
+        "top_k": top_k,
+        "retriever": "hybrid",
+        "vector_weight": vector_weight,
+        "bm25_weight": bm25_weight,
+        "rerank_candidate_multiplier": rerank_candidate_multiplier,
+        "model_rerank_candidate_multiplier": (
+            model_rerank_candidate_multiplier
+        ),
+        "include_expensive": include_expensive,
+        "best_strategy": (
+            best_report["strategy_name"]
             if best_report is not None
             else None
         ),

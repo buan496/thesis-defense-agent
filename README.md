@@ -38,7 +38,7 @@ PDF / TXT 论文
 最新本地测试基线：
 
 ```text
-473 passed
+494 passed
 ```
 
 ## 已实现能力
@@ -65,8 +65,11 @@ PDF / TXT 论文
 - 支持 BM25 关键词检索、Vector 语义检索和 Hybrid 融合检索
 - 支持检索器对比和 Hybrid 权重扫描，用 benchmark 自动选择检索参数
 - 支持规则版 reranker，并可用 benchmark 对比 rerank 前后效果
+- 支持 LLM 模型版 reranker，并可用 benchmark 对比模型重排前后效果
 - 支持规则版 query rewrite，并可用 benchmark 对比改写前后效果
+- 支持 LLM query rewrite，并可用 benchmark 对比模型改写前后效果
 - 支持 multi-query retrieval，为同一问题生成多个检索 query 后合并结果，提高召回稳定性
+- 支持检索策略组合对比，统一扫描 `hybrid`、`query rewrite`、`multi-query`、`reranker` 等组合并选择默认策略
 
 ### Tool Calling 与 Agent Harness
 
@@ -350,11 +353,11 @@ app/cli.py                       统一 CLI
 
 ## 下一步学习
 
-当前 Session / Memory 主线已经完成到本机学习版闭环，Trace 回放与反馈闭环也已完成，BM25 + Vector 混合检索、权重扫描、规则版 reranker、query rewrite 和 multi-query retrieval 评估也已接入。下一步按路线进入：
+当前 Session / Memory 主线已经完成到本机学习版闭环，Trace 回放与反馈闭环也已完成，BM25 + Vector 混合检索、权重扫描、规则版 reranker、模型版 reranker、规则版 query rewrite、LLM query rewrite、multi-query retrieval 和检索策略组合对比评估也已接入。下一步按路线进入：
 
-1. 模型版 reranker 或 cross-encoder reranker
-2. LLM query rewrite
-3. LangGraph 旁路迁移，不覆盖现有手写 Harness
+1. LangGraph 旁路迁移前的代码整理与学习笔记
+2. LangGraph 旁路迁移，不覆盖现有手写 Harness
+3. MCP / Sub-Agent 前置概念学习
 
 服务化、Docker、数据库和服务器部署继续后移到另一台服务器笔记本。
 <!-- docs-update-2026-06-23-feedback-loop -->
@@ -378,7 +381,7 @@ Agent Trace
 最新本地测试基线：
 
 ```text
-473 passed
+494 passed
 ```
 
 <!-- docs-update-2026-06-23-hybrid-retrieval -->
@@ -524,6 +527,131 @@ hybrid + multi-query: average_score = 1.0
 - 它解决的是“同一个问题可以从多个检索角度表达”的问题。
 - 与 query rewrite 不同，query rewrite 生成一个增强后的 query，multi-query 会保留多个 query 并合并检索结果。
 - 当前已验证 `hybrid + multi-query` 可用，后续可以继续对比 `hybrid + query rewrite`、`hybrid + query rewrite + multi-query` 的成本和稳定性。
+
+<!-- docs-update-2026-06-23-model-reranker -->
+
+## 2026-06-23 更新：LLM 模型版 Reranker 与 Benchmark 对比
+
+当前已新增 LLM 模型版 reranker，用于在第一阶段召回之后，让模型对 `query + candidate chunk` 进行相关性评分：
+
+```text
+query
+→ hybrid / vector / bm25 召回候选 chunk
+→ LLM reranker 对每个候选 chunk 输出 0~1 相关性分数
+→ 按模型分数重新排序
+→ 截取最终 top_k
+```
+
+新增命令示例：
+
+```powershell
+python -m app.cli evaluate-rag `
+  --retriever hybrid `
+  --vector-weight 0.7 `
+  --bm25-weight 0.3 `
+  --model-rerank `
+  --model-rerank-candidate-multiplier 2
+```
+
+本轮真实 benchmark 结果：
+
+```text
+hybrid + model reranker x2: average_score = 0.9667
+missing: 卷积层
+```
+
+结论：
+
+- 模型版 reranker 工程链路已经跑通。
+- 当前 benchmark 上，模型版 reranker 没有超过 `hybrid + query rewrite` 或 `hybrid + multi-query`。
+- 模型版 reranker 调用成本明显更高，因为每个候选 chunk 都需要一次 LLM 评分。
+- 当前不建议默认启用 `--model-rerank`，保留为实验开关。
+- 本阶段学到的关键点是：更“智能”的排序器不一定更适合当前数据，必须用 benchmark 和成本一起验证。
+
+<!-- docs-update-2026-06-23-llm-query-rewrite -->
+
+## 2026-06-23 更新：LLM Query Rewrite 与 Benchmark 对比
+
+当前已新增 LLM query rewrite，用于让模型根据用户问题生成更适合检索的 query：
+
+```text
+用户原始问题
+→ LLM 生成检索 query
+→ 使用生成后的 query 执行 RAG 检索
+→ 在报告中保留原始 query 与 rewritten query
+```
+
+新增命令示例：
+
+```powershell
+python -m app.cli evaluate-rag `
+  --retriever hybrid `
+  --vector-weight 0.7 `
+  --bm25-weight 0.3 `
+  --llm-rewrite-query
+```
+
+本轮真实 benchmark 对比：
+
+```text
+hybrid + LLM query rewrite: average_score = 0.8333
+hybrid + LLM query rewrite + multi-query: average_score = 1.0
+```
+
+结论：
+
+- LLM query rewrite 单独使用时不稳定，本轮把 `LanguageAwareFrontend / BiLSTM / 卷积层` 等关键术语改丢，导致召回下降。
+- LLM query rewrite + multi-query 可以恢复到满分召回，因为 multi-query 会补充关键检索视角。
+- 组合策略的成本更高，本轮出现 5 次 LLM rewrite 调用和 10 次 query embedding miss。
+- 当前仍不建议默认启用 LLM query rewrite，保留为实验开关。
+- 本阶段学到的关键点是：LLM 参与检索前处理并不天然更好，必须同时评估召回、missing keywords、cache hits / misses 和调用成本。
+
+<!-- docs-update-2026-06-23-retrieval-strategy-comparison -->
+
+## 2026-06-23 更新：检索策略组合对比
+
+当前已新增统一的检索策略组合对比命令：
+
+```powershell
+python -m app.cli compare-retrieval-strategies `
+  --output data/reports/retrieval_strategy_comparison.json
+```
+
+默认对比不额外调用 LLM 的低成本组合：
+
+```text
+hybrid
+hybrid + query rewrite
+hybrid + multi-query
+hybrid + query rewrite + multi-query
+hybrid + reranker
+```
+
+如需把 LLM query rewrite 和模型版 reranker 纳入扫描，可显式增加：
+
+```powershell
+python -m app.cli compare-retrieval-strategies `
+  --include-expensive `
+  --output data/reports/retrieval_strategy_comparison_expensive.json
+```
+
+本轮真实 benchmark 结果：
+
+```text
+hybrid: average_score = 0.8667
+hybrid + query rewrite: average_score = 1.0
+hybrid + multi-query: average_score = 1.0
+hybrid + query rewrite + multi-query: average_score = 0.925
+hybrid + reranker: average_score = 0.8333
+```
+
+结论：
+
+- 当前推荐低成本默认策略是 `hybrid + query rewrite`。
+- `hybrid + multi-query` 同样达到满分，但会产生更多 query embedding 检索成本。
+- `query rewrite + multi-query` 在当前规则下没有继续提升，反而出现训练流程类关键词遗漏。
+- reranker 在当前 benchmark 上继续下降，因此只保留为实验开关。
+- 本阶段学到的关键点是：检索组件不是叠得越多越好，必须用同一份 benchmark 扫描组合收益、缺失关键词和调用成本。
 
 ### Trace 回放与对比
 
