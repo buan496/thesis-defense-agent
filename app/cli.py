@@ -76,6 +76,12 @@ from app.task_trace_analyzer import analyze_task_trace
 from app.task_markdown_exporter import export_task_markdown_report
 from app.task_store import DEFAULT_TASK_DIRECTORY
 from app.langgraph_workflow.demo_task import run_demo_task
+from app.langgraph_workflow.interrupt_demo import (
+    build_interrupt_demo_graph,
+    get_interrupt_payload,
+    resume_interrupt_demo,
+    start_interrupt_demo,
+)
 from app.feedback_store import (
     create_feedback_record,
     load_feedback_records,
@@ -1253,6 +1259,32 @@ def main():
         help="Defense topic for the LangGraph demo task",
     )
     graph_demo_task_parser.add_argument(
+        "--top-k",
+        type=int,
+        default=None,
+        help="Number of chunks to retrieve",
+    )
+
+    graph_interrupt_parser = subparsers.add_parser(
+        "graph-interrupt-demo",
+        help="Run a LangGraph interrupt/resume demo task",
+    )
+    graph_interrupt_parser.add_argument(
+        "--topic",
+        required=True,
+        help="Defense topic for the LangGraph interrupt demo",
+    )
+    graph_interrupt_parser.add_argument(
+        "--thread-id",
+        default="demo-thread",
+        help="LangGraph thread ID used by the checkpointer",
+    )
+    graph_interrupt_parser.add_argument(
+        "--answer",
+        default=None,
+        help="Optional student answer used to immediately resume the graph",
+    )
+    graph_interrupt_parser.add_argument(
         "--top-k",
         type=int,
         default=None,
@@ -2700,6 +2732,54 @@ def main():
         print("QUERY:", result.get("query"))
         print("SOURCE COUNT:", len(result.get("sources", [])))
         print("QUESTION:", result.get("question"))
+
+    elif args.command == "graph-interrupt-demo":
+        top_k = args.top_k if args.top_k is not None else RAG_TOP_K
+
+        try:
+            graph = build_interrupt_demo_graph(top_k=top_k)
+            interrupted_result = start_interrupt_demo(
+                graph=graph,
+                topic=args.topic,
+                thread_id=args.thread_id,
+            )
+            interrupt_payload = get_interrupt_payload(interrupted_result)
+        except ValueError as error:
+            print(f"LANGGRAPH INTERRUPT ERROR: {error}")
+            raise SystemExit(1) from error
+
+        print("LANGGRAPH INTERRUPT DEMO")
+        print("THREAD ID:", args.thread_id)
+        print("TOPIC:", interrupted_result.get("topic"))
+        print("INTERRUPTED:", interrupt_payload is not None)
+
+        if interrupt_payload is not None:
+            print("INTERRUPT TYPE:", interrupt_payload.get("type"))
+            print("QUESTION:", interrupt_payload.get("question"))
+            print("MESSAGE:", interrupt_payload.get("message"))
+
+        if args.answer is not None:
+            try:
+                resumed_result = resume_interrupt_demo(
+                    graph=graph,
+                    thread_id=args.thread_id,
+                    answer=args.answer,
+                )
+            except ValueError as error:
+                print(f"LANGGRAPH INTERRUPT ERROR: {error}")
+                raise SystemExit(1) from error
+
+            print("RESUMED:", True)
+            print("STATUS:", resumed_result.get("status"))
+            print("CURRENT NODE:", resumed_result.get("current_node"))
+            print("ANSWER:", resumed_result.get("answer"))
+        else:
+            print("RESUMED:", False)
+            print(
+                "NOTE:",
+                "This demo uses an in-memory checkpointer; pass --answer "
+                "in the same command to demonstrate resume.",
+            )
 
     elif args.command == "show-task":
         task = get_defense_task(
