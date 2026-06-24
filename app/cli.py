@@ -41,6 +41,7 @@ from app.config import (
     RAG_MIN_CHUNK_SIZE,
     RAG_TOP_K,
     RAG_VECTOR_STORE_PATH,
+    SUB_AGENT_PLAN_TRACE_PATH,
 )
 from app.agent_routing_evaluator import evaluate_agent_routing
 from app.agent_trace_analyzer import analyze_agent_traces
@@ -89,6 +90,14 @@ from app.langgraph_workflow.persistent_checkpoint_demo import (
 )
 from app.tool_registry import list_registered_tools
 from app.sub_agent_specs import list_sub_agent_specs
+from app.sub_agent_permissions import check_sub_agent_tool_permission
+from app.sub_agent_plan import create_sub_agent_execution_plan
+from app.sub_agent_plan_trace import (
+    load_sub_agent_plan_traces,
+    save_sub_agent_plan_trace,
+    summarize_sub_agent_plan_traces,
+)
+from app.sub_agent_dry_run import dry_run_sub_agent_tool_call
 from app.feedback_store import (
     create_feedback_record,
     load_feedback_records,
@@ -164,6 +173,28 @@ def parse_weight_pairs(value: str) -> list[tuple[float, float]]:
         raise ValueError("--weights must contain at least one pair")
 
     return pairs
+
+
+def parse_key_value_arguments(
+    values: list[str],
+) -> dict:
+    arguments = {}
+
+    for value in values:
+        if "=" not in value:
+            raise ValueError(
+                "--argument must use KEY=VALUE format"
+            )
+
+        key, raw_value = value.split("=", 1)
+        key = key.strip()
+
+        if not key:
+            raise ValueError("--argument key cannot be empty")
+
+        arguments[key] = raw_value
+
+    return arguments
 
 def main():
     parser = argparse.ArgumentParser(
@@ -1399,6 +1430,109 @@ def main():
     subparsers.add_parser(
         "list-sub-agents",
         help="List local Sub-Agent specs without running them",
+    )
+
+    check_sub_agent_tool_parser = subparsers.add_parser(
+        "check-sub-agent-tool",
+        help="Check whether a Sub-Agent is allowed to use a tool",
+    )
+    check_sub_agent_tool_parser.add_argument(
+        "--sub-agent",
+        required=True,
+        help="Sub-Agent name",
+    )
+    check_sub_agent_tool_parser.add_argument(
+        "--tool",
+        required=True,
+        help="Tool name",
+    )
+
+    plan_sub_agent_call_parser = subparsers.add_parser(
+        "plan-sub-agent-call",
+        help="Create a local Sub-Agent tool-call plan without executing it",
+    )
+    plan_sub_agent_call_parser.add_argument(
+        "--sub-agent",
+        required=True,
+        help="Sub-Agent name",
+    )
+    plan_sub_agent_call_parser.add_argument(
+        "--tool",
+        required=True,
+        help="Tool name",
+    )
+    plan_sub_agent_call_parser.add_argument(
+        "--arguments",
+        default=None,
+        help="Tool arguments as a JSON object",
+    )
+    plan_sub_agent_call_parser.add_argument(
+        "--argument",
+        action="append",
+        default=[],
+        help=(
+            "Tool argument in KEY=VALUE format. "
+            "Can be passed multiple times."
+        ),
+    )
+    plan_sub_agent_call_parser.add_argument(
+        "--save-trace",
+        action="store_true",
+        help="Save the generated plan to a JSONL audit trace",
+    )
+    plan_sub_agent_call_parser.add_argument(
+        "--trace-file",
+        default=SUB_AGENT_PLAN_TRACE_PATH,
+        help="Sub-Agent plan trace JSONL file path",
+    )
+
+    analyze_sub_agent_plans_parser = subparsers.add_parser(
+        "analyze-sub-agent-plans",
+        help="Analyze saved Sub-Agent plan trace records",
+    )
+    analyze_sub_agent_plans_parser.add_argument(
+        "--file",
+        default=SUB_AGENT_PLAN_TRACE_PATH,
+        help="Sub-Agent plan trace JSONL file path",
+    )
+
+    dry_run_sub_agent_call_parser = subparsers.add_parser(
+        "dry-run-sub-agent-call",
+        help="Create and audit a Sub-Agent plan without executing the tool",
+    )
+    dry_run_sub_agent_call_parser.add_argument(
+        "--sub-agent",
+        required=True,
+        help="Sub-Agent name",
+    )
+    dry_run_sub_agent_call_parser.add_argument(
+        "--tool",
+        required=True,
+        help="Tool name",
+    )
+    dry_run_sub_agent_call_parser.add_argument(
+        "--arguments",
+        default=None,
+        help="Tool arguments as a JSON object",
+    )
+    dry_run_sub_agent_call_parser.add_argument(
+        "--argument",
+        action="append",
+        default=[],
+        help=(
+            "Tool argument in KEY=VALUE format. "
+            "Can be passed multiple times."
+        ),
+    )
+    dry_run_sub_agent_call_parser.add_argument(
+        "--save-trace",
+        action="store_true",
+        help="Save the generated dry-run plan to a JSONL audit trace",
+    )
+    dry_run_sub_agent_call_parser.add_argument(
+        "--trace-file",
+        default=SUB_AGENT_PLAN_TRACE_PATH,
+        help="Sub-Agent plan trace JSONL file path",
     )
     
     args = parser.parse_args()
@@ -3063,6 +3197,130 @@ def main():
             print("INPUT_FIELDS:", spec.input_fields)
             print("OUTPUT_FIELDS:", spec.output_fields)
             print("DESCRIPTION:", spec.description)
+
+    elif args.command == "check-sub-agent-tool":
+        try:
+            result = check_sub_agent_tool_permission(
+                sub_agent_name=args.sub_agent,
+                tool_name=args.tool,
+            )
+        except ValueError as error:
+            print(f"SUB-AGENT TOOL CHECK ERROR: {error}")
+            raise SystemExit(1) from error
+
+        print("SUB-AGENT TOOL CHECK")
+        print("SUB_AGENT:", result.sub_agent_name)
+        print("TOOL:", result.tool_name)
+        print("ALLOWED:", result.allowed)
+        print("REASON:", result.reason)
+        print("ALLOWED_TOOLS:", result.allowed_tools)
+
+    elif args.command == "plan-sub-agent-call":
+        try:
+            if args.arguments is not None:
+                tool_arguments = parse_json_argument(
+                    args.arguments,
+                    "--arguments",
+                )
+            else:
+                tool_arguments = parse_key_value_arguments(
+                    args.argument,
+                )
+
+            if not tool_arguments:
+                raise ValueError(
+                    "必须提供 --arguments JSON 或至少一个 --argument KEY=VALUE"
+                )
+
+            plan = create_sub_agent_execution_plan(
+                sub_agent_name=args.sub_agent,
+                tool_name=args.tool,
+                tool_arguments=tool_arguments,
+            )
+        except ValueError as error:
+            print(f"SUB-AGENT PLAN ERROR: {error}")
+            raise SystemExit(1) from error
+
+        print("SUB-AGENT EXECUTION PLAN")
+        print("PLAN ID:", plan.plan_id)
+        print("SUB_AGENT:", plan.sub_agent_name)
+        print("ROLE:", plan.role)
+        print("TOOL:", plan.tool_name)
+        print("TOOL_ARGUMENTS:", json.dumps(
+            plan.tool_arguments,
+            ensure_ascii=False,
+        ))
+        print("EXPECTED_OUTPUT_FIELDS:", plan.expected_output_fields)
+        print("MAX_STEPS:", plan.max_steps)
+        print("STATUS:", plan.status)
+
+        if args.save_trace:
+            trace_path = save_sub_agent_plan_trace(
+                plan,
+                file_path=args.trace_file,
+            )
+            print("TRACE SAVED:", trace_path)
+
+    elif args.command == "analyze-sub-agent-plans":
+        records = load_sub_agent_plan_traces(args.file)
+        summary = summarize_sub_agent_plan_traces(records)
+
+        print("SUB-AGENT PLAN TRACE SUMMARY")
+        print("FILE:", args.file)
+        print("TOTAL:", summary["total"])
+        print("BY_SUB_AGENT:", summary["by_sub_agent"])
+        print("BY_TOOL:", summary["by_tool"])
+
+    elif args.command == "dry-run-sub-agent-call":
+        try:
+            if args.arguments is not None:
+                tool_arguments = parse_json_argument(
+                    args.arguments,
+                    "--arguments",
+                )
+            else:
+                tool_arguments = parse_key_value_arguments(
+                    args.argument,
+                )
+
+            if not tool_arguments:
+                raise ValueError(
+                    "must provide --arguments JSON or at least one "
+                    "--argument KEY=VALUE"
+                )
+
+            report = dry_run_sub_agent_tool_call(
+                sub_agent_name=args.sub_agent,
+                tool_name=args.tool,
+                tool_arguments=tool_arguments,
+                save_trace=args.save_trace,
+                trace_file=args.trace_file,
+            )
+        except ValueError as error:
+            print(f"SUB-AGENT DRY-RUN ERROR: {error}")
+            raise SystemExit(1) from error
+
+        print("SUB-AGENT DRY-RUN")
+        print("SUB_AGENT:", report.sub_agent_name)
+        print("TOOL:", report.tool_name)
+        print("ALLOWED:", report.allowed)
+        print("WILL_EXECUTE:", report.will_execute)
+        print("PLAN_ID:", report.plan.plan_id)
+        print("TOOL_ARGUMENTS:", json.dumps(
+            report.plan.tool_arguments,
+            ensure_ascii=False,
+        ))
+        print(
+            "EXPECTED_OUTPUT_FIELDS:",
+            report.plan.expected_output_fields,
+        )
+        print("MAX_STEPS:", report.plan.max_steps)
+        print("TRACE_SAVED:", report.trace_saved)
+
+        if report.trace_path is not None:
+            print("TRACE PATH:", report.trace_path)
+
+        print("REASON:", report.reason)
 
     elif args.command == "show-task":
         task = get_defense_task(

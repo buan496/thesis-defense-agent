@@ -1052,3 +1052,129 @@ Sub-Agent 需要声明 role、allowed_tools、input_fields、output_fields 和 m
 - 做本地 Sub-Agent 权限校验器。
 - 验证某个 Sub-Agent 是否允许调用某个工具。
 - 暂时仍不做真实多 Agent 调度。
+
+<!-- roadmap-update-2026-06-24-sub-agent-permission-guard -->
+
+## 2026-06-24 路线同步：本地 Sub-Agent 工具权限校验已完成
+
+本阶段新增完成能力：
+
+- [x] 新增 `app/sub_agent_permissions.py`
+- [x] 新增子 Agent 工具权限检查结果模型
+- [x] 支持判断某个子 Agent 是否允许调用某个工具
+- [x] 支持权限失败时抛出明确错误
+- [x] 新增 `check-sub-agent-tool` CLI
+- [x] 新增子 Agent 权限测试
+
+学到的关键点：
+
+```text
+工具级治理管工具本身。
+子 Agent 级治理管某个 Agent 能不能用某个工具。
+这两层权限要叠加，不能互相替代。
+```
+
+下一步学习：
+
+- 做本地 Sub-Agent 执行计划对象，但仍不真正执行工具。
+- 目标是学习多 Agent 调度前的 planning 数据结构。
+
+<!-- roadmap-update-2026-06-24-sub-agent-execution-plan -->
+
+## 2026-06-24 路线同步：本地 Sub-Agent 执行计划对象已完成
+
+本阶段新增完成能力：
+
+- [x] 新增 `app/sub_agent_plan.py`
+- [x] 新增 `SubAgentExecutionPlan`
+- [x] 支持校验子 Agent 输入字段
+- [x] 支持校验子 Agent 工具权限
+- [x] 支持生成 planned 状态的执行计划
+- [x] 新增 `plan-sub-agent-call` CLI
+- [x] 新增执行计划测试
+
+学到的关键点：
+
+```text
+Sub-Agent 调度不能直接从“想调用工具”跳到“执行工具”。
+中间应该有一个可审计的计划对象。
+计划对象让后续 trace、权限审计、预算控制和人工复核都有稳定载体。
+```
+
+下一步学习：
+
+- 做本地 Sub-Agent plan trace / audit 记录。
+- 或开始实现单步 Sub-Agent dry-run，不执行真实工具，只返回计划审计报告。
+
+<!-- roadmap-update-2026-06-24-sub-agent-plan-powershell-arguments -->
+
+## 2026-06-24 路线同步：Sub-Agent Plan CLI 参数体验已优化
+
+本阶段补充完成能力：
+
+- [x] `plan-sub-agent-call` 保留 `--arguments JSON`
+- [x] 新增 `--argument KEY=VALUE`
+- [x] 支持多次传入 `--argument`
+- [x] 避免 PowerShell 中 JSON 双引号被吞导致解析失败
+
+学到的关键点：
+
+```text
+CLI 设计要考虑用户所在 shell 的参数解析规则。
+Windows PowerShell 对内联 JSON 不友好时，可以提供 KEY=VALUE 作为工程上更稳的输入形式。
+```
+
+<!-- roadmap-update-2026-06-24-sub-agent-plan-trace -->
+
+## 2026-06-24 路线同步：Sub-Agent Plan Trace / Audit 已完成
+
+本阶段新增完成能力：
+
+- [x] 新增 `app/sub_agent_plan_trace.py`
+- [x] 支持把 Sub-Agent 执行计划保存为 JSONL
+- [x] 支持读取 Sub-Agent plan trace
+- [x] 支持按 sub_agent / tool 汇总 trace
+- [x] `plan-sub-agent-call` 支持 `--save-trace`
+- [x] 新增 `analyze-sub-agent-plans` CLI
+- [x] 新增 Sub-Agent plan trace 测试
+
+学到的关键点：
+
+```text
+计划也是需要审计的对象。
+多 Agent 系统不只要记录执行结果，还要记录执行前的计划。
+这能支撑后续权限审计、trace replay、回归对比和人工复核。
+```
+
+下一步学习：
+
+- 做单步 Sub-Agent dry-run。
+- dry-run 只校验计划和生成审计报告，不执行真实工具。
+
+<!-- roadmap-update-2026-06-24-sub-agent-dry-run -->
+
+## 2026-06-24 路线同步：单步 Sub-Agent Dry-Run 已完成
+
+本阶段新增完成能力：
+
+- [x] 新增 `app/sub_agent_dry_run.py`
+- [x] 新增 `SubAgentDryRunReport`
+- [x] 支持生成 Sub-Agent 执行计划
+- [x] 支持执行前权限校验
+- [x] 支持可选保存 dry-run plan trace
+- [x] 新增 `dry-run-sub-agent-call` CLI
+- [x] 新增 Sub-Agent dry-run 测试
+
+学到的关键点：
+
+```text
+dry-run 是真实执行前的安全演练。
+它不会调用真实工具，也不会让 Sub-Agent 产生外部副作用。
+它只把“计划、权限、参数、审计记录”提前跑通，方便后续做人工复核、trace replay 和回归对比。
+```
+
+下一步学习：
+
+- 做 Sub-Agent dry-run report replay / comparison。
+- 或实现最小真实 Sub-Agent executor，但限制为单工具、单步执行。
+- 不进入复杂多 Agent 自动协作，也不替换现有手写 Agent Harness。
