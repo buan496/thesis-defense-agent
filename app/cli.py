@@ -41,6 +41,7 @@ from app.config import (
     RAG_MIN_CHUNK_SIZE,
     RAG_TOP_K,
     RAG_VECTOR_STORE_PATH,
+    SUB_AGENT_EXECUTION_TRACE_PATH,
     SUB_AGENT_PLAN_TRACE_PATH,
 )
 from app.agent_routing_evaluator import evaluate_agent_routing
@@ -99,6 +100,11 @@ from app.sub_agent_plan_trace import (
 )
 from app.sub_agent_dry_run import dry_run_sub_agent_tool_call
 from app.sub_agent_plan_comparator import compare_sub_agent_plan_records
+from app.sub_agent_executor import execute_sub_agent_tool_call
+from app.sub_agent_execution_trace import (
+    load_sub_agent_execution_traces,
+    summarize_sub_agent_execution_traces,
+)
 from app.feedback_store import (
     create_feedback_record,
     load_feedback_records,
@@ -1549,6 +1555,55 @@ def main():
         "--trace-file",
         default=SUB_AGENT_PLAN_TRACE_PATH,
         help="Sub-Agent plan trace JSONL file path",
+    )
+
+    execute_sub_agent_call_parser = subparsers.add_parser(
+        "execute-sub-agent-call",
+        help="Execute one allowed Sub-Agent tool call",
+    )
+    execute_sub_agent_call_parser.add_argument(
+        "--sub-agent",
+        required=True,
+        help="Sub-Agent name",
+    )
+    execute_sub_agent_call_parser.add_argument(
+        "--tool",
+        required=True,
+        help="Tool name",
+    )
+    execute_sub_agent_call_parser.add_argument(
+        "--arguments",
+        default=None,
+        help="Tool arguments as a JSON object",
+    )
+    execute_sub_agent_call_parser.add_argument(
+        "--argument",
+        action="append",
+        default=[],
+        help=(
+            "Tool argument in KEY=VALUE format. "
+            "Can be passed multiple times."
+        ),
+    )
+    execute_sub_agent_call_parser.add_argument(
+        "--save-trace",
+        action="store_true",
+        help="Save the execution result to a JSONL audit trace",
+    )
+    execute_sub_agent_call_parser.add_argument(
+        "--trace-file",
+        default=SUB_AGENT_EXECUTION_TRACE_PATH,
+        help="Sub-Agent execution trace JSONL file path",
+    )
+
+    analyze_sub_agent_executions_parser = subparsers.add_parser(
+        "analyze-sub-agent-executions",
+        help="Analyze saved Sub-Agent execution trace records",
+    )
+    analyze_sub_agent_executions_parser.add_argument(
+        "--file",
+        default=SUB_AGENT_EXECUTION_TRACE_PATH,
+        help="Sub-Agent execution trace JSONL file path",
     )
     
     args = parser.parse_args()
@@ -3374,6 +3429,64 @@ def main():
             print("TRACE PATH:", report.trace_path)
 
         print("REASON:", report.reason)
+
+    elif args.command == "execute-sub-agent-call":
+        try:
+            if args.arguments is not None:
+                tool_arguments = parse_json_argument(
+                    args.arguments,
+                    "--arguments",
+                )
+            else:
+                tool_arguments = parse_key_value_arguments(
+                    args.argument,
+                )
+
+            if not tool_arguments:
+                raise ValueError(
+                    "must provide --arguments JSON or at least one "
+                    "--argument KEY=VALUE"
+                )
+
+            result = execute_sub_agent_tool_call(
+                sub_agent_name=args.sub_agent,
+                tool_name=args.tool,
+                tool_arguments=tool_arguments,
+                save_trace=args.save_trace,
+                trace_file=args.trace_file,
+            )
+        except ValueError as error:
+            print(f"SUB-AGENT EXECUTION ERROR: {error}")
+            raise SystemExit(1) from error
+
+        print("SUB-AGENT EXECUTION")
+        print("SUB_AGENT:", result.sub_agent_name)
+        print("TOOL:", result.tool_name)
+        print("SUCCESS:", result.success)
+        print("PLAN_ID:", result.plan.plan_id)
+        print("TOOL_ARGUMENTS:", json.dumps(
+            result.plan.tool_arguments,
+            ensure_ascii=False,
+        ))
+        print("DURATION_MS:", result.duration_ms)
+        print("TRACE_SAVED:", result.trace_saved)
+
+        if result.trace_path is not None:
+            print("TRACE PATH:", result.trace_path)
+
+        print("RESULT:", result.result_text)
+
+    elif args.command == "analyze-sub-agent-executions":
+        records = load_sub_agent_execution_traces(args.file)
+        summary = summarize_sub_agent_execution_traces(records)
+
+        print("SUB-AGENT EXECUTION TRACE SUMMARY")
+        print("FILE:", args.file)
+        print("TOTAL:", summary["total"])
+        print("SUCCESSFUL:", summary["successful"])
+        print("FAILED:", summary["failed"])
+        print("BY_SUB_AGENT:", summary["by_sub_agent"])
+        print("BY_TOOL:", summary["by_tool"])
 
     elif args.command == "show-task":
         task = get_defense_task(

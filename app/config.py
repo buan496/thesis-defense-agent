@@ -51,6 +51,10 @@ SUB_AGENT_PLAN_TRACE_PATH = os.getenv(
     "SUB_AGENT_PLAN_TRACE_PATH",
     "data/traces/sub_agent_plan_trace.jsonl",
 )
+SUB_AGENT_EXECUTION_TRACE_PATH = os.getenv(
+    "SUB_AGENT_EXECUTION_TRACE_PATH",
+    "data/traces/sub_agent_execution_trace.jsonl",
+)
 LONG_TERM_MEMORY_PATH = os.getenv(
     "LONG_TERM_MEMORY_PATH",
     "data/long_term_memory.json",

@@ -1110,3 +1110,53 @@ uv run python -m app.cli compare-sub-agent-plans `
 在真正执行 Sub-Agent 前，先保证“计划”本身可以做回归检测。
 如果某次改动让同样输入生成了不同计划，系统应该能提前发现。
 ```
+
+<!-- docs-update-2026-06-24-sub-agent-single-step-executor -->
+
+## 2026-06-24 更新：最小真实 Sub-Agent Executor
+
+本阶段新增单步 Sub-Agent 执行能力：
+
+- 新增 `app/sub_agent_executor.py`
+- 新增 `app/sub_agent_execution_trace.py`
+- 新增 `execute_sub_agent_tool_call()`
+- 新增 `execute-sub-agent-call` CLI
+- 新增 `analyze-sub-agent-executions` CLI
+- 执行前复用 permission guard 与 execution plan
+- 执行过程复用统一工具执行器的 timeout、retry、结果截断和错误标准化能力
+
+执行一次允许的 Sub-Agent 工具调用：
+
+```powershell
+uv run python -m app.cli execute-sub-agent-call `
+  --sub-agent retrieval_agent `
+  --tool search_thesis `
+  --argument query=系统架构
+```
+
+保存执行 trace：
+
+```powershell
+uv run python -m app.cli execute-sub-agent-call `
+  --sub-agent retrieval_agent `
+  --tool search_thesis `
+  --argument query=系统架构 `
+  --save-trace
+```
+
+分析执行 trace：
+
+```powershell
+uv run python -m app.cli analyze-sub-agent-executions
+```
+
+当前边界：
+
+```text
+只执行一个 Sub-Agent。
+只执行一个工具。
+只执行一步。
+不做 LLM 自动调度。
+不做并行。
+不替换现有 app/agent.py 或 app/task_* 工作流。
+```
