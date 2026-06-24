@@ -997,3 +997,58 @@ MCP / Sub-Agent 学习前，需要先理解工具的可发现性、权限、owne
 
 - MCP / Sub-Agent 前置概念学习。
 - 先做本地 MCP 概念映射文档，不接真实 MCP 服务器。
+
+<!-- roadmap-update-2026-06-24-mcp-sub-agent-concepts -->
+
+## 2026-06-24 路线同步：MCP / Sub-Agent 前置概念已完成
+
+本阶段新增完成内容：
+
+- [x] 新增 `docs/06-MCP与Sub-Agent前置概念.md`
+- [x] 梳理 MCP Host / Client / Server / Tool / Resource / Prompt
+- [x] 将当前项目的 Tool Registry、Tool Executor、Agent Loop 映射到 MCP 概念
+- [x] 区分 Tool Schema 与 Tool Metadata
+- [x] 梳理 Sub-Agent 与普通 Tool 的区别
+- [x] 给出 Retrieval Agent、Evaluation Agent、Follow-Up Agent 等本项目候选 Sub-Agent
+- [x] 明确当前阶段不接真实 MCP Server，不做服务器部署，不覆盖现有 Agent Harness
+
+学到的关键点：
+
+```text
+MCP 是工具和上下文能力的标准化协议。
+Sub-Agent 是有独立职责、上下文、工具集和输出边界的小执行者。
+Tool 是能力，Sub-Agent 是带目标的小工作流。
+```
+
+下一步学习：
+
+- 新增本地 `SubAgentSpec` 数据结构。
+- 先定义 Sub-Agent 的 role、allowed_tools、input_fields、output_fields、max_steps。
+- 暂时不做真实多 Agent 调度。
+
+<!-- roadmap-update-2026-06-24-sub-agent-specs -->
+
+## 2026-06-24 路线同步：本地 SubAgentSpec 已完成
+
+本阶段新增完成能力：
+
+- [x] 新增 `app/sub_agent_specs.py`
+- [x] 新增 `SubAgentSpec`
+- [x] 定义 Retrieval / Defense Question / Evaluation / Follow-Up / Training Record 子 Agent 规格
+- [x] 校验 allowed_tools 是否存在于工具注册表
+- [x] 新增 `list-sub-agents` CLI
+- [x] 新增 Sub-Agent 规格测试
+
+学到的关键点：
+
+```text
+Sub-Agent 不是普通函数。
+Sub-Agent 需要声明 role、allowed_tools、input_fields、output_fields 和 max_steps。
+先定义边界，再做调度，能避免多 Agent 系统变成不可控的黑箱。
+```
+
+下一步学习：
+
+- 做本地 Sub-Agent 权限校验器。
+- 验证某个 Sub-Agent 是否允许调用某个工具。
+- 暂时仍不做真实多 Agent 调度。

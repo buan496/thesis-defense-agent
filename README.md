@@ -352,6 +352,7 @@ app/evaluation_report.py         评估报告生成
 app/evaluation_report_comparator.py 评估报告回归对比
 app/cli.py                       统一 CLI
 docs/05-Task-State工作流复盘.md   Task State 状态机、节点、边和 LangGraph 旁路迁移前复盘
+docs/06-MCP与Sub-Agent前置概念.md MCP / Sub-Agent 概念映射和后续学习边界
 ```
 
 ## 下一步学习
@@ -872,4 +873,41 @@ Tool Metadata：给工程系统看的治理信息，描述权限、owner、enabl
 工具治理不能只停留在文档和展示层。
 真正的 Agent Harness 必须在执行器入口处做强约束。
 否则模型或上层代码仍可能绕过工具注册表，直接调用不该调用的能力。
+```
+
+<!-- docs-update-2026-06-24-sub-agent-specs -->
+
+## 2026-06-24 更新：本地 SubAgentSpec 规格定义
+
+本阶段新增本地 Sub-Agent 规格层：
+
+- 新增 `app/sub_agent_specs.py`
+- 新增 `SubAgentSpec`
+- 定义候选子 Agent：
+  - `retrieval_agent`
+  - `defense_question_agent`
+  - `answer_evaluation_agent`
+  - `follow_up_agent`
+  - `training_record_agent`
+- 每个规格声明：
+  - `role`
+  - `description`
+  - `allowed_tools`
+  - `input_fields`
+  - `output_fields`
+  - `max_steps`
+- 新增 `list-sub-agents` CLI
+
+查看本地 Sub-Agent 规格：
+
+```powershell
+uv run python -m app.cli list-sub-agents
+```
+
+当前边界：
+
+```text
+SubAgentSpec 只定义子 Agent 能做什么。
+当前还不做真实多 Agent 调度。
+当前还不让 Sub-Agent 自动调用工具。
 ```
