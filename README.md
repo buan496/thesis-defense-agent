@@ -355,21 +355,43 @@ docs/05-Task-State工作流复盘.md   Task State 状态机、节点、边和 La
 
 ## 下一步学习
 
-当前 Session / Memory 主线已经完成到本机学习版闭环，Trace 回放与反馈闭环也已完成，BM25 + Vector 混合检索、权重扫描、规则版 reranker、模型版 reranker、规则版 query rewrite、LLM query rewrite、multi-query retrieval 和检索策略组合对比评估也已接入。LangGraph 已开始旁路迁移，当前完成最小 demo：
+当前 Session / Memory 主线已经完成到本机学习版闭环，Trace 回放与反馈闭环也已完成，BM25 + Vector 混合检索、权重扫描、规则版 reranker、模型版 reranker、规则版 query rewrite、LLM query rewrite、multi-query retrieval 和检索策略组合对比评估也已接入。LangGraph 已开始旁路迁移，当前完成两个学习 demo：
 
 ```text
-retrieve_context
-→ generate_question
-→ wait_for_answer
+graph-demo-task:
+retrieve_context -> generate_question -> wait_for_answer
+
+graph-interrupt-demo:
+retrieve_context -> generate_question -> interrupt -> resume
 ```
 
 下一步按路线进入：
 
-1. LangGraph human-in-the-loop / interrupt 对照学习
-2. LangGraph checkpointer 对照学习
+1. LangGraph checkpointer 对照学习
+2. LangGraph 条件边 / 分支路由
 3. MCP / Sub-Agent 前置概念学习
 
 服务化、Docker、数据库和服务器部署继续后移到另一台服务器笔记本。
+
+### LangGraph 旁路 Demo
+
+普通等待节点 demo：
+
+```powershell
+uv run python -m app.cli graph-demo-task --topic "系统架构"
+```
+
+Interrupt / resume demo：
+
+```powershell
+uv run python -m app.cli graph-interrupt-demo --topic "系统架构"
+
+uv run python -m app.cli graph-interrupt-demo `
+  --topic "系统架构" `
+  --answer "系统按职责拆分模块，便于定位问题。"
+```
+
+说明：当前 `graph-interrupt-demo` 使用 `InMemorySaver`，用于学习同一进程内的 interrupt / resume；跨进程持久恢复会在下一步 checkpointer 学习中继续完善。
 <!-- docs-update-2026-06-23-feedback-loop -->
 
 ## 2026-06-23 更新：Trace 回放与反馈驱动 Benchmark 闭环

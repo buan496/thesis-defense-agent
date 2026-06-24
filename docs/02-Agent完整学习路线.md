@@ -203,8 +203,9 @@ updated: 2026-06-23
 - [x] Edge
 - [ ] Conditional Edge
 - [ ] Checkpointer
-- [ ] Human-in-the-loop
+- [x] Human-in-the-loop
 - [x] 最小旁路 demo：`retrieve_context -> generate_question -> wait_for_answer`
+- [x] Interrupt / resume demo：`retrieve_context -> generate_question -> interrupt -> resume`
 - [ ] 将当前手写 Agent Loop 旁路迁移到 LangGraph
 
 原则：
@@ -304,10 +305,10 @@ RAG
 
 ## 下一步学习重点
 
-Trace 回放与反馈闭环已完成，BM25 + Vector 混合检索、Hybrid 权重扫描、规则版 reranker、模型版 reranker、规则版查询改写、LLM 查询改写、多查询检索和检索策略组合对比评估也已完成。LangGraph 已开始旁路迁移，当前完成最小 demo。下一阶段进入：
+Trace 回放与反馈闭环已完成，BM25 + Vector 混合检索、Hybrid 权重扫描、规则版 reranker、模型版 reranker、规则版查询改写、LLM 查询改写、多查询检索和检索策略组合对比评估也已完成。LangGraph 已开始旁路迁移，当前完成最小 demo 和 interrupt / resume demo。下一阶段进入：
 
-1. LangGraph human-in-the-loop / interrupt 对照学习
-2. LangGraph checkpointer 对照学习
+1. LangGraph checkpointer 对照学习
+2. LangGraph 条件边 / 分支路由
 3. MCP / Sub-Agent 前置概念学习
 
 ## 最终简历能力目标
@@ -718,3 +719,74 @@ Human-in-the-loop：当前只是普通 wait_for_answer 节点，还没有使用 
 - 学习 LangGraph interrupt / resume，把 `wait_for_answer` 从普通节点升级为真正的人机中断点。
 - 再学习 checkpointer，把图执行状态持久化。
 - 所有 LangGraph 实验继续保留在 `app/langgraph_workflow/`，不替换手写 Task State。
+
+<!-- roadmap-update-2026-06-24-langgraph-interrupt-demo -->
+
+## 2026-06-24 路线同步：LangGraph Interrupt / Resume Demo 已完成
+
+本阶段新增完成能力：
+
+- [x] 新增 `app/langgraph_workflow/interrupt_demo.py`
+- [x] 使用 `interrupt(...)` 暂停图执行
+- [x] 使用 `Command(resume=...)` 恢复图执行
+- [x] 使用 `InMemorySaver` 保存同一进程内的图状态
+- [x] 新增 `graph-interrupt-demo` CLI
+- [x] 新增 interrupt / resume 单元测试
+- [x] 保持旁路实现，不覆盖 `app/task_*` 和 `app/agent.py`
+
+当前图：
+
+```text
+retrieve_context
+-> generate_question
+-> answer_interrupt
+```
+
+第一次执行：
+
+```text
+graph.invoke(...)
+-> 返回 __interrupt__
+-> 暂停等待人工回答
+```
+
+恢复执行：
+
+```text
+graph.invoke(Command(resume="学生回答"), config=same_thread_id)
+-> answer_interrupt 节点继续执行
+-> state 写入 answer
+```
+
+CLI 示例：
+
+```powershell
+uv run python -m app.cli graph-interrupt-demo `
+  --topic "系统架构"
+
+uv run python -m app.cli graph-interrupt-demo `
+  --topic "系统架构" `
+  --answer "系统按职责拆分模块，便于定位问题。"
+```
+
+当前限制：
+
+```text
+本阶段使用 InMemorySaver，只演示同一进程内 interrupt / resume。
+它还不是跨进程、跨命令、可落盘的持久化恢复。
+```
+
+学到的关键点：
+
+```text
+普通 wait_for_answer 节点只是返回 needs_human_input=True。
+LangGraph interrupt 会让图真正暂停。
+resume 需要同一个 thread_id 和 checkpointer。
+checkpointer 是 LangGraph 可恢复执行的关键基础设施。
+```
+
+下一步学习：
+
+- LangGraph checkpointer 对照学习。
+- 比较 InMemorySaver 与持久化 checkpointer 的差异。
+- 明确它和当前 `task_store.py` JSON 落盘机制的对应关系。
