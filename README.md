@@ -349,6 +349,7 @@ app/faithfulness_evaluator.py    Faithfulness Judge
 app/evaluation_report.py         评估报告生成
 app/evaluation_report_comparator.py 评估报告回归对比
 app/cli.py                       统一 CLI
+docs/05-Task-State工作流复盘.md   Task State 状态机、节点、边和 LangGraph 旁路迁移前复盘
 ```
 
 ## 下一步学习
