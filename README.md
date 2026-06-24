@@ -851,3 +851,25 @@ Tool Metadata：给工程系统看的治理信息，描述权限、owner、enabl
 ```
 
 这一步是 MCP / Sub-Agent 的前置基础：MCP 本质上也需要把外部能力标准化为可发现、可描述、可调用、可治理的工具。
+
+<!-- docs-update-2026-06-24-tool-execution-governance -->
+
+## 2026-06-24 更新：工具执行治理强约束
+
+本阶段把 `ToolMetadata` 从展示信息接入执行链路：
+
+- 执行工具前会读取注册表中的 metadata
+- `enabled=False` 的工具会被拒绝执行
+- 非白名单 permission 会被拒绝执行
+- 每个工具可以使用自己的 `timeout_seconds`
+- 每个工具可以使用自己的 `retry_count`
+- 每个工具可以使用自己的 `result_max_characters`
+- 旧的 `TOOL_REGISTRY` fake tool 注入仍保留，用于测试和临时实验
+
+这一步的意义：
+
+```text
+工具治理不能只停留在文档和展示层。
+真正的 Agent Harness 必须在执行器入口处做强约束。
+否则模型或上层代码仍可能绕过工具注册表，直接调用不该调用的能力。
+```

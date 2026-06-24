@@ -6,10 +6,82 @@ from app.config import (
     TOOL_RESULT_MAX_CHARACTERS,
     TOOL_TIMEOUT_SECONDS,
 )
-from app.tool_registry import build_tool_function_registry
+from app.tool_registry import (
+    REGISTERED_TOOLS,
+    ToolMetadata,
+    build_tool_function_registry,
+)
 
 
 TOOL_REGISTRY = build_tool_function_registry()
+ALLOWED_TOOL_PERMISSIONS = {
+    "read",
+    "llm_generate",
+    "llm_evaluate",
+}
+
+
+def validate_tool_execution_metadata(
+    metadata: ToolMetadata,
+) -> None:
+    if not metadata.enabled:
+        raise ValueError(f"工具已禁用：{metadata.name}")
+
+    if metadata.permission not in ALLOWED_TOOL_PERMISSIONS:
+        raise ValueError(
+            f"工具权限不允许：{metadata.name} "
+            f"permission={metadata.permission}"
+        )
+
+    if metadata.retry_count < 0:
+        raise ValueError(
+            f"工具 retry_count 不合法：{metadata.name}"
+        )
+
+    if metadata.result_max_characters <= 0:
+        raise ValueError(
+            f"工具 result_max_characters 不合法：{metadata.name}"
+        )
+
+    if (
+        metadata.timeout_seconds is not None
+        and metadata.timeout_seconds <= 0
+    ):
+        raise ValueError(
+            f"工具 timeout_seconds 不合法：{metadata.name}"
+        )
+
+
+def resolve_tool_execution_config(
+    tool_name: str,
+) -> dict:
+    registered_tool = REGISTERED_TOOLS.get(tool_name)
+
+    if registered_tool is not None:
+        validate_tool_execution_metadata(
+            registered_tool.metadata,
+        )
+
+        return {
+            "function": registered_tool.function,
+            "max_retries": registered_tool.metadata.retry_count,
+            "timeout_seconds": registered_tool.metadata.timeout_seconds,
+            "result_max_characters": (
+                registered_tool.metadata.result_max_characters
+            ),
+        }
+
+    tool_function = TOOL_REGISTRY.get(tool_name)
+
+    if tool_function is None:
+        raise ValueError(f"未知工具：{tool_name}")
+
+    return {
+        "function": tool_function,
+        "max_retries": TOOL_MAX_RETRIES,
+        "timeout_seconds": TOOL_TIMEOUT_SECONDS,
+        "result_max_characters": TOOL_RESULT_MAX_CHARACTERS,
+    }
 
 
 def build_tool_error_result(
@@ -105,11 +177,7 @@ def execute_tool_function_with_timeout(
 
 def execute_tool_call(tool_call) -> str:
     tool_name = tool_call.function.name
-
-    tool_function = TOOL_REGISTRY.get(tool_name)
-
-    if tool_function is None:
-        raise ValueError(f"未知工具：{tool_name}")
+    execution_config = resolve_tool_execution_config(tool_name)
 
     try:
         arguments = json.loads(tool_call.function.arguments)
@@ -117,10 +185,10 @@ def execute_tool_call(tool_call) -> str:
         raise ValueError("工具参数不是合法 JSON") from error
 
     result = execute_tool_function_with_retry(
-        tool_function,
+        execution_config["function"],
         arguments,
-        max_retries=TOOL_MAX_RETRIES,
-        timeout_seconds=TOOL_TIMEOUT_SECONDS,
+        max_retries=execution_config["max_retries"],
+        timeout_seconds=execution_config["timeout_seconds"],
     )
 
     result_text = json.dumps(
@@ -130,7 +198,7 @@ def execute_tool_call(tool_call) -> str:
 
     return limit_tool_result_text(
         result_text,
-        max_characters=TOOL_RESULT_MAX_CHARACTERS,
+        max_characters=execution_config["result_max_characters"],
     )
 
 
