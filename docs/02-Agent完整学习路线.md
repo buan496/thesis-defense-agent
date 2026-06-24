@@ -1214,3 +1214,42 @@ dry-run 是真实执行前的安全演练。
 - 实现最小真实 Sub-Agent executor。
 - 仍然只允许单 Sub-Agent、单工具、单步执行。
 - 执行前必须复用 permission guard 和 execution plan。
+
+<!-- roadmap-update-2026-06-24-sub-agent-single-step-executor -->
+
+## 2026-06-24 路线同步：最小真实 Sub-Agent Executor 已完成
+
+本阶段新增完成能力：
+
+- [x] 新增 `app/sub_agent_executor.py`
+- [x] 新增 `app/sub_agent_execution_trace.py`
+- [x] 支持单 Sub-Agent 单工具执行
+- [x] 执行前复用 permission guard
+- [x] 执行前复用 execution plan
+- [x] 执行过程复用统一 tool executor
+- [x] 支持保存 Sub-Agent execution trace
+- [x] 新增 `execute-sub-agent-call` CLI
+- [x] 新增 `analyze-sub-agent-executions` CLI
+- [x] 新增 Sub-Agent executor 测试
+
+学到的关键点：
+
+```text
+真正执行 Sub-Agent 时，不能绕过已有治理层。
+执行必须经过：SubAgentSpec -> permission guard -> execution plan -> tool executor -> execution trace。
+这条链路保证了角色边界、工具权限、输入参数、执行结果和审计记录都可检查。
+```
+
+当前边界：
+
+```text
+这不是复杂多 Agent 协作。
+它只是一个最小单步执行器。
+目的是学习企业级 Agent Harness 中“执行前有计划、执行中有治理、执行后有审计”的基本闭环。
+```
+
+下一步学习：
+
+- 做 Sub-Agent execution replay / comparison。
+- 对比两次执行 trace 的成功率、工具结果结构、耗时和错误类型。
+- 暂不做并行 Sub-Agent，也不做自动任务分解。
