@@ -84,6 +84,9 @@ from app.langgraph_workflow.interrupt_demo import (
 )
 from app.langgraph_workflow.checkpointer_demo import run_checkpointer_demo
 from app.langgraph_workflow.conditional_demo import run_conditional_demo
+from app.langgraph_workflow.persistent_checkpoint_demo import (
+    run_persistent_checkpoint_demo,
+)
 from app.feedback_store import (
     create_feedback_record,
     load_feedback_records,
@@ -1313,6 +1316,37 @@ def main():
         help="Optional student answer used to resume the graph",
     )
     graph_checkpointer_parser.add_argument(
+        "--top-k",
+        type=int,
+        default=None,
+        help="Number of chunks to retrieve",
+    )
+
+    graph_persistent_checkpoint_parser = subparsers.add_parser(
+        "graph-persistent-checkpoint-demo",
+        help="Persist a LangGraph checkpoint snapshot as JSON",
+    )
+    graph_persistent_checkpoint_parser.add_argument(
+        "--topic",
+        required=True,
+        help="Defense topic for the persistent checkpoint demo",
+    )
+    graph_persistent_checkpoint_parser.add_argument(
+        "--thread-id",
+        default="persistent-checkpoint-demo-thread",
+        help="LangGraph thread ID used by the checkpointer",
+    )
+    graph_persistent_checkpoint_parser.add_argument(
+        "--answer",
+        default=None,
+        help="Optional student answer used to resume before saving snapshot",
+    )
+    graph_persistent_checkpoint_parser.add_argument(
+        "--output",
+        default="data/langgraph_checkpoints/persistent_checkpoint_demo.json",
+        help="JSON file path used to save the checkpoint snapshot",
+    )
+    graph_persistent_checkpoint_parser.add_argument(
         "--top-k",
         type=int,
         default=None,
@@ -2898,6 +2932,46 @@ def main():
                 "RESUMED VALUE KEYS:",
                 sorted(resumed_checkpoint["values"].keys()),
             )
+
+    elif args.command == "graph-persistent-checkpoint-demo":
+        top_k = args.top_k if args.top_k is not None else RAG_TOP_K
+
+        try:
+            result = run_persistent_checkpoint_demo(
+                topic=args.topic,
+                thread_id=args.thread_id,
+                output_path=args.output,
+                answer=args.answer,
+                top_k=top_k,
+            )
+        except ValueError as error:
+            print(f"LANGGRAPH PERSISTENT CHECKPOINT ERROR: {error}")
+            raise SystemExit(1) from error
+
+        summary = result["summary"]
+
+        print("LANGGRAPH PERSISTENT CHECKPOINT DEMO")
+        print("THREAD ID:", summary["thread_id"])
+        print("CHECKPOINTER TYPE:", summary["checkpointer_type"])
+        print("SNAPSHOT PATH:", result["snapshot_path"])
+        print("INTERRUPTED NEXT:", summary["interrupted_next"])
+        print(
+            "INTERRUPTED HAS PENDING INTERRUPT:",
+            summary["interrupted_has_pending_interrupt"],
+        )
+        print(
+            "INTERRUPTED VALUE KEYS:",
+            summary["interrupted_value_keys"],
+        )
+        print("HAS RESUMED:", summary["has_resumed"])
+
+        if summary["has_resumed"]:
+            print("RESUMED NEXT:", summary["resumed_next"])
+            print(
+                "RESUMED HAS PENDING INTERRUPT:",
+                summary["resumed_has_pending_interrupt"],
+            )
+            print("RESUMED VALUE KEYS:", summary["resumed_value_keys"])
 
     elif args.command == "graph-conditional-demo":
         top_k = args.top_k if args.top_k is not None else RAG_TOP_K

@@ -431,6 +431,112 @@ def test_graph_checkpointer_demo_command_reports_value_error(
     assert "LANGGRAPH CHECKPOINTER ERROR: thread_id cannot be empty" in output
 
 
+def test_graph_persistent_checkpoint_demo_command(
+    monkeypatch,
+    capsys,
+):
+    captured = {}
+
+    def fake_run_persistent_checkpoint_demo(**kwargs):
+        captured.update(kwargs)
+        return {
+            "snapshot_path": kwargs["output_path"],
+            "summary": {
+                "thread_id": kwargs["thread_id"],
+                "checkpointer_type": "InMemorySaver",
+                "interrupted_next": ["answer_interrupt"],
+                "interrupted_has_pending_interrupt": True,
+                "interrupted_value_keys": [
+                    "context",
+                    "question",
+                    "topic",
+                ],
+                "has_resumed": True,
+                "resumed_next": [],
+                "resumed_has_pending_interrupt": False,
+                "resumed_value_keys": [
+                    "answer",
+                    "context",
+                    "question",
+                    "topic",
+                ],
+            },
+        }
+
+    monkeypatch.setattr(
+        cli,
+        "run_persistent_checkpoint_demo",
+        fake_run_persistent_checkpoint_demo,
+    )
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "app.cli",
+            "graph-persistent-checkpoint-demo",
+            "--topic",
+            "system architecture",
+            "--thread-id",
+            "thread-1",
+            "--answer",
+            "The system is modular.",
+            "--output",
+            "data/langgraph_checkpoints/thread-1.json",
+            "--top-k",
+            "2",
+        ],
+    )
+
+    cli.main()
+
+    output = capsys.readouterr().out
+
+    assert captured["topic"] == "system architecture"
+    assert captured["thread_id"] == "thread-1"
+    assert captured["answer"] == "The system is modular."
+    assert captured["output_path"] == (
+        "data/langgraph_checkpoints/thread-1.json"
+    )
+    assert captured["top_k"] == 2
+    assert "LANGGRAPH PERSISTENT CHECKPOINT DEMO" in output
+    assert "SNAPSHOT PATH: data/langgraph_checkpoints/thread-1.json" in output
+    assert "HAS RESUMED: True" in output
+    assert "RESUMED NEXT: []" in output
+
+
+def test_graph_persistent_checkpoint_demo_command_reports_value_error(
+    monkeypatch,
+    capsys,
+):
+    def fake_run_persistent_checkpoint_demo(**kwargs):
+        raise ValueError("thread_id cannot be empty")
+
+    monkeypatch.setattr(
+        cli,
+        "run_persistent_checkpoint_demo",
+        fake_run_persistent_checkpoint_demo,
+    )
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "app.cli",
+            "graph-persistent-checkpoint-demo",
+            "--topic",
+            "system architecture",
+        ],
+    )
+
+    try:
+        cli.main()
+    except SystemExit as error:
+        assert error.code == 1
+
+    output = capsys.readouterr().out
+
+    assert (
+        "LANGGRAPH PERSISTENT CHECKPOINT ERROR: thread_id cannot be empty"
+    ) in output
+
+
 def test_graph_conditional_demo_command_with_existing_answer(
     monkeypatch,
     capsys,
