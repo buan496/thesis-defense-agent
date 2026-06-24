@@ -911,3 +911,167 @@ SubAgentSpec 只定义子 Agent 能做什么。
 当前还不做真实多 Agent 调度。
 当前还不让 Sub-Agent 自动调用工具。
 ```
+
+<!-- docs-update-2026-06-24-sub-agent-permission-guard -->
+
+## 2026-06-24 更新：本地 Sub-Agent 工具权限校验
+
+本阶段新增子 Agent 级工具权限边界：
+
+- 新增 `app/sub_agent_permissions.py`
+- 新增 `SubAgentToolPermissionResult`
+- 新增 `check_sub_agent_tool_permission()`
+- 新增 `can_sub_agent_use_tool()`
+- 新增 `validate_sub_agent_tool_call()`
+- 新增 `check-sub-agent-tool` CLI
+
+手动检查某个子 Agent 是否允许调用某个工具：
+
+```powershell
+uv run python -m app.cli check-sub-agent-tool `
+  --sub-agent retrieval_agent `
+  --tool search_thesis
+```
+
+这一步的意义：
+
+```text
+ToolMetadata 解决单个工具能不能被执行。
+SubAgentSpec.allowed_tools 解决某个子 Agent 能不能调用某个工具。
+多 Agent 系统必须先有权限边界，再考虑自动调度。
+```
+
+<!-- docs-update-2026-06-24-sub-agent-execution-plan -->
+
+## 2026-06-24 更新：本地 Sub-Agent 执行计划对象
+
+本阶段新增本地 Sub-Agent 计划层：
+
+- 新增 `app/sub_agent_plan.py`
+- 新增 `SubAgentExecutionPlan`
+- 新增 `create_sub_agent_execution_plan()`
+- 新增 `validate_sub_agent_plan_input()`
+- 新增 `plan-sub-agent-call` CLI
+
+生成一个只规划、不执行的 Sub-Agent 工具调用计划：
+
+```powershell
+uv run python -m app.cli plan-sub-agent-call `
+  --sub-agent retrieval_agent `
+  --tool search_thesis `
+  --arguments '{"query":"系统架构"}'
+```
+
+当前边界：
+
+```text
+计划对象只描述谁准备用什么工具、输入是什么、预期输出是什么。
+它不执行工具。
+它不调用 LLM。
+它不做多 Agent 自动调度。
+```
+
+这一步的意义：
+
+```text
+先有计划，再有执行。
+多 Agent 调度前必须先把 role、tool、arguments、expected output 和 max_steps 固化为可审计对象。
+```
+
+<!-- docs-update-2026-06-24-sub-agent-plan-powershell-arguments -->
+
+## 2026-06-24 补充：Sub-Agent Plan 的 PowerShell 友好参数
+
+`plan-sub-agent-call` 支持两种传参方式：
+
+JSON 方式：
+
+```powershell
+uv run python -m app.cli plan-sub-agent-call `
+  --sub-agent retrieval_agent `
+  --tool search_thesis `
+  --arguments '{"query":"系统架构"}'
+```
+
+PowerShell 更推荐 KEY=VALUE 方式，避免 JSON 引号被 shell 吃掉：
+
+```powershell
+uv run python -m app.cli plan-sub-agent-call `
+  --sub-agent retrieval_agent `
+  --tool search_thesis `
+  --argument query=系统架构
+```
+
+<!-- docs-update-2026-06-24-sub-agent-plan-trace -->
+
+## 2026-06-24 更新：Sub-Agent Plan Trace / Audit 记录
+
+本阶段新增 Sub-Agent 计划审计能力：
+
+- 新增 `app/sub_agent_plan_trace.py`
+- 新增 `save_sub_agent_plan_trace()`
+- 新增 `load_sub_agent_plan_traces()`
+- 新增 `summarize_sub_agent_plan_traces()`
+- `plan-sub-agent-call` 支持 `--save-trace`
+- 新增 `analyze-sub-agent-plans` CLI
+
+保存计划 trace：
+
+```powershell
+uv run python -m app.cli plan-sub-agent-call `
+  --sub-agent retrieval_agent `
+  --tool search_thesis `
+  --argument query=系统架构 `
+  --save-trace
+```
+
+分析计划 trace：
+
+```powershell
+uv run python -m app.cli analyze-sub-agent-plans
+```
+
+这一步的意义：
+
+```text
+Sub-Agent 还没有真正执行工具之前，计划本身就应该可以被审计。
+先记录 plan，再执行 plan，后续才能做 trace replay、权限审计和回归对比。
+```
+
+<!-- docs-update-2026-06-24-sub-agent-dry-run -->
+
+## 2026-06-24 更新：单步 Sub-Agent Dry-Run
+
+本阶段新增 Sub-Agent dry-run 能力：
+
+- 新增 `app/sub_agent_dry_run.py`
+- 新增 `SubAgentDryRunReport`
+- 新增 `dry_run_sub_agent_tool_call()`
+- 新增 `dry-run-sub-agent-call` CLI
+- dry-run 会生成执行计划、校验工具权限、可选保存 trace，但不会执行真实工具
+
+普通 dry-run：
+
+```powershell
+uv run python -m app.cli dry-run-sub-agent-call `
+  --sub-agent retrieval_agent `
+  --tool search_thesis `
+  --argument query=系统架构
+```
+
+保存 dry-run trace：
+
+```powershell
+uv run python -m app.cli dry-run-sub-agent-call `
+  --sub-agent retrieval_agent `
+  --tool search_thesis `
+  --argument query=系统架构 `
+  --save-trace
+```
+
+这一步的意义：
+
+```text
+dry-run 是真实执行前的安全演练。
+它让系统先回答“谁要调用什么工具、参数是什么、权限是否允许、计划是否可审计”，再决定是否进入真实执行。
+```
