@@ -75,6 +75,7 @@ from app.task_resume import get_resumable_task_status
 from app.task_trace_analyzer import analyze_task_trace
 from app.task_markdown_exporter import export_task_markdown_report
 from app.task_store import DEFAULT_TASK_DIRECTORY
+from app.langgraph_workflow.demo_task import run_demo_task
 from app.feedback_store import (
     create_feedback_record,
     load_feedback_records,
@@ -1240,6 +1241,22 @@ def main():
         type=str,
         default=str(DEFAULT_TASK_DIRECTORY),
         help="Directory used to store defense task JSON files",
+    )
+
+    graph_demo_task_parser = subparsers.add_parser(
+        "graph-demo-task",
+        help="Run a side-by-side LangGraph demo task",
+    )
+    graph_demo_task_parser.add_argument(
+        "--topic",
+        required=True,
+        help="Defense topic for the LangGraph demo task",
+    )
+    graph_demo_task_parser.add_argument(
+        "--top-k",
+        type=int,
+        default=None,
+        help="Number of chunks to retrieve",
     )
     
     args = parser.parse_args()
@@ -2662,6 +2679,27 @@ def main():
         print(f"TASK ID: {task.task_id}")
         print(f"STATUS: {task.status}")
         print(f"REPORT: {report_path}")
+
+    elif args.command == "graph-demo-task":
+        top_k = args.top_k if args.top_k is not None else RAG_TOP_K
+
+        try:
+            result = run_demo_task(
+                topic=args.topic,
+                top_k=top_k,
+            )
+        except ValueError as error:
+            print(f"LANGGRAPH DEMO ERROR: {error}")
+            raise SystemExit(1) from error
+
+        print("LANGGRAPH DEMO TASK")
+        print("TOPIC:", result.get("topic"))
+        print("STATUS:", result.get("status"))
+        print("CURRENT NODE:", result.get("current_node"))
+        print("NEEDS HUMAN INPUT:", result.get("needs_human_input"))
+        print("QUERY:", result.get("query"))
+        print("SOURCE COUNT:", len(result.get("sources", [])))
+        print("QUESTION:", result.get("question"))
 
     elif args.command == "show-task":
         task = get_defense_task(
