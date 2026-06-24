@@ -264,3 +264,168 @@ def test_graph_interrupt_demo_command_reports_value_error(
     output = capsys.readouterr().out
 
     assert "LANGGRAPH INTERRUPT ERROR: topic cannot be empty" in output
+
+
+def test_graph_checkpointer_demo_command_without_answer(
+    monkeypatch,
+    capsys,
+):
+    captured = {}
+
+    def fake_run_checkpointer_demo(**kwargs):
+        captured.update(kwargs)
+        return {
+            "thread_id": kwargs["thread_id"],
+            "checkpointer_type": "InMemorySaver",
+            "interrupt_payload": {
+                "type": "answer_required",
+                "question": "How is the system designed?",
+            },
+            "interrupted_checkpoint": {
+                "checkpoint_id": "checkpoint-1",
+                "next": ["answer_interrupt"],
+                "has_pending_interrupt": True,
+                "values": {
+                    "topic": kwargs["topic"],
+                    "question": "How is the system designed?",
+                },
+            },
+            "resumed_result": None,
+            "resumed_checkpoint": None,
+        }
+
+    monkeypatch.setattr(
+        cli,
+        "run_checkpointer_demo",
+        fake_run_checkpointer_demo,
+    )
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "app.cli",
+            "graph-checkpointer-demo",
+            "--topic",
+            "system architecture",
+            "--thread-id",
+            "thread-1",
+            "--top-k",
+            "2",
+        ],
+    )
+
+    cli.main()
+
+    output = capsys.readouterr().out
+
+    assert captured["topic"] == "system architecture"
+    assert captured["thread_id"] == "thread-1"
+    assert captured["answer"] is None
+    assert captured["top_k"] == 2
+    assert "LANGGRAPH CHECKPOINTER DEMO" in output
+    assert "CHECKPOINTER TYPE: InMemorySaver" in output
+    assert "INTERRUPTED CHECKPOINT ID: checkpoint-1" in output
+    assert "INTERRUPTED NEXT: ['answer_interrupt']" in output
+    assert "INTERRUPTED HAS PENDING INTERRUPT: True" in output
+    assert "RESUMED: False" in output
+
+
+def test_graph_checkpointer_demo_command_with_answer(
+    monkeypatch,
+    capsys,
+):
+    captured = {}
+
+    def fake_run_checkpointer_demo(**kwargs):
+        captured.update(kwargs)
+        return {
+            "thread_id": kwargs["thread_id"],
+            "checkpointer_type": "InMemorySaver",
+            "interrupt_payload": {
+                "type": "answer_required",
+                "question": "How is the system designed?",
+            },
+            "interrupted_checkpoint": {
+                "checkpoint_id": "checkpoint-1",
+                "next": ["answer_interrupt"],
+                "has_pending_interrupt": True,
+                "values": {
+                    "topic": kwargs["topic"],
+                    "question": "How is the system designed?",
+                },
+            },
+            "resumed_result": {
+                "answer": kwargs["answer"],
+            },
+            "resumed_checkpoint": {
+                "checkpoint_id": "checkpoint-2",
+                "next": [],
+                "has_pending_interrupt": False,
+                "values": {
+                    "topic": kwargs["topic"],
+                    "question": "How is the system designed?",
+                    "answer": kwargs["answer"],
+                },
+            },
+        }
+
+    monkeypatch.setattr(
+        cli,
+        "run_checkpointer_demo",
+        fake_run_checkpointer_demo,
+    )
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "app.cli",
+            "graph-checkpointer-demo",
+            "--topic",
+            "system architecture",
+            "--thread-id",
+            "thread-1",
+            "--answer",
+            "The system is modular.",
+        ],
+    )
+
+    cli.main()
+
+    output = capsys.readouterr().out
+
+    assert captured["answer"] == "The system is modular."
+    assert "RESUMED: True" in output
+    assert "RESUMED CHECKPOINT ID: checkpoint-2" in output
+    assert "RESUMED NEXT: []" in output
+    assert "RESUMED HAS PENDING INTERRUPT: False" in output
+    assert "ANSWER: The system is modular." in output
+
+
+def test_graph_checkpointer_demo_command_reports_value_error(
+    monkeypatch,
+    capsys,
+):
+    def fake_run_checkpointer_demo(**kwargs):
+        raise ValueError("thread_id cannot be empty")
+
+    monkeypatch.setattr(
+        cli,
+        "run_checkpointer_demo",
+        fake_run_checkpointer_demo,
+    )
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "app.cli",
+            "graph-checkpointer-demo",
+            "--topic",
+            "system architecture",
+        ],
+    )
+
+    try:
+        cli.main()
+    except SystemExit as error:
+        assert error.code == 1
+
+    output = capsys.readouterr().out
+
+    assert "LANGGRAPH CHECKPOINTER ERROR: thread_id cannot be empty" in output

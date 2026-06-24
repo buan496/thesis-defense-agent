@@ -82,6 +82,7 @@ from app.langgraph_workflow.interrupt_demo import (
     resume_interrupt_demo,
     start_interrupt_demo,
 )
+from app.langgraph_workflow.checkpointer_demo import run_checkpointer_demo
 from app.feedback_store import (
     create_feedback_record,
     load_feedback_records,
@@ -1285,6 +1286,32 @@ def main():
         help="Optional student answer used to immediately resume the graph",
     )
     graph_interrupt_parser.add_argument(
+        "--top-k",
+        type=int,
+        default=None,
+        help="Number of chunks to retrieve",
+    )
+
+    graph_checkpointer_parser = subparsers.add_parser(
+        "graph-checkpointer-demo",
+        help="Inspect LangGraph checkpointer state before and after resume",
+    )
+    graph_checkpointer_parser.add_argument(
+        "--topic",
+        required=True,
+        help="Defense topic for the LangGraph checkpointer demo",
+    )
+    graph_checkpointer_parser.add_argument(
+        "--thread-id",
+        default="checkpoint-demo-thread",
+        help="LangGraph thread ID used by the checkpointer",
+    )
+    graph_checkpointer_parser.add_argument(
+        "--answer",
+        default=None,
+        help="Optional student answer used to resume the graph",
+    )
+    graph_checkpointer_parser.add_argument(
         "--top-k",
         type=int,
         default=None,
@@ -2779,6 +2806,65 @@ def main():
                 "NOTE:",
                 "This demo uses an in-memory checkpointer; pass --answer "
                 "in the same command to demonstrate resume.",
+            )
+
+    elif args.command == "graph-checkpointer-demo":
+        top_k = args.top_k if args.top_k is not None else RAG_TOP_K
+
+        try:
+            report = run_checkpointer_demo(
+                topic=args.topic,
+                thread_id=args.thread_id,
+                answer=args.answer,
+                top_k=top_k,
+            )
+        except ValueError as error:
+            print(f"LANGGRAPH CHECKPOINTER ERROR: {error}")
+            raise SystemExit(1) from error
+
+        interrupted_checkpoint = report["interrupted_checkpoint"]
+        resumed_checkpoint = report["resumed_checkpoint"]
+
+        print("LANGGRAPH CHECKPOINTER DEMO")
+        print("THREAD ID:", report["thread_id"])
+        print("CHECKPOINTER TYPE:", report["checkpointer_type"])
+        print(
+            "INTERRUPT TYPE:",
+            (report["interrupt_payload"] or {}).get("type"),
+        )
+        print(
+            "QUESTION:",
+            (report["interrupt_payload"] or {}).get("question"),
+        )
+        print("INTERRUPTED CHECKPOINT ID:", interrupted_checkpoint["checkpoint_id"])
+        print("INTERRUPTED NEXT:", interrupted_checkpoint["next"])
+        print(
+            "INTERRUPTED HAS PENDING INTERRUPT:",
+            interrupted_checkpoint["has_pending_interrupt"],
+        )
+        print(
+            "INTERRUPTED VALUE KEYS:",
+            sorted(interrupted_checkpoint["values"].keys()),
+        )
+
+        if resumed_checkpoint is None:
+            print("RESUMED:", False)
+            print(
+                "NOTE:",
+                "Pass --answer to resume and inspect the next checkpoint.",
+            )
+        else:
+            print("RESUMED:", True)
+            print("RESUMED CHECKPOINT ID:", resumed_checkpoint["checkpoint_id"])
+            print("RESUMED NEXT:", resumed_checkpoint["next"])
+            print(
+                "RESUMED HAS PENDING INTERRUPT:",
+                resumed_checkpoint["has_pending_interrupt"],
+            )
+            print("ANSWER:", report["resumed_result"].get("answer"))
+            print(
+                "RESUMED VALUE KEYS:",
+                sorted(resumed_checkpoint["values"].keys()),
             )
 
     elif args.command == "show-task":
