@@ -1416,3 +1416,74 @@ docs/07-Sub-Agent阶段复盘.md
 Sub-Agent 主线已经完成本地学习版最小可审计 Harness。
 下一阶段建议进入 Trace Replay / Feedback 闭环，而不是继续堆更多工具。
 ```
+
+<!-- docs-update-2026-06-25-trace-replay-feedback -->
+
+## 2026-06-25 更新：Trace Replay / Feedback 闭环
+
+本阶段新增一条从失败 trace 到 benchmark 草稿的本地闭环：
+
+```text
+trace replay
+-> feedback record
+-> benchmark candidate
+-> human review
+-> benchmark draft
+-> draft validation
+-> validated benchmark draft export
+```
+
+新增能力：
+
+- 通用 JSONL trace replay 归一化
+- Agent / Sub-Agent plan / Sub-Agent execution trace 汇总
+- trace replay issue 自动转 feedback record
+- trace feedback 写入 `feedback.jsonl`
+- feedback 导出 benchmark candidate
+- candidate 人工 review 后导出 benchmark draft
+- benchmark draft 校验
+- validated draft 导出为正式 benchmark 草稿文件
+
+核心命令：
+
+```powershell
+uv run python -m app.cli replay-trace `
+  --file data/traces/agent_trace.jsonl `
+  --source-type agent
+
+uv run python -m app.cli trace-feedback `
+  --file data/traces/agent_trace.jsonl `
+  --source-type agent `
+  --feedback-file data/feedback.jsonl
+
+uv run python -m app.cli export-feedback-candidates `
+  --feedback-file data/feedback.jsonl `
+  --output data/reports/feedback_candidates.json
+
+uv run python -m app.cli review-benchmark-candidate `
+  --file data/reports/feedback_candidates.json `
+  --candidate-id <CANDIDATE_ID> `
+  --status accepted `
+  --reviewer buan496 `
+  --reason "适合作为回归样本"
+
+uv run python -m app.cli export-benchmark-draft `
+  --candidate-file data/reports/feedback_candidates.json `
+  --output data/reports/benchmark_draft.json
+
+uv run python -m app.cli validate-benchmark-draft `
+  --file data/reports/benchmark_draft.json `
+  --fail-on-error
+
+uv run python -m app.cli export-validated-benchmark-draft `
+  --draft-file data/reports/benchmark_draft.json `
+  --output-directory data/reports/validated_benchmarks
+```
+
+边界：
+
+```text
+失败 trace 不会直接进入正式 benchmark。
+必须经过 feedback、candidate、human review、draft、validation。
+当前只完成本地学习版数据治理闭环，不接服务器和数据库。
+```

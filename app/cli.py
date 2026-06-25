@@ -50,6 +50,8 @@ from app.agent_trace_replayer import (
     compare_agent_trace_records,
     replay_agent_trace,
 )
+from app.trace_feedback import build_trace_feedback_record
+from app.trace_replay import replay_trace_file
 from app.session_service import run_agent_session
 from app.budget_guard import (
     BudgetExceededError ,
@@ -535,6 +537,54 @@ def main():
         type=int,
         default=None,
         help="Trace line number to replay. Defaults to the latest record.",
+    )
+
+    generic_replay_trace_parser = subparsers.add_parser(
+        "replay-trace",
+        help="Replay and summarize a generic JSONL trace file",
+    )
+    generic_replay_trace_parser.add_argument(
+        "--file",
+        type=str,
+        required=True,
+        help="Trace JSONL file path",
+    )
+    generic_replay_trace_parser.add_argument(
+        "--source-type",
+        type=str,
+        required=True,
+        choices=["agent", "sub_agent_plan", "sub_agent_execution"],
+        help="Trace source type",
+    )
+
+    trace_feedback_parser = subparsers.add_parser(
+        "trace-feedback",
+        help="Convert trace replay issues into a feedback record",
+    )
+    trace_feedback_parser.add_argument(
+        "--file",
+        type=str,
+        required=True,
+        help="Trace JSONL file path",
+    )
+    trace_feedback_parser.add_argument(
+        "--source-type",
+        type=str,
+        required=True,
+        choices=["agent", "sub_agent_plan", "sub_agent_execution"],
+        help="Trace source type",
+    )
+    trace_feedback_parser.add_argument(
+        "--source-id",
+        type=str,
+        default=None,
+        help="Feedback source identifier. Defaults to source_type:file.",
+    )
+    trace_feedback_parser.add_argument(
+        "--feedback-file",
+        type=str,
+        default=FEEDBACK_STORE_PATH,
+        help="Feedback JSONL file path",
     )
     
     compare_trace_parser = subparsers.add_parser(
@@ -2058,6 +2108,71 @@ def main():
             print("    SUCCESS:", tool_trace.get("success"))
             print("    DURATION_MS:", tool_trace.get("duration_ms"))
             print("    ARGUMENTS:", tool_trace.get("arguments"))
+
+    elif args.command == "replay-trace":
+        try:
+            summary = replay_trace_file(
+                file_path=args.file,
+                source_type=args.source_type,
+            )
+        except (FileNotFoundError, ValueError) as error:
+            print(f"TRACE REPLAY ERROR: {error}")
+            raise SystemExit(1) from error
+
+        print("TRACE REPLAY SUMMARY")
+        print("FILE:", args.file)
+        print("SOURCE TYPE:", args.source_type)
+        print("RECORD COUNT:", summary["record_count"])
+        print("FAILED RECORD COUNT:", summary["failed_record_count"])
+        print("TOOL CALL COUNT:", summary["total_tool_call_count"])
+        print(
+            "FAILED TOOL CALL COUNT:",
+            summary["total_failed_tool_call_count"],
+        )
+        print("TOTAL DURATION MS:", summary["total_duration_ms"])
+        print("BY SOURCE TYPE:", summary["by_source_type"])
+        print("BY TOOL:", summary["by_tool"])
+
+    elif args.command == "trace-feedback":
+        try:
+            summary = replay_trace_file(
+                file_path=args.file,
+                source_type=args.source_type,
+            )
+            source_id = args.source_id
+
+            if source_id is None:
+                source_id = f"{args.source_type}:{args.file}"
+
+            feedback_record = build_trace_feedback_record(
+                replay_summary=summary,
+                source_id=source_id,
+            )
+
+            if feedback_record is not None:
+                saved_path = save_feedback_record(
+                    file_path=args.feedback_file,
+                    feedback_record=feedback_record,
+                )
+            else:
+                saved_path = None
+        except (FileNotFoundError, ValueError) as error:
+            print(f"TRACE FEEDBACK ERROR: {error}")
+            raise SystemExit(1) from error
+
+        if feedback_record is None:
+            print("TRACE FEEDBACK NOT CREATED")
+            print("REASON: no trace replay issues detected")
+            print("FILE:", args.file)
+            print("SOURCE TYPE:", args.source_type)
+        else:
+            print("TRACE FEEDBACK RECORDED")
+            print("FEEDBACK ID:", feedback_record["id"])
+            print("SOURCE TYPE:", feedback_record["source_type"])
+            print("SOURCE ID:", feedback_record["source_id"])
+            print("RATING:", feedback_record["rating"])
+            print("TAGS:", feedback_record["tags"])
+            print("SAVED:", saved_path)
 
     elif args.command == "compare-agent-traces":
         try:
