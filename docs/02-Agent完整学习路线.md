@@ -1417,3 +1417,27 @@ CI artifact 是排查质量门禁失败的入口，报告归档能减少只看�
 
 - 做 Sub-Agent gate Markdown 报告。
 - 让 artifact 同时包含机器可读 JSON 和人类可读 Markdown。
+
+<!-- roadmap-update-2026-06-25-sub-agent-gate-markdown-report -->
+
+## 2026-06-25 路线同步：Sub-Agent Gate Markdown 报告已完成
+
+本阶段新增完成能力：
+
+- [x] `local-quality-gate` 支持 `--markdown-output`
+- [x] 新增 Markdown 报告渲染能力
+- [x] CI 将 Markdown 报告写入 `data/reports/sub_agent_execution_gate.md`
+- [x] CI artifact 同时包含 JSON 和 Markdown
+- [x] 新增 Markdown 报告测试
+
+学到的关键点：
+
+```text
+JSON 适合机器读取，Markdown 适合人查看。
+CI artifact 同时保存两种格式，可以兼顾自动化回归和人工排查。
+```
+
+下一步学习：
+
+- Sub-Agent 主线阶段性收尾。
+- 汇总当前 Sub-Agent Harness 能力边界，并决定是否进入 Memory 或 Trace Replay 下一阶段。

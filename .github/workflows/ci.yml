@@ -61,7 +61,8 @@ jobs:
             --skip-pytest \
             --sub-agent-execution-baseline "$baseline" \
             --sub-agent-execution-candidate "$candidate" \
-            --output data/reports/sub_agent_execution_gate.json
+            --output data/reports/sub_agent_execution_gate.json \
+            --markdown-output data/reports/sub_agent_execution_gate.md
 
       - name: Upload CI reports
         if: always()
