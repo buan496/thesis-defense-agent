@@ -145,3 +145,80 @@ def save_local_quality_gate_report(
     )
 
     return path
+
+
+def render_local_quality_gate_markdown(
+    report: LocalQualityGateReport,
+) -> str:
+    status = "PASS" if report.passed else "FAIL"
+    lines = [
+        "# Local Quality Gate Report",
+        "",
+        f"- Status: **{status}**",
+        f"- Check Count: `{len(report.checks)}`",
+        "",
+        "## Checks",
+        "",
+        "| Check | Passed | Summary |",
+        "| --- | --- | --- |",
+    ]
+
+    for check in report.checks:
+        lines.append(
+            f"| `{check.name}` | `{check.passed}` | {check.summary} |"
+        )
+
+    for check in report.checks:
+        lines.extend(
+            render_quality_gate_check_details(check)
+        )
+
+    return "\n".join(lines).strip() + "\n"
+
+
+def render_quality_gate_check_details(
+    check: LocalQualityGateCheckResult,
+) -> list[str]:
+    lines = [
+        "",
+        f"## {check.name}",
+        "",
+        f"- Passed: `{check.passed}`",
+        f"- Summary: {check.summary}",
+    ]
+
+    details = check.details
+
+    if "returncode" in details:
+        lines.append(f"- Return Code: `{details['returncode']}`")
+
+    for field in [
+        "baseline_count",
+        "candidate_count",
+        "added_count",
+        "removed_count",
+        "changed_count",
+        "duration_regression_count",
+        "stable_count",
+    ]:
+        if field in details:
+            lines.append(f"- {field}: `{details[field]}`")
+
+    if "passed" in details:
+        lines.append(f"- Details Passed: `{details['passed']}`")
+
+    return lines
+
+
+def save_local_quality_gate_markdown(
+    report: LocalQualityGateReport,
+    file_path: str,
+) -> Path:
+    path = Path(file_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        render_local_quality_gate_markdown(report),
+        encoding="utf-8",
+    )
+
+    return path

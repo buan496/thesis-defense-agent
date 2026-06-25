@@ -6,7 +6,9 @@ import pytest
 from app import cli
 from app.local_quality_gate import (
     LocalQualityGateCheckResult,
+    render_local_quality_gate_markdown,
     run_local_quality_gate,
+    save_local_quality_gate_markdown,
     save_local_quality_gate_report,
 )
 from app.sub_agent_execution_trace import save_sub_agent_execution_trace
@@ -147,6 +149,35 @@ def test_save_local_quality_gate_report(tmp_path):
     assert data["checks"][0]["name"] == "pytest"
 
 
+def test_render_local_quality_gate_markdown():
+    report = run_local_quality_gate(
+        check_runner=fake_check_runner,
+    )
+
+    markdown = render_local_quality_gate_markdown(report)
+
+    assert "# Local Quality Gate Report" in markdown
+    assert "Status: **PASS**" in markdown
+    assert "| `pytest` | `True` | pytest passed |" in markdown
+
+
+def test_save_local_quality_gate_markdown(tmp_path):
+    report = run_local_quality_gate(
+        check_runner=fake_check_runner,
+    )
+    output_path = tmp_path / "reports" / "quality_gate.md"
+
+    saved_path = save_local_quality_gate_markdown(
+        report,
+        str(output_path),
+    )
+    markdown = output_path.read_text(encoding="utf-8")
+
+    assert saved_path == output_path
+    assert "# Local Quality Gate Report" in markdown
+    assert "pytest passed" in markdown
+
+
 def test_run_local_quality_gate_fails_on_sub_agent_regression(
     tmp_path,
 ):
@@ -249,6 +280,53 @@ def test_local_quality_gate_cli_writes_output(
 
     assert "OUTPUT:" in output
     assert data["passed"] is True
+
+
+def test_local_quality_gate_cli_writes_markdown_output(
+    monkeypatch,
+    capsys,
+    tmp_path,
+):
+    output_path = tmp_path / "quality_gate.md"
+
+    def fake_run_local_quality_gate(**kwargs):
+        return type(
+            "FakeReport",
+            (),
+            {
+                "passed": True,
+                "checks": [create_check_result()],
+                "to_dict": lambda self: {
+                    "passed": self.passed,
+                    "checks": [
+                        check.to_dict()
+                        for check in self.checks
+                    ],
+                },
+            },
+        )()
+
+    monkeypatch.setattr(
+        "app.cli.run_local_quality_gate",
+        fake_run_local_quality_gate,
+    )
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "app.cli",
+            "local-quality-gate",
+            "--markdown-output",
+            str(output_path),
+        ],
+    )
+
+    cli.main()
+
+    output = capsys.readouterr().out
+    markdown = output_path.read_text(encoding="utf-8")
+
+    assert "MARKDOWN OUTPUT:" in output
+    assert "# Local Quality Gate Report" in markdown
 
 
 def test_local_quality_gate_cli_fails(monkeypatch, capsys):

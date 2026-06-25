@@ -1367,3 +1367,27 @@ data/reports/sub_agent_execution_gate.json
 ```
 
 该文件会随 `offline-quality-reports` artifact 上传，便于查看 Sub-Agent gate 的结构化结果。
+
+<!-- docs-update-2026-06-25-sub-agent-gate-markdown-report -->
+
+## 2026-06-25 更新：Sub-Agent Gate Markdown 报告
+
+`local-quality-gate` 支持输出 Markdown 报告：
+
+```powershell
+uv run python -m app.cli local-quality-gate `
+  --skip-pytest `
+  --sub-agent-execution-baseline tests/fixtures/sub_agent_execution/baseline.jsonl `
+  --sub-agent-execution-candidate tests/fixtures/sub_agent_execution/candidate.jsonl `
+  --output data/reports/sub_agent_execution_gate.json `
+  --markdown-output data/reports/sub_agent_execution_gate.md
+```
+
+CI 中会同时输出：
+
+```text
+data/reports/sub_agent_execution_gate.json
+data/reports/sub_agent_execution_gate.md
+```
+
+JSON 用于机器读取，Markdown 用于人工快速查看。

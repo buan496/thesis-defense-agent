@@ -110,6 +110,7 @@ from app.sub_agent_execution_trace import (
 )
 from app.local_quality_gate import (
     run_local_quality_gate,
+    save_local_quality_gate_markdown,
     save_local_quality_gate_report,
 )
 from app.feedback_store import (
@@ -1676,6 +1677,11 @@ def main():
         "--output",
         default=None,
         help="Optional JSON output path for the quality gate report",
+    )
+    local_quality_gate_parser.add_argument(
+        "--markdown-output",
+        default=None,
+        help="Optional Markdown output path for the quality gate report",
     )
     
     args = parser.parse_args()
@@ -3650,6 +3656,13 @@ def main():
                 args.output,
             )
             print("OUTPUT:", output_path)
+
+        if args.markdown_output is not None:
+            markdown_path = save_local_quality_gate_markdown(
+                report,
+                args.markdown_output,
+            )
+            print("MARKDOWN OUTPUT:", markdown_path)
 
         if not report.passed and not args.allow_fail:
             raise SystemExit(1)
