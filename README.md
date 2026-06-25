@@ -1232,3 +1232,46 @@ uv run python -m app.cli compare-sub-agent-executions `
 比较报告如果不能影响退出码，就很难进入 CI 或自动化质量门禁。
 将 Sub-Agent execution comparison 转成可失败命令后，后续可以直接接入本地检查和 GitHub Actions。
 ```
+
+<!-- docs-update-2026-06-25-local-quality-gate-sub-agent -->
+
+## 2026-06-25 更新：本地 Quality Gate 接入 Sub-Agent Execution
+
+本阶段新增本地质量门禁入口：
+
+- 新增 `app/local_quality_gate.py`
+- 新增 `local-quality-gate` CLI
+- 默认执行 `uv run pytest -q`
+- 可选接入 Sub-Agent execution comparison
+- 任一检查失败时，命令退出码为 1
+
+默认本地质量门禁：
+
+```powershell
+uv run python -m app.cli local-quality-gate
+```
+
+接入 Sub-Agent execution comparison：
+
+```powershell
+uv run python -m app.cli local-quality-gate `
+  --sub-agent-execution-baseline data/traces/sub_agent_execution_baseline.jsonl `
+  --sub-agent-execution-candidate data/traces/sub_agent_execution_candidate.jsonl
+```
+
+只查看报告、不让命令失败：
+
+```powershell
+uv run python -m app.cli local-quality-gate `
+  --sub-agent-execution-baseline data/traces/sub_agent_execution_baseline.jsonl `
+  --sub-agent-execution-candidate data/traces/sub_agent_execution_candidate.jsonl `
+  --allow-fail
+```
+
+当前边界：
+
+```text
+本阶段只接入本地质量门禁。
+暂不修改 GitHub Actions。
+Sub-Agent execution trace 仍由调用方显式提供，不自动生成 baseline/candidate。
+```
