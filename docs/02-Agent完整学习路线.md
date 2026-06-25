@@ -1533,3 +1533,49 @@ review accepted 后还只是 draft，必须补全字段并通过 validation。
 
 - 做 Trace Replay / Feedback 阶段复盘文档。
 - 然后进入 Memory 阶段，做本地长期记忆的写入、检索、摘要和遗忘策略。
+
+<!-- roadmap-update-2026-06-25-task-memory-export -->
+
+## 2026-06-25 路线同步：Task Summary Memory Export 已完成
+
+本阶段新增完成能力：
+
+- [x] 从已完成 `DefenseTask` 提取 `summarize_training` 输出
+- [x] 将训练总结写入 `training_summaries`
+- [x] 将薄弱点写入 `weaknesses`
+- [x] 新增 `export-task-memory` CLI
+- [x] 保持显式导出，不在任务完成时自动污染长期记忆
+
+阶段链路：
+
+```text
+completed task
+-> summarize_training output
+-> summary / weaknesses
+-> long_term_memory.json
+-> chat / Agent memory injection
+```
+
+学到的关键点：
+
+```text
+长期记忆不是日志。
+不是所有任务输出都应该自动记住。
+训练任务完成后，需要由用户显式确认再沉淀进 memory。
+这样可以降低低质量总结、临时错误、调试样本污染长期上下文的风险。
+```
+
+当前 Memory 已完成：
+
+- [x] Profile Memory
+- [x] Weakness Memory
+- [x] Training Summary Memory
+- [x] Memory Retrieval
+- [x] Memory Pruning
+- [x] Chat Memory Injection
+- [x] Task Summary Memory Export
+
+下一步学习：
+
+- 做 Memory 阶段复盘文档。
+- 然后进入 Memory 质量治理：重复记忆检测、记忆压缩摘要、记忆命中审计。

@@ -1487,3 +1487,42 @@ uv run python -m app.cli export-validated-benchmark-draft `
 必须经过 feedback、candidate、human review、draft、validation。
 当前只完成本地学习版数据治理闭环，不接服务器和数据库。
 ```
+
+<!-- docs-update-2026-06-25-task-memory-export -->
+
+## 2026-06-25 更新：Task 训练总结沉淀到长期记忆
+
+本阶段新增显式任务记忆导出能力：
+
+```text
+completed DefenseTask
+-> summarize_training step
+-> summary / weaknesses
+-> long_term_memory.json
+```
+
+核心命令：
+
+```powershell
+uv run python -m app.cli export-task-memory `
+  --task-id <TASK_ID> `
+  --directory data/defense_tasks `
+  --memory-path data/long_term_memory.json
+```
+
+设计边界：
+
+```text
+只允许已完成任务导出。
+必须存在已完成的 summarize_training 步骤。
+不会在任务完成时自动写入 memory。
+采用显式命令沉淀，避免长期记忆被低质量内容污染。
+```
+
+该能力与已有 chat memory injection 形成闭环：
+
+```text
+训练任务总结
+-> 长期记忆
+-> 下一轮 chat / Agent 上下文检索
+```
