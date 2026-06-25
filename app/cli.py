@@ -108,6 +108,7 @@ from app.sub_agent_execution_trace import (
     load_sub_agent_execution_traces,
     summarize_sub_agent_execution_traces,
 )
+from app.local_quality_gate import run_local_quality_gate
 from app.feedback_store import (
     create_feedback_record,
     load_feedback_records,
@@ -1636,6 +1637,37 @@ def main():
             "Print the comparison report without failing the command "
             "when regressions are detected"
         ),
+    )
+
+    local_quality_gate_parser = subparsers.add_parser(
+        "local-quality-gate",
+        help="Run local offline quality gate checks",
+    )
+    local_quality_gate_parser.add_argument(
+        "--skip-pytest",
+        action="store_true",
+        help="Skip the pytest check",
+    )
+    local_quality_gate_parser.add_argument(
+        "--sub-agent-execution-baseline",
+        default=None,
+        help="Baseline Sub-Agent execution trace JSONL file",
+    )
+    local_quality_gate_parser.add_argument(
+        "--sub-agent-execution-candidate",
+        default=None,
+        help="Candidate Sub-Agent execution trace JSONL file",
+    )
+    local_quality_gate_parser.add_argument(
+        "--max-duration-ratio",
+        type=float,
+        default=2.0,
+        help="Maximum allowed candidate/baseline duration ratio",
+    )
+    local_quality_gate_parser.add_argument(
+        "--allow-fail",
+        action="store_true",
+        help="Print the gate report without failing the command",
     )
     
     args = parser.parse_args()
@@ -3577,6 +3609,34 @@ def main():
             ))
 
         if not report["passed"] and not args.allow_fail:
+            raise SystemExit(1)
+
+    elif args.command == "local-quality-gate":
+        try:
+            report = run_local_quality_gate(
+                run_pytest=not args.skip_pytest,
+                sub_agent_execution_baseline=(
+                    args.sub_agent_execution_baseline
+                ),
+                sub_agent_execution_candidate=(
+                    args.sub_agent_execution_candidate
+                ),
+                max_duration_ratio=args.max_duration_ratio,
+            )
+        except ValueError as error:
+            print(f"LOCAL QUALITY GATE ERROR: {error}")
+            raise SystemExit(1) from error
+
+        print("LOCAL QUALITY GATE")
+        print("PASSED:", report.passed)
+
+        for check in report.checks:
+            print("-" * 40)
+            print("CHECK:", check.name)
+            print("PASSED:", check.passed)
+            print("SUMMARY:", check.summary)
+
+        if not report.passed and not args.allow_fail:
             raise SystemExit(1)
 
     elif args.command == "show-task":

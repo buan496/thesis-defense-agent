@@ -1308,3 +1308,38 @@ Sub-Agent 的执行结果还需要从成功率、错误类型、输出结构和�
 
 - 将 Sub-Agent execution quality gate 接入本地 quality gate 脚本。
 - 暂不接 GitHub Actions，先保留本地可执行质量门禁。
+
+<!-- roadmap-update-2026-06-25-local-quality-gate-sub-agent -->
+
+## 2026-06-25 路线同步：本地 Quality Gate 接入 Sub-Agent Execution 已完成
+
+本阶段新增完成能力：
+
+- [x] 新增 `app/local_quality_gate.py`
+- [x] 新增 `local-quality-gate` CLI
+- [x] 默认支持本地 pytest 检查
+- [x] 可选接入 Sub-Agent execution comparison
+- [x] 任一检查失败时返回非 0 退出码
+- [x] 支持 `--allow-fail` 观察模式
+- [x] 新增本地 quality gate 测试
+
+学到的关键点：
+
+```text
+单个质量检查只是局部能力。
+本地 quality gate 是统一入口，用来把 pytest、评估回归、Sub-Agent execution comparison 等检查组合起来。
+统一入口的价值是：开发者和 CI 都能复用同一套门禁语义。
+```
+
+当前边界：
+
+```text
+暂不修改 GitHub Actions。
+暂不自动生成 Sub-Agent baseline/candidate trace。
+暂不把在线 LLM 评估放进本地默认门禁。
+```
+
+下一步学习：
+
+- 做 Sub-Agent execution baseline/candidate fixture。
+- 让本地 quality gate 可以在离线环境中稳定跑 Sub-Agent execution comparison。
