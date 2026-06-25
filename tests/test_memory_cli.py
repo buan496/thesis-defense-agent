@@ -281,6 +281,55 @@ def test_memory_prune_command_prunes_memory(
     assert memory["training_summaries"][0]["summary"] == "recent summary"
 
 
+def test_memory_prune_command_dry_run_does_not_modify_memory(
+    monkeypatch,
+    capsys,
+    tmp_path,
+):
+    memory_path = tmp_path / "memory.json"
+    original_memory = {
+        "profile": {},
+        "weaknesses": [
+            {"weakness": "old weakness"},
+            {"weakness": "recent weakness"},
+        ],
+        "training_summaries": [
+            {"summary": "old summary"},
+            {"summary": "recent summary"},
+        ],
+        "metadata": {},
+    }
+    memory_path.write_text(
+        json.dumps(original_memory, ensure_ascii=False),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "app.cli",
+            "memory-prune",
+            "--max-weaknesses",
+            "1",
+            "--max-summaries",
+            "1",
+            "--dry-run",
+            "--path",
+            str(memory_path),
+        ],
+    )
+
+    cli.main()
+
+    output = capsys.readouterr().out
+    saved_memory = json.loads(memory_path.read_text(encoding="utf-8"))
+
+    assert "MEMORY PRUNE DRY RUN" in output
+    assert "WEAKNESSES: 2 -> 1" in output
+    assert "SUMMARIES: 2 -> 1" in output
+    assert saved_memory == original_memory
+
+
 def test_memory_prune_command_rejects_negative_limits(
     monkeypatch,
     capsys,

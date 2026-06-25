@@ -1159,6 +1159,11 @@ def main():
         default=LONG_TERM_MEMORY_PATH,
         help="Long-term memory JSON path",
     )
+    memory_prune_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Preview prune result without writing memory file",
+    )
 
     memory_audit_parser = subparsers.add_parser(
         "memory-audit",
@@ -3025,12 +3030,18 @@ def main():
                 max_weaknesses=args.max_weaknesses,
                 max_summaries=args.max_summaries,
             )
-            memory_path = save_long_term_memory(memory, args.path)
+            if args.dry_run:
+                memory_path = args.path
+            else:
+                memory_path = save_long_term_memory(memory, args.path)
         except ValueError as error:
             print(f"MEMORY ERROR: {error}")
             raise SystemExit(1) from error
 
-        print("MEMORY PRUNED")
+        if args.dry_run:
+            print("MEMORY PRUNE DRY RUN")
+        else:
+            print("MEMORY PRUNED")
         print("PATH:", memory_path)
         print("WEAKNESSES:", before_weaknesses, "->", len(memory["weaknesses"]))
         print(
