@@ -1579,3 +1579,47 @@ completed task
 
 - 做 Memory 阶段复盘文档。
 - 然后进入 Memory 质量治理：重复记忆检测、记忆压缩摘要、记忆命中审计。
+
+<!-- roadmap-update-2026-06-25-memory-phase-summary -->
+
+## 2026-06-25 路线同步：Memory 阶段复盘已完成
+
+本阶段新增完成能力：
+
+- [x] 新增 `docs/08-Memory阶段复盘.md`
+- [x] 汇总 Profile Memory
+- [x] 汇总 Weakness Memory
+- [x] 汇总 Training Summary Memory
+- [x] 汇总 Memory Retrieval
+- [x] 汇总 Memory Pruning
+- [x] 汇总 Chat Memory Injection
+- [x] 汇总 Task Summary Memory Export
+
+阶段结论：
+
+```text
+Memory 不是聊天历史，也不是日志。
+Memory 是跨任务保留的长期上下文资产。
+它必须可控写入、可检索、可裁剪、可审计。
+```
+
+下一步学习：
+
+```text
+Memory 质量治理
+```
+
+短期顺序：
+
+- memory-audit
+- duplicate report
+- dry-run prune
+- hit audit
+- context report
+
+暂不进入：
+
+- 数据库 Memory
+- 向量化 Memory
+- 多用户 Memory
+- 服务器部署

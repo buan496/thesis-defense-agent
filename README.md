@@ -1526,3 +1526,41 @@ uv run python -m app.cli export-task-memory `
 -> 长期记忆
 -> 下一轮 chat / Agent 上下文检索
 ```
+
+<!-- docs-update-2026-06-25-memory-phase-summary -->
+
+## 2026-06-25 更新：Memory 阶段复盘
+
+新增阶段复盘文档：
+
+```text
+docs/08-Memory阶段复盘.md
+```
+
+该文档总结：
+
+- Profile Memory
+- Weakness Memory
+- Training Summary Memory
+- Memory Retrieval
+- Memory Pruning
+- Chat Memory Injection
+- Task Summary Memory Export
+
+阶段结论：
+
+```text
+Memory 不是聊天历史，也不是日志。
+Memory 是经过筛选、可检索、可裁剪、可显式沉淀的长期上下文资产。
+```
+
+下一阶段建议：
+
+```text
+Memory 质量治理
+-> memory audit
+-> duplicate report
+-> dry-run prune
+-> hit audit
+-> context report
+```
