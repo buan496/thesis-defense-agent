@@ -1441,3 +1441,43 @@ CI artifact 同时保存两种格式，可以兼顾自动化回归和人工排�
 
 - Sub-Agent 主线阶段性收尾。
 - 汇总当前 Sub-Agent Harness 能力边界，并决定是否进入 Memory 或 Trace Replay 下一阶段。
+
+<!-- roadmap-update-2026-06-25-sub-agent-phase-summary -->
+
+## 2026-06-25 路线同步：Sub-Agent 主线阶段性收尾已完成
+
+本阶段新增完成能力：
+
+- [x] 新增 `docs/07-Sub-Agent阶段复盘.md`
+- [x] 汇总 Sub-Agent Harness 已完成能力
+- [x] 明确当前 Sub-Agent 边界
+- [x] 明确后续未完成能力
+- [x] 明确下一阶段建议
+
+阶段结论：
+
+```text
+Sub-Agent 主线已经形成最小可审计 Harness：
+Spec -> Permission -> Plan -> Dry-Run -> Execute -> Trace -> Comparison -> Quality Gate -> CI Artifact
+```
+
+当前暂不推进：
+
+- 复杂多 Agent 协作
+- 并行 Sub-Agent
+- 自动任务拆解
+- LangGraph 覆盖式重构
+- 服务器部署
+
+下一阶段学习：
+
+- 进入 Trace Replay / Feedback 闭环。
+- 暂不继续扩展复杂多 Agent 协作。
+- 暂不进入服务器部署。
+
+边界说明：
+
+```text
+LangGraph 后续只做旁路迁移，不覆盖现有手写 Agent Harness。
+FastAPI、Docker、K8s、数据库、服务器部署放到另一台服务器笔记本学习。
+```
