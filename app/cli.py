@@ -66,6 +66,7 @@ from app.long_term_memory import (
     save_long_term_memory,
     update_memory_profile,
 )
+from app.memory_auditor import audit_long_term_memory
 from app.task_service import (
     complete_task_step,
     create_defense_task,
@@ -1153,6 +1154,17 @@ def main():
         help="Maximum training summaries to keep",
     )
     memory_prune_parser.add_argument(
+        "--path",
+        type=str,
+        default=LONG_TERM_MEMORY_PATH,
+        help="Long-term memory JSON path",
+    )
+
+    memory_audit_parser = subparsers.add_parser(
+        "memory-audit",
+        help="Audit local long-term memory quality without modifying it",
+    )
+    memory_audit_parser.add_argument(
         "--path",
         type=str,
         default=LONG_TERM_MEMORY_PATH,
@@ -3027,6 +3039,37 @@ def main():
             "->",
             len(memory["training_summaries"]),
         )
+
+    elif args.command == "memory-audit":
+        try:
+            memory = load_long_term_memory(args.path)
+            report = audit_long_term_memory(memory)
+        except ValueError as error:
+            print(f"MEMORY AUDIT ERROR: {error}")
+            raise SystemExit(1) from error
+
+        print("MEMORY AUDIT")
+        print("PATH:", args.path)
+        print("PASSED:", report["passed"])
+        print("PROFILE COUNT:", report["profile_count"])
+        print("WEAKNESS COUNT:", report["weakness_count"])
+        print("SUMMARY COUNT:", report["summary_count"])
+        print(
+            "DUPLICATE WEAKNESS COUNT:",
+            report["duplicate_weakness_count"],
+        )
+        print(
+            "DUPLICATE SUMMARY COUNT:",
+            report["duplicate_summary_count"],
+        )
+        print(
+            "EMPTY PROFILE FIELD COUNT:",
+            report["empty_profile_field_count"],
+        )
+        print("EMPTY WEAKNESS COUNT:", report["empty_weakness_count"])
+        print("EMPTY SUMMARY COUNT:", report["empty_summary_count"])
+        print("ISSUE COUNT:", report["issue_count"])
+        print("RECOMMENDATIONS:", report["recommendations"])
 
     elif args.command == "mock-defense":
         run_mock_defense(training_query=args.topic)

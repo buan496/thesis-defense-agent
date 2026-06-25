@@ -308,3 +308,91 @@ def test_memory_prune_command_rejects_negative_limits(
     output = capsys.readouterr().out
     assert "ARGUMENT ERROR" in output
     assert "--max-weaknesses" in output
+
+
+def test_memory_audit_command_outputs_clean_report(
+    monkeypatch,
+    capsys,
+    tmp_path,
+):
+    memory_path = tmp_path / "memory.json"
+    memory_path.write_text(
+        json.dumps(
+            {
+                "profile": {"thesis_direction": "bilingual ASR"},
+                "weaknesses": [{"weakness": "需要补充模块案例"}],
+                "training_summaries": [{"summary": "练习系统架构"}],
+                "metadata": {},
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "app.cli",
+            "memory-audit",
+            "--path",
+            str(memory_path),
+        ],
+    )
+
+    cli.main()
+
+    output = capsys.readouterr().out
+
+    assert "MEMORY AUDIT" in output
+    assert "PASSED: True" in output
+    assert "PROFILE COUNT: 1" in output
+    assert "WEAKNESS COUNT: 1" in output
+    assert "SUMMARY COUNT: 1" in output
+    assert "ISSUE COUNT: 0" in output
+
+
+def test_memory_audit_command_outputs_issue_report(
+    monkeypatch,
+    capsys,
+    tmp_path,
+):
+    memory_path = tmp_path / "memory.json"
+    memory_path.write_text(
+        json.dumps(
+            {
+                "profile": {"thesis_direction": ""},
+                "weaknesses": [
+                    {"weakness": "需要补充模块案例"},
+                    {"weakness": "需要补充模块案例"},
+                ],
+                "training_summaries": [
+                    {"summary": ""},
+                ],
+                "metadata": {},
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "app.cli",
+            "memory-audit",
+            "--path",
+            str(memory_path),
+        ],
+    )
+
+    cli.main()
+
+    output = capsys.readouterr().out
+
+    assert "MEMORY AUDIT" in output
+    assert "PASSED: False" in output
+    assert "DUPLICATE WEAKNESS COUNT: 1" in output
+    assert "EMPTY PROFILE FIELD COUNT: 1" in output
+    assert "EMPTY SUMMARY COUNT: 1" in output
+    assert "ISSUE COUNT: 3" in output
+    assert "Run memory-prune" in output
