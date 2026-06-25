@@ -1275,3 +1275,36 @@ uv run python -m app.cli local-quality-gate `
 暂不修改 GitHub Actions。
 Sub-Agent execution trace 仍由调用方显式提供，不自动生成 baseline/candidate。
 ```
+
+<!-- docs-update-2026-06-25-sub-agent-execution-fixtures -->
+
+## 2026-06-25 更新：Sub-Agent Execution 离线 Fixture
+
+本阶段新增稳定的 Sub-Agent execution comparison fixture：
+
+- `tests/fixtures/sub_agent_execution/baseline.jsonl`
+- `tests/fixtures/sub_agent_execution/candidate.jsonl`
+
+用途：
+
+```text
+在不调用真实工具、不访问在线 API 的情况下，验证 local-quality-gate 可以稳定执行 Sub-Agent execution comparison。
+```
+
+离线验证命令：
+
+```powershell
+uv run python -m app.cli local-quality-gate `
+  --skip-pytest `
+  --sub-agent-execution-baseline tests/fixtures/sub_agent_execution/baseline.jsonl `
+  --sub-agent-execution-candidate tests/fixtures/sub_agent_execution/candidate.jsonl
+```
+
+预期结果：
+
+```text
+LOCAL QUALITY GATE
+PASSED: True
+CHECK: sub_agent_execution_comparison
+PASSED: True
+```

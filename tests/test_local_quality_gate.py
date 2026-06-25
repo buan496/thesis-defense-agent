@@ -1,4 +1,5 @@
 import pytest
+from pathlib import Path
 
 from app import cli
 from app.local_quality_gate import (
@@ -109,6 +110,21 @@ def test_run_local_quality_gate_with_sub_agent_execution_comparison(
     assert report.passed is True
     assert len(report.checks) == 1
     assert report.checks[0].name == "sub_agent_execution_comparison"
+
+
+def test_run_local_quality_gate_with_sub_agent_execution_fixtures():
+    fixture_dir = Path("tests/fixtures/sub_agent_execution")
+
+    report = run_local_quality_gate(
+        run_pytest=False,
+        sub_agent_execution_baseline=str(fixture_dir / "baseline.jsonl"),
+        sub_agent_execution_candidate=str(fixture_dir / "candidate.jsonl"),
+    )
+
+    assert report.passed is True
+    assert len(report.checks) == 1
+    assert report.checks[0].name == "sub_agent_execution_comparison"
+    assert report.checks[0].details["stable_count"] == 1
 
 
 def test_run_local_quality_gate_fails_on_sub_agent_regression(
