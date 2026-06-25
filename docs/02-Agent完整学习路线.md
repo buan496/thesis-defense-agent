@@ -1623,3 +1623,52 @@ Memory 质量治理
 - 向量化 Memory
 - 多用户 Memory
 - 服务器部署
+
+<!-- roadmap-update-2026-06-25-memory-quality-governance -->
+
+## 2026-06-25 路线同步：Memory 质量治理已完成
+
+本阶段新增完成能力：
+
+- [x] `memory-audit`
+- [x] duplicate weakness / summary 检测
+- [x] empty profile / weakness / summary 检测
+- [x] `memory-prune --dry-run`
+- [x] `memory-hit-audit`
+- [x] `memory-context-report`
+- [x] Memory 相关 CLI 测试
+- [x] 全量测试通过
+
+阶段链路：
+
+```text
+long_term_memory.json
+-> memory-audit
+-> memory-prune --dry-run
+-> memory-hit-audit
+-> memory-context-report
+```
+
+学到的关键点：
+
+```text
+Memory 质量治理必须先只读审计，再预览修改，最后才允许写入。
+长期记忆注入前必须能解释命中了哪些记忆，以及最终注入了什么上下文。
+```
+
+当前 Memory 主线已完成：
+
+- [x] 写入
+- [x] 检索
+- [x] 注入
+- [x] 裁剪
+- [x] 任务总结沉淀
+- [x] 质量审计
+- [x] dry-run
+- [x] 命中审计
+- [x] context report
+
+下一步学习：
+
+- 将 `feat/memory-audit` 推送并合并。
+- 合并后进入 LangGraph 旁路迁移前整理，保留现有手写 Agent Harness 作为学习对照。

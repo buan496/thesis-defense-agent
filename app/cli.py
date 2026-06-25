@@ -66,6 +66,11 @@ from app.long_term_memory import (
     save_long_term_memory,
     update_memory_profile,
 )
+from app.memory_auditor import (
+    audit_long_term_memory,
+    audit_memory_hits,
+    build_memory_context_report,
+)
 from app.task_service import (
     complete_task_step,
     create_defense_task,
@@ -1158,7 +1163,80 @@ def main():
         default=LONG_TERM_MEMORY_PATH,
         help="Long-term memory JSON path",
     )
-    
+    memory_prune_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Preview prune result without writing memory file",
+    )
+
+    memory_audit_parser = subparsers.add_parser(
+        "memory-audit",
+        help="Audit local long-term memory quality without modifying it",
+    )
+    memory_audit_parser.add_argument(
+        "--path",
+        type=str,
+        default=LONG_TERM_MEMORY_PATH,
+        help="Long-term memory JSON path",
+    )
+
+    memory_hit_audit_parser = subparsers.add_parser(
+        "memory-hit-audit",
+        help="Show which long-term memory items match a query",
+    )
+    memory_hit_audit_parser.add_argument(
+        "--query",
+        required=True,
+        help="Query used to select memory items",
+    )
+    memory_hit_audit_parser.add_argument(
+        "--max-weaknesses",
+        type=int,
+        default=5,
+        help="Maximum weakness hits to show",
+    )
+    memory_hit_audit_parser.add_argument(
+        "--max-summaries",
+        type=int,
+        default=3,
+        help="Maximum summary hits to show",
+    )
+    memory_hit_audit_parser.add_argument(
+        "--path",
+        type=str,
+        default=LONG_TERM_MEMORY_PATH,
+        help="Long-term memory JSON path",
+    )
+
+    memory_context_report_parser = subparsers.add_parser(
+        "memory-context-report",
+        help="Show final long-term memory context injected into Agent prompts",
+    )
+    memory_context_report_parser.add_argument(
+        "--query",
+        type=str,
+        default=None,
+        help="Optional query used to select relevant memory items",
+    )
+    memory_context_report_parser.add_argument(
+        "--max-weaknesses",
+        type=int,
+        default=5,
+        help="Maximum weaknesses included in context",
+    )
+    memory_context_report_parser.add_argument(
+        "--max-summaries",
+        type=int,
+        default=3,
+        help="Maximum summaries included in context",
+    )
+    memory_context_report_parser.add_argument(
+        "--path",
+        type=str,
+        default=LONG_TERM_MEMORY_PATH,
+        help="Long-term memory JSON path",
+    )
+      
     mock_parser = subparsers.add_parser("mock-defense")
     mock_parser.add_argument(
         "--topic",
@@ -3013,12 +3091,18 @@ def main():
                 max_weaknesses=args.max_weaknesses,
                 max_summaries=args.max_summaries,
             )
-            memory_path = save_long_term_memory(memory, args.path)
+            if args.dry_run:
+                memory_path = args.path
+            else:
+                memory_path = save_long_term_memory(memory, args.path)
         except ValueError as error:
             print(f"MEMORY ERROR: {error}")
             raise SystemExit(1) from error
 
-        print("MEMORY PRUNED")
+        if args.dry_run:
+            print("MEMORY PRUNE DRY RUN")
+        else:
+            print("MEMORY PRUNED")
         print("PATH:", memory_path)
         print("WEAKNESSES:", before_weaknesses, "->", len(memory["weaknesses"]))
         print(
@@ -3027,6 +3111,97 @@ def main():
             "->",
             len(memory["training_summaries"]),
         )
+
+    elif args.command == "memory-audit":
+        try:
+            memory = load_long_term_memory(args.path)
+            report = audit_long_term_memory(memory)
+        except ValueError as error:
+            print(f"MEMORY AUDIT ERROR: {error}")
+            raise SystemExit(1) from error
+
+        print("MEMORY AUDIT")
+        print("PATH:", args.path)
+        print("PASSED:", report["passed"])
+        print("PROFILE COUNT:", report["profile_count"])
+        print("WEAKNESS COUNT:", report["weakness_count"])
+        print("SUMMARY COUNT:", report["summary_count"])
+        print(
+            "DUPLICATE WEAKNESS COUNT:",
+            report["duplicate_weakness_count"],
+        )
+        print(
+            "DUPLICATE SUMMARY COUNT:",
+            report["duplicate_summary_count"],
+        )
+        print(
+            "EMPTY PROFILE FIELD COUNT:",
+            report["empty_profile_field_count"],
+        )
+        print("EMPTY WEAKNESS COUNT:", report["empty_weakness_count"])
+        print("EMPTY SUMMARY COUNT:", report["empty_summary_count"])
+        print("ISSUE COUNT:", report["issue_count"])
+        print("RECOMMENDATIONS:", report["recommendations"])
+
+    elif args.command == "memory-hit-audit":
+        try:
+            memory = load_long_term_memory(args.path)
+            report = audit_memory_hits(
+                memory,
+                query=args.query,
+                max_weaknesses=args.max_weaknesses,
+                max_summaries=args.max_summaries,
+            )
+        except ValueError as error:
+            print(f"MEMORY HIT AUDIT ERROR: {error}")
+            raise SystemExit(1) from error
+
+        print("MEMORY HIT AUDIT")
+        print("PATH:", args.path)
+        print("QUERY:", report["query"])
+        print("WEAKNESS HIT COUNT:", report["weakness_hit_count"])
+        print("SUMMARY HIT COUNT:", report["summary_hit_count"])
+        print("WEAKNESS HITS:")
+
+        for hit in report["weakness_hits"]:
+            print(
+                f"  INDEX: {hit['index']} "
+                f"SCORE: {hit['score']} "
+                f"TEXT: {hit['text']}"
+            )
+
+        print("SUMMARY HITS:")
+
+        for hit in report["summary_hits"]:
+            print(
+                f"  INDEX: {hit['index']} "
+                f"SCORE: {hit['score']} "
+                f"TEXT: {hit['text']}"
+            )
+
+    elif args.command == "memory-context-report":
+        try:
+            memory = load_long_term_memory(args.path)
+            report = build_memory_context_report(
+                memory,
+                query=args.query,
+                max_weaknesses=args.max_weaknesses,
+                max_summaries=args.max_summaries,
+            )
+        except ValueError as error:
+            print(f"MEMORY CONTEXT REPORT ERROR: {error}")
+            raise SystemExit(1) from error
+
+        print("MEMORY CONTEXT REPORT")
+        print("PATH:", args.path)
+        print("QUERY:", report["query"])
+        print("MAX WEAKNESSES:", report["max_weaknesses"])
+        print("MAX SUMMARIES:", report["max_summaries"])
+        print("IS EMPTY:", report["is_empty"])
+        print("CHARACTERS:", report["context_character_count"])
+        print("LINES:", report["line_count"])
+        print("CONTEXT:")
+        print(report["context"] or "<empty>")
 
     elif args.command == "mock-defense":
         run_mock_defense(training_query=args.topic)

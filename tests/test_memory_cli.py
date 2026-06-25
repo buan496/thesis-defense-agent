@@ -281,6 +281,55 @@ def test_memory_prune_command_prunes_memory(
     assert memory["training_summaries"][0]["summary"] == "recent summary"
 
 
+def test_memory_prune_command_dry_run_does_not_modify_memory(
+    monkeypatch,
+    capsys,
+    tmp_path,
+):
+    memory_path = tmp_path / "memory.json"
+    original_memory = {
+        "profile": {},
+        "weaknesses": [
+            {"weakness": "old weakness"},
+            {"weakness": "recent weakness"},
+        ],
+        "training_summaries": [
+            {"summary": "old summary"},
+            {"summary": "recent summary"},
+        ],
+        "metadata": {},
+    }
+    memory_path.write_text(
+        json.dumps(original_memory, ensure_ascii=False),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "app.cli",
+            "memory-prune",
+            "--max-weaknesses",
+            "1",
+            "--max-summaries",
+            "1",
+            "--dry-run",
+            "--path",
+            str(memory_path),
+        ],
+    )
+
+    cli.main()
+
+    output = capsys.readouterr().out
+    saved_memory = json.loads(memory_path.read_text(encoding="utf-8"))
+
+    assert "MEMORY PRUNE DRY RUN" in output
+    assert "WEAKNESSES: 2 -> 1" in output
+    assert "SUMMARIES: 2 -> 1" in output
+    assert saved_memory == original_memory
+
+
 def test_memory_prune_command_rejects_negative_limits(
     monkeypatch,
     capsys,
@@ -308,3 +357,290 @@ def test_memory_prune_command_rejects_negative_limits(
     output = capsys.readouterr().out
     assert "ARGUMENT ERROR" in output
     assert "--max-weaknesses" in output
+
+
+def test_memory_audit_command_outputs_clean_report(
+    monkeypatch,
+    capsys,
+    tmp_path,
+):
+    memory_path = tmp_path / "memory.json"
+    memory_path.write_text(
+        json.dumps(
+            {
+                "profile": {"thesis_direction": "bilingual ASR"},
+                "weaknesses": [{"weakness": "需要补充模块案例"}],
+                "training_summaries": [{"summary": "练习系统架构"}],
+                "metadata": {},
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "app.cli",
+            "memory-audit",
+            "--path",
+            str(memory_path),
+        ],
+    )
+
+    cli.main()
+
+    output = capsys.readouterr().out
+
+    assert "MEMORY AUDIT" in output
+    assert "PASSED: True" in output
+    assert "PROFILE COUNT: 1" in output
+    assert "WEAKNESS COUNT: 1" in output
+    assert "SUMMARY COUNT: 1" in output
+    assert "ISSUE COUNT: 0" in output
+
+
+def test_memory_audit_command_outputs_issue_report(
+    monkeypatch,
+    capsys,
+    tmp_path,
+):
+    memory_path = tmp_path / "memory.json"
+    memory_path.write_text(
+        json.dumps(
+            {
+                "profile": {"thesis_direction": ""},
+                "weaknesses": [
+                    {"weakness": "需要补充模块案例"},
+                    {"weakness": "需要补充模块案例"},
+                ],
+                "training_summaries": [
+                    {"summary": ""},
+                ],
+                "metadata": {},
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "app.cli",
+            "memory-audit",
+            "--path",
+            str(memory_path),
+        ],
+    )
+
+    cli.main()
+
+    output = capsys.readouterr().out
+
+    assert "MEMORY AUDIT" in output
+    assert "PASSED: False" in output
+    assert "DUPLICATE WEAKNESS COUNT: 1" in output
+    assert "EMPTY PROFILE FIELD COUNT: 1" in output
+    assert "EMPTY SUMMARY COUNT: 1" in output
+    assert "ISSUE COUNT: 3" in output
+    assert "Run memory-prune" in output
+
+
+def test_memory_hit_audit_command_outputs_matching_items(
+    monkeypatch,
+    capsys,
+    tmp_path,
+):
+    memory_path = tmp_path / "memory.json"
+    memory_path.write_text(
+        json.dumps(
+            {
+                "profile": {},
+                "weaknesses": [
+                    {"weakness": "回答缺少实验指标"},
+                    {"weakness": "系统架构回答缺少模块案例"},
+                ],
+                "training_summaries": [
+                    {
+                        "topic": "实验验证",
+                        "summary": "下一轮练习指标设计。",
+                    },
+                    {
+                        "topic": "系统架构",
+                        "summary": "下一轮练习模块边界。",
+                    },
+                ],
+                "metadata": {},
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "app.cli",
+            "memory-hit-audit",
+            "--query",
+            "系统架构",
+            "--max-weaknesses",
+            "1",
+            "--max-summaries",
+            "1",
+            "--path",
+            str(memory_path),
+        ],
+    )
+
+    cli.main()
+
+    output = capsys.readouterr().out
+
+    assert "MEMORY HIT AUDIT" in output
+    assert "QUERY: 系统架构" in output
+    assert "WEAKNESS HIT COUNT: 1" in output
+    assert "SUMMARY HIT COUNT: 1" in output
+    assert "TEXT: 系统架构回答缺少模块案例" in output
+    assert "TEXT: 下一轮练习模块边界。" in output
+
+
+def test_memory_hit_audit_command_reports_invalid_query(
+    monkeypatch,
+    capsys,
+    tmp_path,
+):
+    memory_path = tmp_path / "memory.json"
+    memory_path.write_text(
+        json.dumps(
+            {
+                "profile": {},
+                "weaknesses": [],
+                "training_summaries": [],
+                "metadata": {},
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "app.cli",
+            "memory-hit-audit",
+            "--query",
+            " ",
+            "--path",
+            str(memory_path),
+        ],
+    )
+
+    try:
+        cli.main()
+    except SystemExit as error:
+        assert error.code == 1
+    else:
+        raise AssertionError("empty memory hit query should fail")
+
+    output = capsys.readouterr().out
+    assert "MEMORY HIT AUDIT ERROR" in output
+    assert "query must not be empty" in output
+
+
+def test_memory_context_report_command_outputs_injected_context(
+    monkeypatch,
+    capsys,
+    tmp_path,
+):
+    memory_path = tmp_path / "memory.json"
+    memory_path.write_text(
+        json.dumps(
+            {
+                "profile": {
+                    "thesis_direction": "bilingual ASR",
+                },
+                "weaknesses": [
+                    {"weakness": "回答缺少实验指标"},
+                    {"weakness": "系统架构回答缺少模块案例"},
+                ],
+                "training_summaries": [
+                    {
+                        "topic": "系统架构",
+                        "summary": "下一轮练习模块边界。",
+                    },
+                ],
+                "metadata": {},
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "app.cli",
+            "memory-context-report",
+            "--query",
+            "系统架构",
+            "--max-weaknesses",
+            "1",
+            "--max-summaries",
+            "1",
+            "--path",
+            str(memory_path),
+        ],
+    )
+
+    cli.main()
+
+    output = capsys.readouterr().out
+
+    assert "MEMORY CONTEXT REPORT" in output
+    assert "QUERY: 系统架构" in output
+    assert "IS EMPTY: False" in output
+    assert "CONTEXT:" in output
+    assert "Long-term memory:" in output
+    assert "- thesis_direction: bilingual ASR" in output
+    assert "系统架构回答缺少模块案例" in output
+    assert "回答缺少实验指标" not in output
+
+
+def test_memory_context_report_command_outputs_empty_context(
+    monkeypatch,
+    capsys,
+    tmp_path,
+):
+    memory_path = tmp_path / "memory.json"
+    memory_path.write_text(
+        json.dumps(
+            {
+                "profile": {},
+                "weaknesses": [],
+                "training_summaries": [],
+                "metadata": {},
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "app.cli",
+            "memory-context-report",
+            "--path",
+            str(memory_path),
+        ],
+    )
+
+    cli.main()
+
+    output = capsys.readouterr().out
+
+    assert "MEMORY CONTEXT REPORT" in output
+    assert "IS EMPTY: True" in output
+    assert "<empty>" in output
