@@ -1160,3 +1160,40 @@ uv run python -m app.cli analyze-sub-agent-executions
 不做并行。
 不替换现有 app/agent.py 或 app/task_* 工作流。
 ```
+
+<!-- docs-update-2026-06-25-sub-agent-execution-comparison -->
+
+## 2026-06-25 更新：Sub-Agent Execution Replay / Comparison
+
+本阶段新增 Sub-Agent 执行级回归对比能力：
+
+- 新增 `app/sub_agent_execution_comparator.py`
+- 新增 `compare_sub_agent_execution_records()`
+- 新增 `compare-sub-agent-executions` CLI
+- 支持比较两份 Sub-Agent execution trace
+- 支持检测执行新增、删除、成功状态变化、错误类型变化、结果结构变化和耗时退化
+
+对比两份 execution trace：
+
+```powershell
+uv run python -m app.cli compare-sub-agent-executions `
+  --baseline data/traces/sub_agent_execution_baseline.jsonl `
+  --candidate data/traces/sub_agent_execution_candidate.jsonl
+```
+
+设置耗时退化阈值：
+
+```powershell
+uv run python -m app.cli compare-sub-agent-executions `
+  --baseline data/traces/sub_agent_execution_baseline.jsonl `
+  --candidate data/traces/sub_agent_execution_candidate.jsonl `
+  --max-duration-ratio 2.0
+```
+
+当前比较策略：
+
+```text
+以 sub_agent_name + tool_name + tool_arguments 作为执行身份。
+比较 success、result JSON 是否有效、result JSON key 集合、error_type。
+当 candidate duration 超过 baseline duration 的指定倍数时，标记为耗时退化。
+```

@@ -101,6 +101,9 @@ from app.sub_agent_plan_trace import (
 from app.sub_agent_dry_run import dry_run_sub_agent_tool_call
 from app.sub_agent_plan_comparator import compare_sub_agent_plan_records
 from app.sub_agent_executor import execute_sub_agent_tool_call
+from app.sub_agent_execution_comparator import (
+    compare_sub_agent_execution_records,
+)
 from app.sub_agent_execution_trace import (
     load_sub_agent_execution_traces,
     summarize_sub_agent_execution_traces,
@@ -1604,6 +1607,27 @@ def main():
         "--file",
         default=SUB_AGENT_EXECUTION_TRACE_PATH,
         help="Sub-Agent execution trace JSONL file path",
+    )
+
+    compare_sub_agent_executions_parser = subparsers.add_parser(
+        "compare-sub-agent-executions",
+        help="Compare two Sub-Agent execution trace JSONL files",
+    )
+    compare_sub_agent_executions_parser.add_argument(
+        "--baseline",
+        required=True,
+        help="Baseline Sub-Agent execution trace JSONL file",
+    )
+    compare_sub_agent_executions_parser.add_argument(
+        "--candidate",
+        required=True,
+        help="Candidate Sub-Agent execution trace JSONL file",
+    )
+    compare_sub_agent_executions_parser.add_argument(
+        "--max-duration-ratio",
+        type=float,
+        default=2.0,
+        help="Maximum allowed candidate/baseline duration ratio",
     )
     
     args = parser.parse_args()
@@ -3487,6 +3511,62 @@ def main():
         print("FAILED:", summary["failed"])
         print("BY_SUB_AGENT:", summary["by_sub_agent"])
         print("BY_TOOL:", summary["by_tool"])
+
+    elif args.command == "compare-sub-agent-executions":
+        try:
+            baseline_records = load_sub_agent_execution_traces(
+                args.baseline
+            )
+            candidate_records = load_sub_agent_execution_traces(
+                args.candidate
+            )
+            report = compare_sub_agent_execution_records(
+                baseline_records=baseline_records,
+                candidate_records=candidate_records,
+                max_duration_ratio=args.max_duration_ratio,
+            )
+        except ValueError as error:
+            print(f"SUB-AGENT EXECUTION COMPARISON ERROR: {error}")
+            raise SystemExit(1) from error
+
+        print("SUB-AGENT EXECUTION COMPARISON")
+        print("BASELINE:", args.baseline)
+        print("CANDIDATE:", args.candidate)
+        print("BASELINE COUNT:", report["baseline_count"])
+        print("CANDIDATE COUNT:", report["candidate_count"])
+        print("ADDED:", report["added_count"])
+        print("REMOVED:", report["removed_count"])
+        print("CHANGED:", report["changed_count"])
+        print(
+            "DURATION REGRESSIONS:",
+            report["duration_regression_count"],
+        )
+        print("STABLE:", report["stable_count"])
+        print("PASSED:", report["passed"])
+
+        if report["added"]:
+            print("ADDED ITEMS:", json.dumps(
+                report["added"],
+                ensure_ascii=False,
+            ))
+
+        if report["removed"]:
+            print("REMOVED ITEMS:", json.dumps(
+                report["removed"],
+                ensure_ascii=False,
+            ))
+
+        if report["changed"]:
+            print("CHANGED ITEMS:", json.dumps(
+                report["changed"],
+                ensure_ascii=False,
+            ))
+
+        if report["duration_regressions"]:
+            print("DURATION REGRESSION ITEMS:", json.dumps(
+                report["duration_regressions"],
+                ensure_ascii=False,
+            ))
 
     elif args.command == "show-task":
         task = get_defense_task(
