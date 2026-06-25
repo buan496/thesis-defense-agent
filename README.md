@@ -1308,3 +1308,40 @@ PASSED: True
 CHECK: sub_agent_execution_comparison
 PASSED: True
 ```
+
+<!-- docs-update-2026-06-25-ci-local-quality-gate -->
+
+## 2026-06-25 更新：CI 接入本地 Quality Gate
+
+CI 的离线质量门禁现在包含 Sub-Agent execution comparison：
+
+```text
+pytest
+offline regression quality gate
+Sub-Agent execution quality gate
+```
+
+GitHub Actions 使用离线 fixture：
+
+```text
+tests/fixtures/sub_agent_execution/baseline.jsonl
+tests/fixtures/sub_agent_execution/candidate.jsonl
+```
+
+CI 执行命令：
+
+```bash
+uv run --frozen python -m app.cli local-quality-gate \
+  --skip-pytest \
+  --sub-agent-execution-baseline tests/fixtures/sub_agent_execution/baseline.jsonl \
+  --sub-agent-execution-candidate tests/fixtures/sub_agent_execution/candidate.jsonl
+```
+
+边界：
+
+```text
+CI 只使用离线 fixture。
+CI 不执行真实 Sub-Agent 工具。
+CI 不调用在线 LLM/API。
+online-evaluation workflow 保持不变。
+```

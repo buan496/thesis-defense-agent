@@ -53,6 +53,15 @@ jobs:
             --output data/reports/offline_regression.json \
             --markdown-output data/reports/offline_regression.md
 
+      - name: Run Sub-Agent execution quality gate
+        run: |
+          baseline="tests/fixtures/sub_agent_execution/baseline.jsonl"
+          candidate="tests/fixtures/sub_agent_execution/candidate.jsonl"
+          uv run --frozen python -m app.cli local-quality-gate \
+            --skip-pytest \
+            --sub-agent-execution-baseline "$baseline" \
+            --sub-agent-execution-candidate "$candidate"
+
       - name: Upload CI reports
         if: always()
         uses: actions/upload-artifact@v7
