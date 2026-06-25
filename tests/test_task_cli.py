@@ -741,3 +741,89 @@ def test_export_task_markdown_command(
     assert "论文答辩训练报告" in output_path.read_text(
         encoding="utf-8",
     )
+
+
+def test_export_task_memory_command(
+    monkeypatch,
+    capsys,
+    tmp_path,
+):
+    task = DefenseTask(topic="系统架构", task_id="task-001")
+    step = TaskStep(step_type="summarize_training")
+    step.mark_completed(
+        output={
+            "summary": "本轮训练完成，下一轮需要补充模块案例。",
+            "weaknesses": ["回答缺少具体模块案例"],
+        }
+    )
+    task.add_step(step)
+    task.mark_completed()
+
+    from app.task_store import save_defense_task
+
+    save_defense_task(task, directory=tmp_path)
+
+    memory_path = tmp_path / "memory.json"
+
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "app.cli",
+            "export-task-memory",
+            "--task-id",
+            "task-001",
+            "--directory",
+            str(tmp_path),
+            "--memory-path",
+            str(memory_path),
+        ],
+    )
+
+    cli.main()
+    output = capsys.readouterr().out
+
+    assert "TASK MEMORY EXPORTED" in output
+    assert "TASK ID: task-001" in output
+    assert "TOPIC: 系统架构" in output
+    assert f"MEMORY PATH: {memory_path}" in output
+    assert "SUMMARY EXPORTED: True" in output
+    assert "WEAKNESS COUNT: 1" in output
+    assert "WEAKNESS: 回答缺少具体模块案例" in output
+
+
+def test_export_task_memory_command_reports_task_error(
+    monkeypatch,
+    capsys,
+    tmp_path,
+):
+    task = DefenseTask(topic="系统架构", task_id="task-001")
+
+    from app.task_store import save_defense_task
+
+    save_defense_task(task, directory=tmp_path)
+
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "app.cli",
+            "export-task-memory",
+            "--task-id",
+            "task-001",
+            "--directory",
+            str(tmp_path),
+            "--memory-path",
+            str(tmp_path / "memory.json"),
+        ],
+    )
+
+    try:
+        cli.main()
+    except SystemExit as error:
+        assert error.code == 1
+    else:
+        raise AssertionError("未完成任务导出记忆应该让 CLI 以状态码 1 退出")
+
+    output = capsys.readouterr().out
+
+    assert "TASK MEMORY EXPORT ERROR" in output
+    assert "only completed tasks" in output

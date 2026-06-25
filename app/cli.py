@@ -78,6 +78,7 @@ from app.task_service import (
 from app.task_resume import get_resumable_task_status
 from app.task_trace_analyzer import analyze_task_trace
 from app.task_markdown_exporter import export_task_markdown_report
+from app.task_memory_exporter import export_task_to_long_term_memory
 from app.task_store import DEFAULT_TASK_DIRECTORY
 from app.langgraph_workflow.demo_task import run_demo_task
 from app.langgraph_workflow.interrupt_demo import (
@@ -1334,6 +1335,28 @@ def main():
         type=str,
         default=None,
         help="Markdown output path",
+    )
+
+    export_task_memory_parser = subparsers.add_parser(
+        "export-task-memory",
+        help="Export a completed task summary into long-term memory",
+    )
+    export_task_memory_parser.add_argument(
+        "--task-id",
+        required=True,
+        help="Defense task ID",
+    )
+    export_task_memory_parser.add_argument(
+        "--directory",
+        type=str,
+        default=str(DEFAULT_TASK_DIRECTORY),
+        help="Directory used to store defense task JSON files",
+    )
+    export_task_memory_parser.add_argument(
+        "--memory-path",
+        type=str,
+        default=LONG_TERM_MEMORY_PATH,
+        help="Long-term memory JSON path",
     )
 
     show_task_parser = subparsers.add_parser(
@@ -3219,6 +3242,30 @@ def main():
         print(f"TASK ID: {task.task_id}")
         print(f"STATUS: {task.status}")
         print(f"REPORT: {report_path}")
+
+    elif args.command == "export-task-memory":
+        try:
+            task = get_defense_task(
+                task_id=args.task_id,
+                directory=args.directory,
+            )
+            report = export_task_to_long_term_memory(
+                task=task,
+                memory_path=args.memory_path,
+            )
+        except (FileNotFoundError, ValueError) as error:
+            print(f"TASK MEMORY EXPORT ERROR: {error}")
+            raise SystemExit(1) from error
+
+        print("TASK MEMORY EXPORTED")
+        print(f"TASK ID: {report['task_id']}")
+        print(f"TOPIC: {report['topic']}")
+        print(f"MEMORY PATH: {report['memory_path']}")
+        print(f"SUMMARY EXPORTED: {report['summary_exported']}")
+        print(f"WEAKNESS COUNT: {report['weakness_count']}")
+
+        for weakness in report["weaknesses"]:
+            print(f"WEAKNESS: {weakness}")
 
     elif args.command == "graph-demo-task":
         top_k = args.top_k if args.top_k is not None else RAG_TOP_K
