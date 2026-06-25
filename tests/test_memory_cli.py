@@ -445,3 +445,105 @@ def test_memory_audit_command_outputs_issue_report(
     assert "EMPTY SUMMARY COUNT: 1" in output
     assert "ISSUE COUNT: 3" in output
     assert "Run memory-prune" in output
+
+
+def test_memory_hit_audit_command_outputs_matching_items(
+    monkeypatch,
+    capsys,
+    tmp_path,
+):
+    memory_path = tmp_path / "memory.json"
+    memory_path.write_text(
+        json.dumps(
+            {
+                "profile": {},
+                "weaknesses": [
+                    {"weakness": "回答缺少实验指标"},
+                    {"weakness": "系统架构回答缺少模块案例"},
+                ],
+                "training_summaries": [
+                    {
+                        "topic": "实验验证",
+                        "summary": "下一轮练习指标设计。",
+                    },
+                    {
+                        "topic": "系统架构",
+                        "summary": "下一轮练习模块边界。",
+                    },
+                ],
+                "metadata": {},
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "app.cli",
+            "memory-hit-audit",
+            "--query",
+            "系统架构",
+            "--max-weaknesses",
+            "1",
+            "--max-summaries",
+            "1",
+            "--path",
+            str(memory_path),
+        ],
+    )
+
+    cli.main()
+
+    output = capsys.readouterr().out
+
+    assert "MEMORY HIT AUDIT" in output
+    assert "QUERY: 系统架构" in output
+    assert "WEAKNESS HIT COUNT: 1" in output
+    assert "SUMMARY HIT COUNT: 1" in output
+    assert "TEXT: 系统架构回答缺少模块案例" in output
+    assert "TEXT: 下一轮练习模块边界。" in output
+
+
+def test_memory_hit_audit_command_reports_invalid_query(
+    monkeypatch,
+    capsys,
+    tmp_path,
+):
+    memory_path = tmp_path / "memory.json"
+    memory_path.write_text(
+        json.dumps(
+            {
+                "profile": {},
+                "weaknesses": [],
+                "training_summaries": [],
+                "metadata": {},
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "app.cli",
+            "memory-hit-audit",
+            "--query",
+            " ",
+            "--path",
+            str(memory_path),
+        ],
+    )
+
+    try:
+        cli.main()
+    except SystemExit as error:
+        assert error.code == 1
+    else:
+        raise AssertionError("empty memory hit query should fail")
+
+    output = capsys.readouterr().out
+    assert "MEMORY HIT AUDIT ERROR" in output
+    assert "query must not be empty" in output

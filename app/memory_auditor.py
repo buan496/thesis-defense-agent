@@ -1,6 +1,7 @@
 from typing import Any
 
 from app.long_term_memory import (
+    calculate_memory_relevance_score,
     normalize_memory_text,
     validate_long_term_memory,
 )
@@ -159,3 +160,89 @@ def build_memory_audit_recommendations(
         )
 
     return recommendations
+
+
+def audit_memory_hits(
+    memory: dict[str, Any],
+    query: str,
+    max_weaknesses: int = 5,
+    max_summaries: int = 3,
+) -> dict[str, Any]:
+    validate_long_term_memory(memory)
+
+    if not query.strip():
+        raise ValueError("query must not be empty")
+
+    if max_weaknesses < 0:
+        raise ValueError("max_weaknesses must be greater than or equal to 0")
+
+    if max_summaries < 0:
+        raise ValueError("max_summaries must be greater than or equal to 0")
+
+    weakness_hits = rank_memory_hits(
+        items=memory["weaknesses"],
+        query=query,
+        max_items=max_weaknesses,
+        key_name="weakness",
+    )
+    summary_hits = rank_memory_hits(
+        items=memory["training_summaries"],
+        query=query,
+        max_items=max_summaries,
+        key_name="summary",
+        prefix_key="topic",
+    )
+
+    return {
+        "query": query,
+        "weakness_hit_count": len(weakness_hits),
+        "summary_hit_count": len(summary_hits),
+        "weakness_hits": weakness_hits,
+        "summary_hits": summary_hits,
+    }
+
+
+def rank_memory_hits(
+    items: list[dict[str, Any]],
+    query: str,
+    max_items: int,
+    key_name: str,
+    prefix_key: str | None = None,
+) -> list[dict[str, Any]]:
+    if max_items == 0:
+        return []
+
+    scored_hits = []
+
+    for index, item in enumerate(items):
+        text = item.get(key_name, "")
+
+        if prefix_key is not None:
+            text_for_scoring = f"{item.get(prefix_key, '')} {text}"
+        else:
+            text_for_scoring = str(text)
+
+        score = calculate_memory_relevance_score(
+            query=query,
+            text=text_for_scoring,
+        )
+
+        if score <= 0:
+            continue
+
+        scored_hits.append(
+            {
+                "index": index,
+                "score": score,
+                "text": text,
+                "item": item,
+            }
+        )
+
+    ranked_hits = sorted(
+        scored_hits,
+        key=lambda hit: (hit["score"], hit["index"]),
+        reverse=True,
+    )
+
+    return ranked_hits[:max_items]

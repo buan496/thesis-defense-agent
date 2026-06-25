@@ -66,7 +66,7 @@ from app.long_term_memory import (
     save_long_term_memory,
     update_memory_profile,
 )
-from app.memory_auditor import audit_long_term_memory
+from app.memory_auditor import audit_long_term_memory, audit_memory_hits
 from app.task_service import (
     complete_task_step,
     create_defense_task,
@@ -1170,6 +1170,34 @@ def main():
         help="Audit local long-term memory quality without modifying it",
     )
     memory_audit_parser.add_argument(
+        "--path",
+        type=str,
+        default=LONG_TERM_MEMORY_PATH,
+        help="Long-term memory JSON path",
+    )
+
+    memory_hit_audit_parser = subparsers.add_parser(
+        "memory-hit-audit",
+        help="Show which long-term memory items match a query",
+    )
+    memory_hit_audit_parser.add_argument(
+        "--query",
+        required=True,
+        help="Query used to select memory items",
+    )
+    memory_hit_audit_parser.add_argument(
+        "--max-weaknesses",
+        type=int,
+        default=5,
+        help="Maximum weakness hits to show",
+    )
+    memory_hit_audit_parser.add_argument(
+        "--max-summaries",
+        type=int,
+        default=3,
+        help="Maximum summary hits to show",
+    )
+    memory_hit_audit_parser.add_argument(
         "--path",
         type=str,
         default=LONG_TERM_MEMORY_PATH,
@@ -3081,6 +3109,42 @@ def main():
         print("EMPTY SUMMARY COUNT:", report["empty_summary_count"])
         print("ISSUE COUNT:", report["issue_count"])
         print("RECOMMENDATIONS:", report["recommendations"])
+
+    elif args.command == "memory-hit-audit":
+        try:
+            memory = load_long_term_memory(args.path)
+            report = audit_memory_hits(
+                memory,
+                query=args.query,
+                max_weaknesses=args.max_weaknesses,
+                max_summaries=args.max_summaries,
+            )
+        except ValueError as error:
+            print(f"MEMORY HIT AUDIT ERROR: {error}")
+            raise SystemExit(1) from error
+
+        print("MEMORY HIT AUDIT")
+        print("PATH:", args.path)
+        print("QUERY:", report["query"])
+        print("WEAKNESS HIT COUNT:", report["weakness_hit_count"])
+        print("SUMMARY HIT COUNT:", report["summary_hit_count"])
+        print("WEAKNESS HITS:")
+
+        for hit in report["weakness_hits"]:
+            print(
+                f"  INDEX: {hit['index']} "
+                f"SCORE: {hit['score']} "
+                f"TEXT: {hit['text']}"
+            )
+
+        print("SUMMARY HITS:")
+
+        for hit in report["summary_hits"]:
+            print(
+                f"  INDEX: {hit['index']} "
+                f"SCORE: {hit['score']} "
+                f"TEXT: {hit['text']}"
+            )
 
     elif args.command == "mock-defense":
         run_mock_defense(training_query=args.topic)

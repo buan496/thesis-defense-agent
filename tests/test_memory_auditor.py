@@ -1,8 +1,10 @@
 from app.memory_auditor import (
     audit_long_term_memory,
+    audit_memory_hits,
     find_duplicate_memory_items,
     find_empty_memory_items,
     find_empty_profile_fields,
+    rank_memory_hits,
 )
 
 
@@ -105,3 +107,71 @@ def test_find_empty_memory_items():
         {"index": 2, "value": None},
         {"index": 3, "value": None},
     ]
+
+
+def test_audit_memory_hits():
+    report = audit_memory_hits(
+        memory={
+            "profile": {},
+            "weaknesses": [
+                {"weakness": "回答缺少实验指标"},
+                {"weakness": "系统架构回答缺少模块案例"},
+            ],
+            "training_summaries": [
+                {
+                    "topic": "实验验证",
+                    "summary": "下一轮练习指标设计。",
+                },
+                {
+                    "topic": "系统架构",
+                    "summary": "下一轮练习模块边界。",
+                },
+            ],
+            "metadata": {},
+        },
+        query="系统架构",
+        max_weaknesses=1,
+        max_summaries=1,
+    )
+
+    assert report["query"] == "系统架构"
+    assert report["weakness_hit_count"] == 1
+    assert report["summary_hit_count"] == 1
+    assert report["weakness_hits"][0]["index"] == 1
+    assert report["weakness_hits"][0]["text"] == "系统架构回答缺少模块案例"
+    assert report["summary_hits"][0]["index"] == 1
+    assert report["summary_hits"][0]["text"] == "下一轮练习模块边界。"
+
+
+def test_audit_memory_hits_rejects_invalid_arguments():
+    memory = {
+        "profile": {},
+        "weaknesses": [],
+        "training_summaries": [],
+        "metadata": {},
+    }
+
+    try:
+        audit_memory_hits(memory, query=" ")
+    except ValueError as error:
+        assert "query" in str(error)
+    else:
+        raise AssertionError("empty query should fail")
+
+    try:
+        audit_memory_hits(memory, query="系统架构", max_weaknesses=-1)
+    except ValueError as error:
+        assert "max_weaknesses" in str(error)
+    else:
+        raise AssertionError("negative max_weaknesses should fail")
+
+
+def test_rank_memory_hits_returns_empty_when_no_match():
+    hits = rank_memory_hits(
+        items=[{"weakness": "实验指标"}],
+        query="系统架构",
+        max_items=5,
+        key_name="weakness",
+    )
+
+    assert hits == []
