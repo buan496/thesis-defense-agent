@@ -1,5 +1,7 @@
+import json
 import subprocess
 from dataclasses import asdict, dataclass
+from pathlib import Path
 
 from app.sub_agent_execution_comparator import (
     compare_sub_agent_execution_records,
@@ -125,3 +127,21 @@ def run_local_quality_gate(
         passed=all(check.passed for check in checks),
         checks=checks,
     )
+
+
+def save_local_quality_gate_report(
+    report: LocalQualityGateReport,
+    file_path: str,
+) -> Path:
+    path = Path(file_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(
+            report.to_dict(),
+            ensure_ascii=False,
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+
+    return path
