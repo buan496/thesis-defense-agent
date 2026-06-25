@@ -1343,3 +1343,29 @@ Sub-Agent 的执行结果还需要从成功率、错误类型、输出结构和�
 
 - 做 Sub-Agent execution baseline/candidate fixture。
 - 让本地 quality gate 可以在离线环境中稳定跑 Sub-Agent execution comparison。
+
+<!-- roadmap-update-2026-06-25-sub-agent-execution-fixtures -->
+
+## 2026-06-25 路线同步：Sub-Agent Execution 离线 Fixture 已完成
+
+本阶段新增完成能力：
+
+- [x] 新增 `tests/fixtures/sub_agent_execution/baseline.jsonl`
+- [x] 新增 `tests/fixtures/sub_agent_execution/candidate.jsonl`
+- [x] 本地 quality gate 可使用 fixture 跑 Sub-Agent execution comparison
+- [x] 不依赖真实工具执行
+- [x] 不依赖在线 API
+- [x] 新增 fixture 回归测试
+
+学到的关键点：
+
+```text
+质量门禁不能依赖每次现场生成样本。
+稳定 fixture 是离线回归测试的基础。
+有了 baseline/candidate fixture，Sub-Agent execution comparison 才能稳定进入本地检查和后续 CI。
+```
+
+下一步学习：
+
+- 将本地 quality gate 接入 CI。
+- 只接入离线 fixture，不接入真实工具执行。
