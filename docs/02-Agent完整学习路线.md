@@ -1284,3 +1284,27 @@ Sub-Agent 的执行结果还需要从成功率、错误类型、输出结构和�
 - 做 Sub-Agent execution quality gate。
 - 将 execution comparison 的 passed/failed 接入 CLI 退出码。
 - 为 CI 或本地质量门禁预留接口。
+
+<!-- roadmap-update-2026-06-25-sub-agent-execution-quality-gate -->
+
+## 2026-06-25 路线同步：Sub-Agent Execution Quality Gate 已完成
+
+本阶段新增完成能力：
+
+- [x] `compare-sub-agent-executions` 默认作为质量门禁
+- [x] `PASSED: True` 时命令退出码为 0
+- [x] `PASSED: False` 时命令退出码为 1
+- [x] 新增 `--allow-fail` 观察模式
+- [x] 新增 CLI 门禁测试
+
+学到的关键点：
+
+```text
+评估报告本身不是质量门禁。
+只有当报告结果能影响进程退出码时，它才可以进入 CI、脚本和自动化回归流程。
+```
+
+下一步学习：
+
+- 将 Sub-Agent execution quality gate 接入本地 quality gate 脚本。
+- 暂不接 GitHub Actions，先保留本地可执行质量门禁。

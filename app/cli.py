@@ -1629,6 +1629,14 @@ def main():
         default=2.0,
         help="Maximum allowed candidate/baseline duration ratio",
     )
+    compare_sub_agent_executions_parser.add_argument(
+        "--allow-fail",
+        action="store_true",
+        help=(
+            "Print the comparison report without failing the command "
+            "when regressions are detected"
+        ),
+    )
     
     args = parser.parse_args()
     setup_logger(args.log_level)
@@ -3567,6 +3575,9 @@ def main():
                 report["duration_regressions"],
                 ensure_ascii=False,
             ))
+
+        if not report["passed"] and not args.allow_fail:
+            raise SystemExit(1)
 
     elif args.command == "show-task":
         task = get_defense_task(
