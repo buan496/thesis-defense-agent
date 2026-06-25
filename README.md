@@ -1391,3 +1391,28 @@ data/reports/sub_agent_execution_gate.md
 ```
 
 JSON 用于机器读取，Markdown 用于人工快速查看。
+
+<!-- docs-update-2026-06-25-sub-agent-phase-summary -->
+
+## 2026-06-25 更新：Sub-Agent 阶段复盘
+
+新增阶段复盘文档：
+
+```text
+docs/07-Sub-Agent阶段复盘.md
+```
+
+该文档总结：
+
+- 当前 Sub-Agent Harness 已完成能力
+- 当前明确边界
+- 已学到的核心概念
+- 未完成能力
+- 下一阶段建议
+
+阶段结论：
+
+```text
+Sub-Agent 主线已经完成本地学习版最小可审计 Harness。
+下一阶段建议进入 Trace Replay / Feedback 闭环，而不是继续堆更多工具。
+```
