@@ -1564,3 +1564,57 @@ Memory 质量治理
 -> hit audit
 -> context report
 ```
+
+<!-- docs-update-2026-06-25-memory-quality-governance -->
+
+## 2026-06-25 更新：Memory 质量治理
+
+本阶段新增本地长期记忆质量治理能力：
+
+```text
+memory-audit
+-> memory-prune --dry-run
+-> memory-hit-audit
+-> memory-context-report
+```
+
+核心命令：
+
+```powershell
+uv run python -m app.cli memory-audit `
+  --path data/long_term_memory.json
+
+uv run python -m app.cli memory-prune `
+  --max-weaknesses 20 `
+  --max-summaries 10 `
+  --dry-run `
+  --path data/long_term_memory.json
+
+uv run python -m app.cli memory-hit-audit `
+  --query "系统架构" `
+  --max-weaknesses 5 `
+  --max-summaries 3 `
+  --path data/long_term_memory.json
+
+uv run python -m app.cli memory-context-report `
+  --query "系统架构" `
+  --max-weaknesses 5 `
+  --max-summaries 3 `
+  --path data/long_term_memory.json
+```
+
+能力边界：
+
+```text
+memory-audit 只读，不修改文件。
+memory-prune --dry-run 只预览裁剪结果，不写入。
+memory-hit-audit 解释哪些 memory 被 query 命中。
+memory-context-report 展示最终注入 prompt 的 memory context。
+```
+
+阶段结论：
+
+```text
+长期记忆必须可审计、可预览、可解释。
+不能只做写入和检索，也要能检查污染、重复、命中和最终注入内容。
+```
