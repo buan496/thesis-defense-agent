@@ -1481,3 +1481,55 @@ Spec -> Permission -> Plan -> Dry-Run -> Execute -> Trace -> Comparison -> Quali
 LangGraph 后续只做旁路迁移，不覆盖现有手写 Agent Harness。
 FastAPI、Docker、K8s、数据库、服务器部署放到另一台服务器笔记本学习。
 ```
+
+<!-- roadmap-update-2026-06-25-trace-replay-feedback -->
+
+## 2026-06-25 路线同步：Trace Replay / Feedback 闭环已完成
+
+本阶段新增完成能力：
+
+- [x] 通用 trace replay 归一化
+- [x] 支持 Agent trace replay summary
+- [x] 支持 Sub-Agent plan trace replay summary
+- [x] 支持 Sub-Agent execution trace replay summary
+- [x] trace replay issue 自动生成 feedback record
+- [x] `replay-trace` CLI
+- [x] `trace-feedback` CLI
+- [x] `trace-feedback -> export-feedback-candidates` 端到端测试
+- [x] `trace -> feedback -> candidate -> review -> draft -> validate -> export` 完整闭环测试
+
+阶段链路：
+
+```text
+失败 trace
+-> replay summary
+-> feedback record
+-> benchmark candidate
+-> human review
+-> benchmark draft
+-> draft validation
+-> validated benchmark draft export
+```
+
+学到的关键点：
+
+```text
+Agent 失败不能只停留在日志里。
+失败 trace 要能转成 feedback。
+feedback 不能直接进 benchmark，必须经过 candidate 和人工 review。
+review accepted 后还只是 draft，必须补全字段并通过 validation。
+只有 validated draft 才能进入正式回归评估资产。
+```
+
+当前边界：
+
+- 不自动把失败 trace 写入正式 benchmark
+- 不绕过人工 review
+- 不自动猜测 benchmark 字段
+- 不接数据库
+- 不接服务器部署
+
+下一步学习：
+
+- 做 Trace Replay / Feedback 阶段复盘文档。
+- 然后进入 Memory 阶段，做本地长期记忆的写入、检索、摘要和遗忘策略。
