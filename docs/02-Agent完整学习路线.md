@@ -1369,3 +1369,27 @@ Sub-Agent 的执行结果还需要从成功率、错误类型、输出结构和�
 
 - 将本地 quality gate 接入 CI。
 - 只接入离线 fixture，不接入真实工具执行。
+
+<!-- roadmap-update-2026-06-25-ci-local-quality-gate -->
+
+## 2026-06-25 路线同步：CI 接入本地 Quality Gate 已完成
+
+本阶段新增完成能力：
+
+- [x] `.github/workflows/ci.yml` 接入 `local-quality-gate`
+- [x] CI 使用 Sub-Agent execution baseline/candidate fixture
+- [x] CI 不执行真实 Sub-Agent 工具
+- [x] CI 不调用在线 API
+- [x] `online-evaluation.yml` 保持不变
+
+学到的关键点：
+
+```text
+CI 中只能放稳定、可重复、无外部依赖的质量门禁。
+Sub-Agent execution comparison 通过离线 fixture 接入 CI，避免了真实工具、RAG API 或 LLM API 带来的不稳定性。
+```
+
+下一步学习：
+
+- 进入 Sub-Agent 执行报告归档。
+- 将 comparison/gate 输出保存到 data/reports，方便 CI artifact 查看。
