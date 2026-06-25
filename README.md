@@ -1197,3 +1197,38 @@ uv run python -m app.cli compare-sub-agent-executions `
 比较 success、result JSON 是否有效、result JSON key 集合、error_type。
 当 candidate duration 超过 baseline duration 的指定倍数时，标记为耗时退化。
 ```
+
+<!-- docs-update-2026-06-25-sub-agent-execution-quality-gate -->
+
+## 2026-06-25 更新：Sub-Agent Execution Quality Gate
+
+`compare-sub-agent-executions` 现在默认作为质量门禁执行：
+
+```text
+PASSED: True  -> 退出码 0
+PASSED: False -> 退出码 1
+```
+
+默认门禁模式：
+
+```powershell
+uv run python -m app.cli compare-sub-agent-executions `
+  --baseline data/traces/sub_agent_execution_baseline.jsonl `
+  --candidate data/traces/sub_agent_execution_candidate.jsonl
+```
+
+只查看报告、不让命令失败：
+
+```powershell
+uv run python -m app.cli compare-sub-agent-executions `
+  --baseline data/traces/sub_agent_execution_baseline.jsonl `
+  --candidate data/traces/sub_agent_execution_candidate.jsonl `
+  --allow-fail
+```
+
+这一步的意义：
+
+```text
+比较报告如果不能影响退出码，就很难进入 CI 或自动化质量门禁。
+将 Sub-Agent execution comparison 转成可失败命令后，后续可以直接接入本地检查和 GitHub Actions。
+```

@@ -259,3 +259,80 @@ def test_compare_sub_agent_executions_cli(
     assert "BASELINE COUNT: 1" in output
     assert "CANDIDATE COUNT: 1" in output
     assert "PASSED: True" in output
+
+
+def test_compare_sub_agent_executions_cli_fails_on_regression(
+    monkeypatch,
+    capsys,
+    tmp_path,
+):
+    baseline_path = tmp_path / "baseline.jsonl"
+    candidate_path = tmp_path / "candidate.jsonl"
+
+    save_sub_agent_execution_trace(
+        create_result(success=True),
+        file_path=str(baseline_path),
+    )
+    save_sub_agent_execution_trace(
+        create_result(success=False),
+        file_path=str(candidate_path),
+    )
+
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "app.cli",
+            "compare-sub-agent-executions",
+            "--baseline",
+            str(baseline_path),
+            "--candidate",
+            str(candidate_path),
+        ],
+    )
+
+    with pytest.raises(SystemExit) as error:
+        cli.main()
+
+    output = capsys.readouterr().out
+
+    assert error.value.code == 1
+    assert "PASSED: False" in output
+    assert "CHANGED: 1" in output
+
+
+def test_compare_sub_agent_executions_cli_allow_fail(
+    monkeypatch,
+    capsys,
+    tmp_path,
+):
+    baseline_path = tmp_path / "baseline.jsonl"
+    candidate_path = tmp_path / "candidate.jsonl"
+
+    save_sub_agent_execution_trace(
+        create_result(success=True),
+        file_path=str(baseline_path),
+    )
+    save_sub_agent_execution_trace(
+        create_result(success=False),
+        file_path=str(candidate_path),
+    )
+
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "app.cli",
+            "compare-sub-agent-executions",
+            "--baseline",
+            str(baseline_path),
+            "--candidate",
+            str(candidate_path),
+            "--allow-fail",
+        ],
+    )
+
+    cli.main()
+
+    output = capsys.readouterr().out
+
+    assert "PASSED: False" in output
+    assert "CHANGED: 1" in output
