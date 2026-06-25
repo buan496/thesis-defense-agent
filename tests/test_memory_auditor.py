@@ -1,6 +1,8 @@
 from app.memory_auditor import (
     audit_long_term_memory,
     audit_memory_hits,
+    build_memory_context_report,
+    count_non_empty_lines,
     find_duplicate_memory_items,
     find_empty_memory_items,
     find_empty_profile_fields,
@@ -175,3 +177,58 @@ def test_rank_memory_hits_returns_empty_when_no_match():
     )
 
     assert hits == []
+
+
+def test_build_memory_context_report():
+    report = build_memory_context_report(
+        memory={
+            "profile": {
+                "thesis_direction": "bilingual ASR",
+            },
+            "weaknesses": [
+                {"weakness": "回答缺少实验指标"},
+                {"weakness": "系统架构回答缺少模块案例"},
+            ],
+            "training_summaries": [
+                {
+                    "topic": "系统架构",
+                    "summary": "下一轮练习模块边界。",
+                },
+            ],
+            "metadata": {},
+        },
+        query="系统架构",
+        max_weaknesses=1,
+        max_summaries=1,
+    )
+
+    assert report["query"] == "系统架构"
+    assert report["max_weaknesses"] == 1
+    assert report["max_summaries"] == 1
+    assert report["is_empty"] is False
+    assert report["context_character_count"] == len(report["context"])
+    assert "Long-term memory:" in report["context"]
+    assert "- thesis_direction: bilingual ASR" in report["context"]
+    assert "系统架构回答缺少模块案例" in report["context"]
+    assert "回答缺少实验指标" not in report["context"]
+    assert "系统架构: 下一轮练习模块边界。" in report["context"]
+
+
+def test_build_memory_context_report_handles_empty_memory():
+    report = build_memory_context_report(
+        memory={
+            "profile": {},
+            "weaknesses": [],
+            "training_summaries": [],
+            "metadata": {},
+        }
+    )
+
+    assert report["context"] == ""
+    assert report["context_character_count"] == 0
+    assert report["line_count"] == 0
+    assert report["is_empty"] is True
+
+
+def test_count_non_empty_lines():
+    assert count_non_empty_lines("a\n\n b \n") == 2

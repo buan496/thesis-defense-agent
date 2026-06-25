@@ -66,7 +66,11 @@ from app.long_term_memory import (
     save_long_term_memory,
     update_memory_profile,
 )
-from app.memory_auditor import audit_long_term_memory, audit_memory_hits
+from app.memory_auditor import (
+    audit_long_term_memory,
+    audit_memory_hits,
+    build_memory_context_report,
+)
 from app.task_service import (
     complete_task_step,
     create_defense_task,
@@ -1203,7 +1207,36 @@ def main():
         default=LONG_TERM_MEMORY_PATH,
         help="Long-term memory JSON path",
     )
-    
+
+    memory_context_report_parser = subparsers.add_parser(
+        "memory-context-report",
+        help="Show final long-term memory context injected into Agent prompts",
+    )
+    memory_context_report_parser.add_argument(
+        "--query",
+        type=str,
+        default=None,
+        help="Optional query used to select relevant memory items",
+    )
+    memory_context_report_parser.add_argument(
+        "--max-weaknesses",
+        type=int,
+        default=5,
+        help="Maximum weaknesses included in context",
+    )
+    memory_context_report_parser.add_argument(
+        "--max-summaries",
+        type=int,
+        default=3,
+        help="Maximum summaries included in context",
+    )
+    memory_context_report_parser.add_argument(
+        "--path",
+        type=str,
+        default=LONG_TERM_MEMORY_PATH,
+        help="Long-term memory JSON path",
+    )
+      
     mock_parser = subparsers.add_parser("mock-defense")
     mock_parser.add_argument(
         "--topic",
@@ -3145,6 +3178,30 @@ def main():
                 f"SCORE: {hit['score']} "
                 f"TEXT: {hit['text']}"
             )
+
+    elif args.command == "memory-context-report":
+        try:
+            memory = load_long_term_memory(args.path)
+            report = build_memory_context_report(
+                memory,
+                query=args.query,
+                max_weaknesses=args.max_weaknesses,
+                max_summaries=args.max_summaries,
+            )
+        except ValueError as error:
+            print(f"MEMORY CONTEXT REPORT ERROR: {error}")
+            raise SystemExit(1) from error
+
+        print("MEMORY CONTEXT REPORT")
+        print("PATH:", args.path)
+        print("QUERY:", report["query"])
+        print("MAX WEAKNESSES:", report["max_weaknesses"])
+        print("MAX SUMMARIES:", report["max_summaries"])
+        print("IS EMPTY:", report["is_empty"])
+        print("CHARACTERS:", report["context_character_count"])
+        print("LINES:", report["line_count"])
+        print("CONTEXT:")
+        print(report["context"] or "<empty>")
 
     elif args.command == "mock-defense":
         run_mock_defense(training_query=args.topic)

@@ -1,6 +1,7 @@
 from typing import Any
 
 from app.long_term_memory import (
+    build_long_term_memory_context,
     calculate_memory_relevance_score,
     normalize_memory_text,
     validate_long_term_memory,
@@ -246,3 +247,39 @@ def rank_memory_hits(
     )
 
     return ranked_hits[:max_items]
+
+
+def build_memory_context_report(
+    memory: dict[str, Any],
+    query: str | None = None,
+    max_weaknesses: int = 5,
+    max_summaries: int = 3,
+) -> dict[str, Any]:
+    validate_long_term_memory(memory)
+
+    context = build_long_term_memory_context(
+        memory,
+        query=query,
+        max_weaknesses=max_weaknesses,
+        max_summaries=max_summaries,
+    )
+
+    return {
+        "query": query,
+        "max_weaknesses": max_weaknesses,
+        "max_summaries": max_summaries,
+        "context": context,
+        "context_character_count": len(context),
+        "line_count": count_non_empty_lines(context),
+        "is_empty": not bool(context.strip()),
+    }
+
+
+def count_non_empty_lines(text: str) -> int:
+    return len(
+        [
+            line
+            for line in text.splitlines()
+            if line.strip()
+        ]
+    )

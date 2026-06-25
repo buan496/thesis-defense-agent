@@ -547,3 +547,100 @@ def test_memory_hit_audit_command_reports_invalid_query(
     output = capsys.readouterr().out
     assert "MEMORY HIT AUDIT ERROR" in output
     assert "query must not be empty" in output
+
+
+def test_memory_context_report_command_outputs_injected_context(
+    monkeypatch,
+    capsys,
+    tmp_path,
+):
+    memory_path = tmp_path / "memory.json"
+    memory_path.write_text(
+        json.dumps(
+            {
+                "profile": {
+                    "thesis_direction": "bilingual ASR",
+                },
+                "weaknesses": [
+                    {"weakness": "回答缺少实验指标"},
+                    {"weakness": "系统架构回答缺少模块案例"},
+                ],
+                "training_summaries": [
+                    {
+                        "topic": "系统架构",
+                        "summary": "下一轮练习模块边界。",
+                    },
+                ],
+                "metadata": {},
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "app.cli",
+            "memory-context-report",
+            "--query",
+            "系统架构",
+            "--max-weaknesses",
+            "1",
+            "--max-summaries",
+            "1",
+            "--path",
+            str(memory_path),
+        ],
+    )
+
+    cli.main()
+
+    output = capsys.readouterr().out
+
+    assert "MEMORY CONTEXT REPORT" in output
+    assert "QUERY: 系统架构" in output
+    assert "IS EMPTY: False" in output
+    assert "CONTEXT:" in output
+    assert "Long-term memory:" in output
+    assert "- thesis_direction: bilingual ASR" in output
+    assert "系统架构回答缺少模块案例" in output
+    assert "回答缺少实验指标" not in output
+
+
+def test_memory_context_report_command_outputs_empty_context(
+    monkeypatch,
+    capsys,
+    tmp_path,
+):
+    memory_path = tmp_path / "memory.json"
+    memory_path.write_text(
+        json.dumps(
+            {
+                "profile": {},
+                "weaknesses": [],
+                "training_summaries": [],
+                "metadata": {},
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "app.cli",
+            "memory-context-report",
+            "--path",
+            str(memory_path),
+        ],
+    )
+
+    cli.main()
+
+    output = capsys.readouterr().out
+
+    assert "MEMORY CONTEXT REPORT" in output
+    assert "IS EMPTY: True" in output
+    assert "<empty>" in output
