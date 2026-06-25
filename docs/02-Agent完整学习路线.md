@@ -1393,3 +1393,27 @@ Sub-Agent execution comparison 通过离线 fixture 接入 CI，避免了真实�
 
 - 进入 Sub-Agent 执行报告归档。
 - 将 comparison/gate 输出保存到 data/reports，方便 CI artifact 查看。
+
+<!-- roadmap-update-2026-06-25-sub-agent-gate-report-artifact -->
+
+## 2026-06-25 路线同步：Sub-Agent Gate 报告归档已完成
+
+本阶段新增完成能力：
+
+- [x] `local-quality-gate` 支持 `--output`
+- [x] 新增 JSON 报告保存能力
+- [x] CI 将 Sub-Agent execution gate 报告写入 `data/reports/sub_agent_execution_gate.json`
+- [x] CI artifact 会上传该报告
+- [x] 新增报告保存测试
+
+学到的关键点：
+
+```text
+质量门禁不只要通过或失败，还要留下可检查的结构化证据。
+CI artifact 是排查质量门禁失败的入口，报告归档能减少只看日志定位问题的成本。
+```
+
+下一步学习：
+
+- 做 Sub-Agent gate Markdown 报告。
+- 让 artifact 同时包含机器可读 JSON 和人类可读 Markdown。

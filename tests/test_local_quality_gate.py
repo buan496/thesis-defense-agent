@@ -1,10 +1,13 @@
-import pytest
+import json
 from pathlib import Path
+
+import pytest
 
 from app import cli
 from app.local_quality_gate import (
     LocalQualityGateCheckResult,
     run_local_quality_gate,
+    save_local_quality_gate_report,
 )
 from app.sub_agent_execution_trace import save_sub_agent_execution_trace
 from app.sub_agent_executor import SubAgentExecutionResult
@@ -127,6 +130,23 @@ def test_run_local_quality_gate_with_sub_agent_execution_fixtures():
     assert report.checks[0].details["stable_count"] == 1
 
 
+def test_save_local_quality_gate_report(tmp_path):
+    report = run_local_quality_gate(
+        check_runner=fake_check_runner,
+    )
+    output_path = tmp_path / "reports" / "quality_gate.json"
+
+    saved_path = save_local_quality_gate_report(
+        report,
+        str(output_path),
+    )
+    data = json.loads(output_path.read_text(encoding="utf-8"))
+
+    assert saved_path == output_path
+    assert data["passed"] is True
+    assert data["checks"][0]["name"] == "pytest"
+
+
 def test_run_local_quality_gate_fails_on_sub_agent_regression(
     tmp_path,
 ):
@@ -182,6 +202,53 @@ def test_local_quality_gate_cli(monkeypatch, capsys):
     assert "LOCAL QUALITY GATE" in output
     assert "PASSED: True" in output
     assert "CHECK: pytest" in output
+
+
+def test_local_quality_gate_cli_writes_output(
+    monkeypatch,
+    capsys,
+    tmp_path,
+):
+    output_path = tmp_path / "quality_gate.json"
+
+    def fake_run_local_quality_gate(**kwargs):
+        return type(
+            "FakeReport",
+            (),
+            {
+                "passed": True,
+                "checks": [create_check_result()],
+                "to_dict": lambda self: {
+                    "passed": self.passed,
+                    "checks": [
+                        check.to_dict()
+                        for check in self.checks
+                    ],
+                },
+            },
+        )()
+
+    monkeypatch.setattr(
+        "app.cli.run_local_quality_gate",
+        fake_run_local_quality_gate,
+    )
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "app.cli",
+            "local-quality-gate",
+            "--output",
+            str(output_path),
+        ],
+    )
+
+    cli.main()
+
+    output = capsys.readouterr().out
+    data = json.loads(output_path.read_text(encoding="utf-8"))
+
+    assert "OUTPUT:" in output
+    assert data["passed"] is True
 
 
 def test_local_quality_gate_cli_fails(monkeypatch, capsys):

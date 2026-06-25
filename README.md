@@ -1345,3 +1345,25 @@ CI 不执行真实 Sub-Agent 工具。
 CI 不调用在线 LLM/API。
 online-evaluation workflow 保持不变。
 ```
+
+<!-- docs-update-2026-06-25-sub-agent-gate-report-artifact -->
+
+## 2026-06-25 更新：Sub-Agent Gate 报告归档
+
+`local-quality-gate` 支持输出 JSON 报告：
+
+```powershell
+uv run python -m app.cli local-quality-gate `
+  --skip-pytest `
+  --sub-agent-execution-baseline tests/fixtures/sub_agent_execution/baseline.jsonl `
+  --sub-agent-execution-candidate tests/fixtures/sub_agent_execution/candidate.jsonl `
+  --output data/reports/sub_agent_execution_gate.json
+```
+
+CI 中会把报告写入：
+
+```text
+data/reports/sub_agent_execution_gate.json
+```
+
+该文件会随 `offline-quality-reports` artifact 上传，便于查看 Sub-Agent gate 的结构化结果。

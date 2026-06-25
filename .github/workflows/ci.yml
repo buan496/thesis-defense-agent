@@ -60,7 +60,8 @@ jobs:
           uv run --frozen python -m app.cli local-quality-gate \
             --skip-pytest \
             --sub-agent-execution-baseline "$baseline" \
-            --sub-agent-execution-candidate "$candidate"
+            --sub-agent-execution-candidate "$candidate" \
+            --output data/reports/sub_agent_execution_gate.json
 
       - name: Upload CI reports
         if: always()

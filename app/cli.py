@@ -108,7 +108,10 @@ from app.sub_agent_execution_trace import (
     load_sub_agent_execution_traces,
     summarize_sub_agent_execution_traces,
 )
-from app.local_quality_gate import run_local_quality_gate
+from app.local_quality_gate import (
+    run_local_quality_gate,
+    save_local_quality_gate_report,
+)
 from app.feedback_store import (
     create_feedback_record,
     load_feedback_records,
@@ -1668,6 +1671,11 @@ def main():
         "--allow-fail",
         action="store_true",
         help="Print the gate report without failing the command",
+    )
+    local_quality_gate_parser.add_argument(
+        "--output",
+        default=None,
+        help="Optional JSON output path for the quality gate report",
     )
     
     args = parser.parse_args()
@@ -3635,6 +3643,13 @@ def main():
             print("CHECK:", check.name)
             print("PASSED:", check.passed)
             print("SUMMARY:", check.summary)
+
+        if args.output is not None:
+            output_path = save_local_quality_gate_report(
+                report,
+                args.output,
+            )
+            print("OUTPUT:", output_path)
 
         if not report.passed and not args.allow_fail:
             raise SystemExit(1)
