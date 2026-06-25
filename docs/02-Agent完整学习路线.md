@@ -1253,3 +1253,34 @@ dry-run 是真实执行前的安全演练。
 - 做 Sub-Agent execution replay / comparison。
 - 对比两次执行 trace 的成功率、工具结果结构、耗时和错误类型。
 - 暂不做并行 Sub-Agent，也不做自动任务分解。
+
+<!-- roadmap-update-2026-06-25-sub-agent-execution-comparison -->
+
+## 2026-06-25 路线同步：Sub-Agent Execution Replay / Comparison 已完成
+
+本阶段新增完成能力：
+
+- [x] 新增 `app/sub_agent_execution_comparator.py`
+- [x] 支持对比 baseline / candidate 两份 execution trace
+- [x] 支持检测新增执行记录
+- [x] 支持检测删除执行记录
+- [x] 支持检测 success 翻转
+- [x] 支持检测 result JSON 结构变化
+- [x] 支持检测 error_type 变化
+- [x] 支持检测 duration 退化
+- [x] 新增 `compare-sub-agent-executions` CLI
+- [x] 新增 Sub-Agent execution comparison 测试
+
+学到的关键点：
+
+```text
+计划稳定不等于执行稳定。
+Sub-Agent 的执行结果还需要从成功率、错误类型、输出结构和耗时四个维度做回归检测。
+这一步把 Sub-Agent 从“能执行”推进到“执行结果可审计、可回放、可比较”。
+```
+
+下一步学习：
+
+- 做 Sub-Agent execution quality gate。
+- 将 execution comparison 的 passed/failed 接入 CLI 退出码。
+- 为 CI 或本地质量门禁预留接口。
