@@ -828,3 +828,158 @@ def test_graph_evaluate_rewrite_demo_command_reports_value_error(
     output = capsys.readouterr().out
 
     assert "LANGGRAPH EVALUATE REWRITE ERROR: topic cannot be empty" in output
+
+
+def test_graph_follow_up_demo_command_with_both_answers(
+    monkeypatch,
+    capsys,
+):
+    captured = {}
+
+    def fake_run_follow_up_demo(**kwargs):
+        captured.update(kwargs)
+        return {
+            "thread_id": kwargs["thread_id"],
+            "answer_interrupt_payload": {
+                "type": "answer_required",
+                "question": "How is the system designed?",
+            },
+            "answer_result": {
+                "answer": kwargs["answer"],
+                "evaluation": "Answer is too brief.",
+                "rewritten_answer": "The system separates modules.",
+                "follow_up_question": "How are module boundaries defined?",
+            },
+            "follow_up_interrupt_payload": {
+                "type": "follow_up_answer_required",
+                "question": "How are module boundaries defined?",
+            },
+            "final_result": {
+                "status": "follow_up_answer_evaluated",
+                "current_node": "evaluate_follow_up_answer",
+                "follow_up_answer": kwargs["follow_up_answer"],
+                "follow_up_evaluation": "Follow-up answer is acceptable.",
+            },
+        }
+
+    monkeypatch.setattr(
+        cli,
+        "run_follow_up_demo",
+        fake_run_follow_up_demo,
+    )
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "app.cli",
+            "graph-follow-up-demo",
+            "--topic",
+            "system architecture",
+            "--thread-id",
+            "thread-1",
+            "--answer",
+            "It is modular.",
+            "--follow-up-answer",
+            "By responsibility.",
+            "--top-k",
+            "2",
+        ],
+    )
+
+    cli.main()
+
+    output = capsys.readouterr().out
+
+    assert captured["topic"] == "system architecture"
+    assert captured["thread_id"] == "thread-1"
+    assert captured["answer"] == "It is modular."
+    assert captured["follow_up_answer"] == "By responsibility."
+    assert captured["top_k"] == 2
+    assert "LANGGRAPH FOLLOW UP DEMO" in output
+    assert "ANSWER INTERRUPTED: True" in output
+    assert "ANSWER RESUMED: True" in output
+    assert "FOLLOW UP INTERRUPTED: True" in output
+    assert "FOLLOW UP RESUMED: True" in output
+    assert "CURRENT NODE: evaluate_follow_up_answer" in output
+    assert "FOLLOW UP EVALUATION: Follow-up answer is acceptable." in output
+
+
+def test_graph_follow_up_demo_command_without_answers(
+    monkeypatch,
+    capsys,
+):
+    captured = {}
+
+    def fake_run_follow_up_demo(**kwargs):
+        captured.update(kwargs)
+        return {
+            "thread_id": kwargs["thread_id"],
+            "answer_interrupt_payload": {
+                "type": "answer_required",
+                "question": "How is the system designed?",
+            },
+            "answer_result": None,
+            "follow_up_interrupt_payload": None,
+            "final_result": None,
+        }
+
+    monkeypatch.setattr(
+        cli,
+        "run_follow_up_demo",
+        fake_run_follow_up_demo,
+    )
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "app.cli",
+            "graph-follow-up-demo",
+            "--topic",
+            "system architecture",
+        ],
+    )
+
+    cli.main()
+
+    output = capsys.readouterr().out
+
+    assert captured["answer"] is None
+    assert captured["follow_up_answer"] is None
+    assert "ANSWER INTERRUPTED: True" in output
+    assert "ANSWER RESUMED: False" in output
+    assert "FOLLOW UP INTERRUPTED: False" in output
+    assert "FOLLOW UP RESUMED: False" in output
+
+
+def test_graph_follow_up_demo_command_reports_value_error(
+    monkeypatch,
+    capsys,
+):
+    def fake_run_follow_up_demo(**kwargs):
+        raise ValueError("answer is required before follow_up_answer")
+
+    monkeypatch.setattr(
+        cli,
+        "run_follow_up_demo",
+        fake_run_follow_up_demo,
+    )
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "app.cli",
+            "graph-follow-up-demo",
+            "--topic",
+            "system architecture",
+            "--follow-up-answer",
+            "By responsibility.",
+        ],
+    )
+
+    try:
+        cli.main()
+    except SystemExit as error:
+        assert error.code == 1
+
+    output = capsys.readouterr().out
+
+    assert (
+        "LANGGRAPH FOLLOW UP ERROR: answer is required before follow_up_answer"
+    ) in output
