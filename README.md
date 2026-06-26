@@ -94,6 +94,7 @@ PDF / TXT 论文
 - 支持 `memory-show`、`memory-set-profile`、`memory-add-weakness`、`memory-add-summary`、`memory-prune`
 - 支持长期记忆注入开关和注入条数控制
 - 支持 Session 上下文压缩摘要，将旧对话压入 `conversation_summary`
+- 已完成 Memory 污染治理复盘，覆盖记忆写入、去重裁剪、命中审计、注入预览、禁用开关和上下文压缩风险边界
 
 ### 可恢复任务型 Agent
 
@@ -365,6 +366,7 @@ docs/11-LangGraph阶段复盘.md     LangGraph 旁路迁移阶段总结和 parit
 docs/12-Agent-Harness稳定性治理复盘.md 工具权限、超时、重试、结果限制、错误标准化和 trace 审计复盘
 docs/13-Sub-Agent权限与Dry-Run复盘.md Sub-Agent 角色边界、dry-run、计划审计、执行审计和回归对比复盘
 docs/14-Trace回放与工具审计复盘.md Agent trace、Task trace、Sub-Agent trace、回放、对比、反馈和审计复盘
+docs/15-Memory污染治理复盘.md 长期记忆写入、裁剪、命中审计、注入预览和污染风险治理复盘
 ```
 
 ## 下一步学习
@@ -399,7 +401,7 @@ retrieve_context
 
 下一步按路线进入：
 
-1. Memory 污染治理复盘：长期记忆写入、检索、注入、审计、裁剪和上下文压缩的风险边界。
+1. MCP 工具协议对照学习：将当前 Tool Registry、Sub-Agent 权限和工具审计能力映射到 MCP 的工具发现、授权、调用和审计模型。
 2. 对 README 和学习路线做周期性同步，避免文档落后于代码。
 3. 服务化、Docker、数据库和服务器部署继续后移到另一台服务器笔记本。
 

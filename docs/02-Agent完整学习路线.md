@@ -1872,3 +1872,54 @@ Audit 解决风险识别问题。
 Memory 污染治理复盘：
 长期记忆写入、检索、注入、审计、裁剪和上下文压缩的风险边界。
 ```
+
+<!-- roadmap-update-2026-06-26-memory-contamination-review -->
+
+## 2026-06-26 路线同步：Memory 污染治理复盘已完成
+
+本阶段新增完成文档：
+
+```text
+docs/15-Memory污染治理复盘.md
+```
+
+已复盘能力：
+
+- [x] 长期记忆结构校验
+- [x] profile 写入
+- [x] weakness 写入
+- [x] training summary 写入
+- [x] 记忆去重
+- [x] 记忆裁剪
+- [x] `memory-prune --dry-run`
+- [x] `memory-audit`
+- [x] `memory-hit-audit`
+- [x] `memory-context-report`
+- [x] `--disable-memory`
+- [x] `--disable-session-compaction`
+- [x] session summary compaction
+
+对应代码位置：
+
+```text
+app/long_term_memory.py
+app/memory_auditor.py
+app/conversation_memory.py
+app/session_compactor.py
+app/task_memory_exporter.py
+```
+
+阶段结论：
+
+```text
+Memory 的难点不是写入，而是防止污染。
+长期记忆必须可审计、可预览、可裁剪、可禁用。
+注入 prompt 前必须能回答：为什么这条记忆会被选中？
+```
+
+下一步学习：
+
+```text
+MCP 工具协议对照学习：
+将当前本地 Tool Registry、Sub-Agent 权限和工具审计能力映射到 MCP 的工具发现、授权、调用和审计模型。
+```
