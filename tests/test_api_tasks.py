@@ -2,6 +2,7 @@ from fastapi.testclient import TestClient
 
 from app.api.main import app
 from app.api.routes import tasks
+from app.task_models import DefenseTask, TaskStep
 
 
 client = TestClient(app)
@@ -94,3 +95,115 @@ def test_get_task_rejects_invalid_task_id(tmp_path):
         clear_overrides()
 
     assert response.status_code in {400, 404}
+
+
+def test_start_task_step_creates_next_step(tmp_path):
+    app.dependency_overrides[tasks.get_task_directory] = lambda: tmp_path
+
+    try:
+        create_response = client.post(
+            "/tasks",
+            json={
+                "topic": "系统架构",
+            },
+        )
+        task_id = create_response.json()["task"]["task_id"]
+
+        response = client.post(
+            f"/tasks/{task_id}/steps/start",
+            json={
+                "input": {
+                    "topic": "系统架构",
+                },
+            },
+        )
+    finally:
+        clear_overrides()
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["task"]["task_id"] == task_id
+    assert body["task"]["status"] == "running"
+    assert body["step"]["step_type"] == "retrieve_context"
+    assert body["step"]["input"] == {
+        "topic": "系统架构",
+    }
+
+
+def test_start_task_step_returns_404_when_task_missing(tmp_path):
+    app.dependency_overrides[tasks.get_task_directory] = lambda: tmp_path
+
+    try:
+        response = client.post(
+            "/tasks/not-exist/steps/start",
+            json={
+                "input": {},
+            },
+        )
+    finally:
+        clear_overrides()
+
+    assert response.status_code == 404
+
+
+def test_execute_task_step_returns_step_output(monkeypatch, tmp_path):
+    fake_task = DefenseTask(
+        topic="系统架构",
+        task_id="task-1",
+        status="running",
+    )
+    fake_step = TaskStep(
+        step_type="retrieve_context",
+        status="completed",
+        output={
+            "context": "系统架构上下文",
+        },
+    )
+    fake_task.add_step(fake_step)
+    fake_path = tmp_path / "task-1.json"
+
+    def fake_execute_task_step_service(task_id, directory):
+        assert task_id == "task-1"
+        assert directory == tmp_path
+        return fake_task, fake_step, fake_path
+
+    monkeypatch.setattr(
+        tasks,
+        "execute_task_step_service",
+        fake_execute_task_step_service,
+    )
+    app.dependency_overrides[tasks.get_task_directory] = lambda: tmp_path
+
+    try:
+        response = client.post("/tasks/task-1/steps/execute")
+    finally:
+        clear_overrides()
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["task"]["task_id"] == "task-1"
+    assert body["step"]["step_type"] == "retrieve_context"
+    assert body["step"]["output"] == {
+        "context": "系统架构上下文",
+    }
+    assert body["path"].endswith("task-1.json")
+
+
+def test_execute_task_step_maps_value_error_to_400(monkeypatch, tmp_path):
+    def fake_execute_task_step_service(task_id, directory):
+        raise ValueError("当前任务没有可执行步骤")
+
+    monkeypatch.setattr(
+        tasks,
+        "execute_task_step_service",
+        fake_execute_task_step_service,
+    )
+    app.dependency_overrides[tasks.get_task_directory] = lambda: tmp_path
+
+    try:
+        response = client.post("/tasks/task-1/steps/execute")
+    finally:
+        clear_overrides()
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "当前任务没有可执行步骤"
