@@ -97,6 +97,9 @@ from app.langgraph_workflow.conditional_demo import run_conditional_demo
 from app.langgraph_workflow.persistent_checkpoint_demo import (
     run_persistent_checkpoint_demo,
 )
+from app.langgraph_workflow.evaluate_rewrite_demo import (
+    run_evaluate_rewrite_demo,
+)
 from app.tool_registry import list_registered_tools
 from app.sub_agent_specs import list_sub_agent_specs
 from app.sub_agent_permissions import check_sub_agent_tool_permission
@@ -1577,6 +1580,32 @@ def main():
         help="Optional answer used to resume when the graph interrupts",
     )
     graph_conditional_parser.add_argument(
+        "--top-k",
+        type=int,
+        default=None,
+        help="Number of chunks to retrieve",
+    )
+
+    graph_evaluate_rewrite_parser = subparsers.add_parser(
+        "graph-evaluate-rewrite-demo",
+        help="Run a LangGraph demo through evaluate and rewrite nodes",
+    )
+    graph_evaluate_rewrite_parser.add_argument(
+        "--topic",
+        required=True,
+        help="Defense topic for the LangGraph evaluate/rewrite demo",
+    )
+    graph_evaluate_rewrite_parser.add_argument(
+        "--thread-id",
+        default="evaluate-rewrite-demo-thread",
+        help="LangGraph thread ID used by the checkpointer",
+    )
+    graph_evaluate_rewrite_parser.add_argument(
+        "--answer",
+        default=None,
+        help="Optional student answer used to resume and finish the graph",
+    )
+    graph_evaluate_rewrite_parser.add_argument(
         "--top-k",
         type=int,
         default=None,
@@ -3648,6 +3677,43 @@ def main():
             print("RESUMED STATUS:", resumed_result.get("status"))
             print("RESUMED CURRENT NODE:", resumed_result.get("current_node"))
             print("ANSWER:", resumed_result.get("answer"))
+
+    elif args.command == "graph-evaluate-rewrite-demo":
+        top_k = args.top_k if args.top_k is not None else RAG_TOP_K
+
+        try:
+            report = run_evaluate_rewrite_demo(
+                topic=args.topic,
+                thread_id=args.thread_id,
+                answer=args.answer,
+                top_k=top_k,
+            )
+        except ValueError as error:
+            print(f"LANGGRAPH EVALUATE REWRITE ERROR: {error}")
+            raise SystemExit(1) from error
+
+        interrupted_result = report["interrupted_result"]
+        interrupt_payload = report["interrupt_payload"]
+        resumed_result = report["resumed_result"]
+
+        print("LANGGRAPH EVALUATE REWRITE DEMO")
+        print("THREAD ID:", report["thread_id"])
+        print("QUESTION:", interrupted_result.get("question"))
+        print("INTERRUPTED:", interrupt_payload is not None)
+
+        if interrupt_payload is not None:
+            print("INTERRUPT TYPE:", interrupt_payload.get("type"))
+            print("INTERRUPT QUESTION:", interrupt_payload.get("question"))
+
+        if resumed_result is None:
+            print("RESUMED:", False)
+        else:
+            print("RESUMED:", True)
+            print("STATUS:", resumed_result.get("status"))
+            print("CURRENT NODE:", resumed_result.get("current_node"))
+            print("ANSWER:", resumed_result.get("answer"))
+            print("EVALUATION:", resumed_result.get("evaluation"))
+            print("REWRITTEN ANSWER:", resumed_result.get("rewritten_answer"))
 
     elif args.command == "list-tools":
         tools = list_registered_tools(
