@@ -1923,3 +1923,57 @@ Memory 的难点不是写入，而是防止污染。
 MCP 工具协议对照学习：
 将当前本地 Tool Registry、Sub-Agent 权限和工具审计能力映射到 MCP 的工具发现、授权、调用和审计模型。
 ```
+
+<!-- roadmap-update-2026-06-26-mcp-tool-protocol-review -->
+
+## 2026-06-26 路线同步：MCP 工具协议对照学习已完成
+
+本阶段新增完成文档：
+
+```text
+docs/16-MCP工具协议对照学习.md
+```
+
+已复盘映射：
+
+- [x] Host
+- [x] Client
+- [x] Server
+- [x] Tool
+- [x] Tool Schema
+- [x] Tool Metadata
+- [x] Tool Invocation
+- [x] Resource
+- [x] Prompt
+- [x] Audit
+- [x] Permission
+- [x] Sub-Agent allowed tools
+
+对应代码位置：
+
+```text
+app/cli.py
+app/agent.py
+app/task_service.py
+app/tools/
+app/tool_registry.py
+app/tool_executor.py
+app/sub_agent_specs.py
+app/sub_agent_permissions.py
+app/*trace*.py
+```
+
+阶段结论：
+
+```text
+MCP 不是替代 Agent Harness，而是外部工具协议。
+本地 Tool Registry 是接 MCP 前的治理基座。
+远程工具必须先转换成本地可治理对象，再进入 Agent Loop。
+```
+
+下一步学习：
+
+```text
+项目阶段总复盘：
+汇总本机学习版 Agent Harness 已完成能力、未完成边界、可展示命令、简历表达和服务器阶段学习计划。
+```
