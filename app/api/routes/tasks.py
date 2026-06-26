@@ -30,6 +30,10 @@ class StartTaskStepRequest(BaseModel):
     input: dict[str, Any] = Field(default_factory=dict)
 
 
+class SubmitAnswerRequest(BaseModel):
+    answer: str = Field(min_length=1)
+
+
 def get_task_directory() -> Path:
     return DEFAULT_TASK_DIRECTORY
 
@@ -80,6 +84,34 @@ def execute_task_step_service(
 
     return execute_current_task_step(
         task_id=task_id,
+        directory=directory,
+    )
+
+
+def submit_task_answer_service(
+    task_id: str,
+    answer: str,
+    directory: Path,
+):
+    from app.task_service import submit_task_answer
+
+    return submit_task_answer(
+        task_id=task_id,
+        answer=answer,
+        directory=directory,
+    )
+
+
+def submit_follow_up_answer_service(
+    task_id: str,
+    answer: str,
+    directory: Path,
+):
+    from app.task_service import submit_follow_up_answer
+
+    return submit_follow_up_answer(
+        task_id=task_id,
+        answer=answer,
         directory=directory,
     )
 
@@ -173,6 +205,82 @@ def execute_task_step(
     try:
         task, step, task_path = execute_task_step_service(
             task_id=task_id,
+            directory=directory,
+        )
+    except FileNotFoundError as error:
+        raise HTTPException(
+            status_code=404,
+            detail=str(error),
+        ) from error
+    except ValueError as error:
+        raise HTTPException(
+            status_code=400,
+            detail=str(error),
+        ) from error
+
+    return TaskStepResponse(
+        task=asdict(task),
+        step=asdict(step),
+        path=str(task_path),
+    )
+
+
+@router.post("/{task_id}/answer")
+def submit_answer(
+    task_id: str,
+    request: SubmitAnswerRequest,
+    directory: Path = Depends(get_task_directory),
+) -> TaskStepResponse:
+    answer = request.answer.strip()
+
+    if not answer:
+        raise HTTPException(
+            status_code=422,
+            detail="answer must not be empty",
+        )
+
+    try:
+        task, step, task_path = submit_task_answer_service(
+            task_id=task_id,
+            answer=answer,
+            directory=directory,
+        )
+    except FileNotFoundError as error:
+        raise HTTPException(
+            status_code=404,
+            detail=str(error),
+        ) from error
+    except ValueError as error:
+        raise HTTPException(
+            status_code=400,
+            detail=str(error),
+        ) from error
+
+    return TaskStepResponse(
+        task=asdict(task),
+        step=asdict(step),
+        path=str(task_path),
+    )
+
+
+@router.post("/{task_id}/follow-up-answer")
+def submit_follow_up_answer(
+    task_id: str,
+    request: SubmitAnswerRequest,
+    directory: Path = Depends(get_task_directory),
+) -> TaskStepResponse:
+    answer = request.answer.strip()
+
+    if not answer:
+        raise HTTPException(
+            status_code=422,
+            detail="answer must not be empty",
+        )
+
+    try:
+        task, step, task_path = submit_follow_up_answer_service(
+            task_id=task_id,
+            answer=answer,
             directory=directory,
         )
     except FileNotFoundError as error:

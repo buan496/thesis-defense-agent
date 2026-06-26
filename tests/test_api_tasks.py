@@ -207,3 +207,141 @@ def test_execute_task_step_maps_value_error_to_400(monkeypatch, tmp_path):
 
     assert response.status_code == 400
     assert response.json()["detail"] == "当前任务没有可执行步骤"
+def test_submit_answer_returns_completed_wait_step(monkeypatch, tmp_path):
+    fake_task = DefenseTask(
+        topic="系统架构",
+        task_id="task-1",
+        status="running",
+    )
+    fake_step = TaskStep(
+        step_type="wait_for_answer",
+        status="completed",
+        output={
+            "answer": "模块拆分便于定位问题",
+        },
+    )
+    fake_task.add_step(fake_step)
+    fake_path = tmp_path / "task-1.json"
+
+    def fake_submit_task_answer_service(task_id, answer, directory):
+        assert task_id == "task-1"
+        assert answer == "模块拆分便于定位问题"
+        assert directory == tmp_path
+        return fake_task, fake_step, fake_path
+
+    monkeypatch.setattr(
+        tasks,
+        "submit_task_answer_service",
+        fake_submit_task_answer_service,
+    )
+    app.dependency_overrides[tasks.get_task_directory] = lambda: tmp_path
+
+    try:
+        response = client.post(
+            "/tasks/task-1/answer",
+            json={
+                "answer": " 模块拆分便于定位问题 ",
+            },
+        )
+    finally:
+        clear_overrides()
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["task"]["task_id"] == "task-1"
+    assert body["step"]["step_type"] == "wait_for_answer"
+    assert body["step"]["output"] == {
+        "answer": "模块拆分便于定位问题",
+    }
+
+
+def test_submit_follow_up_answer_returns_completed_wait_step(
+    monkeypatch,
+    tmp_path,
+):
+    fake_task = DefenseTask(
+        topic="系统架构",
+        task_id="task-1",
+        status="running",
+    )
+    fake_step = TaskStep(
+        step_type="wait_for_follow_up_answer",
+        status="completed",
+        output={
+            "follow_up_answer": "特征处理模块负责音频读取",
+        },
+    )
+    fake_task.add_step(fake_step)
+    fake_path = tmp_path / "task-1.json"
+
+    def fake_submit_follow_up_answer_service(task_id, answer, directory):
+        assert task_id == "task-1"
+        assert answer == "特征处理模块负责音频读取"
+        assert directory == tmp_path
+        return fake_task, fake_step, fake_path
+
+    monkeypatch.setattr(
+        tasks,
+        "submit_follow_up_answer_service",
+        fake_submit_follow_up_answer_service,
+    )
+    app.dependency_overrides[tasks.get_task_directory] = lambda: tmp_path
+
+    try:
+        response = client.post(
+            "/tasks/task-1/follow-up-answer",
+            json={
+                "answer": " 特征处理模块负责音频读取 ",
+            },
+        )
+    finally:
+        clear_overrides()
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["task"]["task_id"] == "task-1"
+    assert body["step"]["step_type"] == "wait_for_follow_up_answer"
+    assert body["step"]["output"] == {
+        "follow_up_answer": "特征处理模块负责音频读取",
+    }
+
+
+def test_submit_answer_rejects_blank_answer(tmp_path):
+    app.dependency_overrides[tasks.get_task_directory] = lambda: tmp_path
+
+    try:
+        response = client.post(
+            "/tasks/task-1/answer",
+            json={
+                "answer": "   ",
+            },
+        )
+    finally:
+        clear_overrides()
+
+    assert response.status_code == 422
+
+
+def test_submit_answer_maps_invalid_state_to_400(monkeypatch, tmp_path):
+    def fake_submit_task_answer_service(task_id, answer, directory):
+        raise ValueError("当前步骤不是 wait_for_answer")
+
+    monkeypatch.setattr(
+        tasks,
+        "submit_task_answer_service",
+        fake_submit_task_answer_service,
+    )
+    app.dependency_overrides[tasks.get_task_directory] = lambda: tmp_path
+
+    try:
+        response = client.post(
+            "/tasks/task-1/answer",
+            json={
+                "answer": "回答",
+            },
+        )
+    finally:
+        clear_overrides()
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "当前步骤不是 wait_for_answer"
