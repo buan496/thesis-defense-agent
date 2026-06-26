@@ -157,3 +157,9 @@ docker run --rm `
 -> PostgreSQL / Qdrant 服务拆分
 -> K8s manifests
 ```
+
+服务器长期运行步骤见：
+
+```text
+docs/deployment/server.md
+```

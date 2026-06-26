@@ -167,20 +167,18 @@ retrieve_context
 
 ## 暂缓范围
 
-当前已经开始在本机推进 FastAPI 服务化开发和测试。以下内容暂缓到后续部署阶段或服务器长期运行阶段：
+当前已经开始在本机推进 FastAPI 服务化、Docker Compose 和 Prometheus 本地验证。以下内容暂缓到后续服务器长期运行或数据库阶段：
 
 - Web 前端
-- Docker
 - PostgreSQL
 - Qdrant / Milvus
-- Prometheus
 - K8s
 - 私有化部署
 - 服务器环境变量和密钥管理
 
 LangGraph 已完成旁路迁移学习版闭环，并保留在 `app/langgraph_workflow/`。它只用于和当前 `app/agent.py`、`app/task_*` 对照学习，不覆盖当前手写实现。数据库级 checkpointer、服务器部署和跨进程恢复继续后移到服务器/数据库阶段。
 
-FastAPI 当前只作为本机服务化开发入口，部署、容器化、数据库和服务器长期运行继续后移。
+FastAPI、Dockerfile、docker-compose 和 Prometheus 抓取已完成本机验证；服务器长期运行、数据库、向量数据库和 K8s 继续作为后续阶段。
 
 ## 安装
 
@@ -291,6 +289,12 @@ Docker 说明：
 
 ```text
 docs/deployment/docker.md
+```
+
+服务器长期运行说明：
+
+```text
+docs/deployment/server.md
 ```
 
 关闭 Session 压缩：
@@ -438,9 +442,9 @@ retrieve_context
 
 下一步按路线进入：
 
-1. 服务器笔记本阶段：FastAPI、文件上传、流式输出、PostgreSQL、Qdrant / Milvus、Docker Compose、真实 MCP Server 和部署治理。
+1. 服务器长期运行验证：在服务器拉取 main，用 docker compose 运行 API 和 Prometheus。
 2. 对 README 和学习路线做周期性同步，避免文档落后于代码。
-3. 服务化、Docker、数据库和服务器部署继续后移到另一台服务器笔记本。
+3. 后续继续推进文件上传、流式输出、PostgreSQL、Qdrant / Milvus、真实 MCP Server 和 K8s 样例。
 
 ### LangGraph 旁路 Demo
 
