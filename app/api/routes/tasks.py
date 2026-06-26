@@ -20,8 +20,68 @@ class TaskResponse(BaseModel):
     path: str | None = None
 
 
+class TaskStepResponse(BaseModel):
+    task: dict[str, Any]
+    step: dict[str, Any] | None
+    path: str | None = None
+
+
+class StartTaskStepRequest(BaseModel):
+    input: dict[str, Any] = Field(default_factory=dict)
+
+
 def get_task_directory() -> Path:
     return DEFAULT_TASK_DIRECTORY
+
+
+def create_task_service(
+    topic: str,
+    directory: Path,
+):
+    from app.task_service import create_defense_task
+
+    return create_defense_task(
+        topic=topic,
+        directory=directory,
+    )
+
+
+def get_task_service(
+    task_id: str,
+    directory: Path,
+):
+    from app.task_service import get_defense_task
+
+    return get_defense_task(
+        task_id=task_id,
+        directory=directory,
+    )
+
+
+def start_task_step_service(
+    task_id: str,
+    directory: Path,
+    input: dict[str, Any],
+):
+    from app.task_service import start_next_task_step
+
+    return start_next_task_step(
+        task_id=task_id,
+        directory=directory,
+        input=input,
+    )
+
+
+def execute_task_step_service(
+    task_id: str,
+    directory: Path,
+):
+    from app.task_service import execute_current_task_step
+
+    return execute_current_task_step(
+        task_id=task_id,
+        directory=directory,
+    )
 
 
 @router.post("")
@@ -37,9 +97,7 @@ def create_task(
             detail="topic must not be empty",
         )
 
-    from app.task_service import create_defense_task
-
-    task, task_path = create_defense_task(
+    task, task_path = create_task_service(
         topic=topic,
         directory=directory,
     )
@@ -55,10 +113,8 @@ def get_task(
     task_id: str,
     directory: Path = Depends(get_task_directory),
 ) -> TaskResponse:
-    from app.task_service import get_defense_task
-
     try:
-        task = get_defense_task(
+        task = get_task_service(
             task_id=task_id,
             directory=directory,
         )
@@ -76,4 +132,62 @@ def get_task(
     return TaskResponse(
         task=asdict(task),
         path=str(directory / f"{task.task_id}.json"),
+    )
+
+
+@router.post("/{task_id}/steps/start")
+def start_task_step(
+    task_id: str,
+    request: StartTaskStepRequest,
+    directory: Path = Depends(get_task_directory),
+) -> TaskStepResponse:
+    try:
+        task, step, task_path = start_task_step_service(
+            task_id=task_id,
+            directory=directory,
+            input=request.input,
+        )
+    except FileNotFoundError as error:
+        raise HTTPException(
+            status_code=404,
+            detail=str(error),
+        ) from error
+    except ValueError as error:
+        raise HTTPException(
+            status_code=400,
+            detail=str(error),
+        ) from error
+
+    return TaskStepResponse(
+        task=asdict(task),
+        step=asdict(step) if step is not None else None,
+        path=str(task_path),
+    )
+
+
+@router.post("/{task_id}/steps/execute")
+def execute_task_step(
+    task_id: str,
+    directory: Path = Depends(get_task_directory),
+) -> TaskStepResponse:
+    try:
+        task, step, task_path = execute_task_step_service(
+            task_id=task_id,
+            directory=directory,
+        )
+    except FileNotFoundError as error:
+        raise HTTPException(
+            status_code=404,
+            detail=str(error),
+        ) from error
+    except ValueError as error:
+        raise HTTPException(
+            status_code=400,
+            detail=str(error),
+        ) from error
+
+    return TaskStepResponse(
+        task=asdict(task),
+        step=asdict(step),
+        path=str(task_path),
     )
