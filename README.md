@@ -41,6 +41,12 @@ PDF / TXT 论文
 738 passed
 ```
 
+本机学习版阶段已完成，阶段总复盘见：
+
+```text
+docs/17-本机学习版阶段总复盘.md
+```
+
 ## 已实现能力
 
 ### LLM 与 Prompt
@@ -369,6 +375,7 @@ docs/13-Sub-Agent权限与Dry-Run复盘.md Sub-Agent 角色边界、dry-run、�
 docs/14-Trace回放与工具审计复盘.md Agent trace、Task trace、Sub-Agent trace、回放、对比、反馈和审计复盘
 docs/15-Memory污染治理复盘.md 长期记忆写入、裁剪、命中审计、注入预览和污染风险治理复盘
 docs/16-MCP工具协议对照学习.md 当前本地 Tool Harness 与 MCP 工具发现、调用、授权、资源和审计模型对照
+docs/17-本机学习版阶段总复盘.md 本机学习版 Agent Harness 完成能力、边界、展示命令、简历表达和服务器阶段计划
 ```
 
 ## 下一步学习
@@ -403,7 +410,7 @@ retrieve_context
 
 下一步按路线进入：
 
-1. 项目阶段总复盘：汇总本机学习版 Agent Harness 已完成能力、未完成边界、可展示命令、简历表达和服务器阶段学习计划。
+1. 服务器笔记本阶段：FastAPI、文件上传、流式输出、PostgreSQL、Qdrant / Milvus、Docker Compose、真实 MCP Server 和部署治理。
 2. 对 README 和学习路线做周期性同步，避免文档落后于代码。
 3. 服务化、Docker、数据库和服务器部署继续后移到另一台服务器笔记本。
 

@@ -1977,3 +1977,49 @@ MCP 不是替代 Agent Harness，而是外部工具协议。
 项目阶段总复盘：
 汇总本机学习版 Agent Harness 已完成能力、未完成边界、可展示命令、简历表达和服务器阶段学习计划。
 ```
+
+<!-- roadmap-update-2026-06-26-local-agent-harness-phase-summary -->
+
+## 2026-06-26 路线同步：本机学习版阶段总复盘已完成
+
+本阶段新增完成文档：
+
+```text
+docs/17-本机学习版阶段总复盘.md
+```
+
+本机学习版已完成主线：
+
+- [x] LLM 与 Prompt
+- [x] RAG
+- [x] Tool Calling 与 Agent Harness
+- [x] Session 与 Memory
+- [x] DefenseTask 可恢复任务流
+- [x] Evaluation 与 Quality Gate
+- [x] Trace 与 Feedback
+- [x] Sub-Agent 本地学习版
+- [x] LangGraph 旁路迁移
+- [x] MCP 工具协议对照
+- [x] 文档化复盘
+
+阶段结论：
+
+```text
+本机学习版阶段已经完成。
+后续不再继续堆本地功能。
+下一阶段重点转向服务器化、真实服务接口、数据库、部署和真实 MCP 接入。
+```
+
+服务器笔记本阶段建议顺序：
+
+```text
+1. FastAPI 服务化
+2. 文件上传与任务 API
+3. SSE / WebSocket 流式输出
+4. PostgreSQL 存储 task / session / trace
+5. Qdrant 或 Milvus 替换本地 JSON 向量库
+6. Docker Compose
+7. Prometheus / 日志 / 健康检查
+8. MCP Server 实际接入
+9. 权限审批和 workspace 隔离
+```
