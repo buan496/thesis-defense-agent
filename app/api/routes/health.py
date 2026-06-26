@@ -1,8 +1,8 @@
 from importlib.metadata import PackageNotFoundError, version
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Response
 
-from app.api.metrics import get_api_metrics
+from app.api.metrics import format_prometheus_metrics, get_api_metrics
 
 
 router = APIRouter(tags=["health"])
@@ -34,3 +34,11 @@ def version_info() -> dict[str, str]:
 @router.get("/metrics")
 def metrics() -> dict[str, object]:
     return get_api_metrics()
+
+
+@router.get("/metrics/prometheus")
+def prometheus_metrics() -> Response:
+    return Response(
+        content=format_prometheus_metrics(),
+        media_type="text/plain; version=0.0.4",
+    )
