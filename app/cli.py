@@ -101,6 +101,7 @@ from app.langgraph_workflow.evaluate_rewrite_demo import (
     run_evaluate_rewrite_demo,
 )
 from app.langgraph_workflow.follow_up_demo import run_follow_up_demo
+from app.langgraph_workflow.summary_demo import run_summary_demo
 from app.tool_registry import list_registered_tools
 from app.sub_agent_specs import list_sub_agent_specs
 from app.sub_agent_permissions import check_sub_agent_tool_permission
@@ -1638,6 +1639,37 @@ def main():
         help="Optional student answer to the generated follow-up question",
     )
     graph_follow_up_parser.add_argument(
+        "--top-k",
+        type=int,
+        default=None,
+        help="Number of chunks to retrieve",
+    )
+
+    graph_summary_parser = subparsers.add_parser(
+        "graph-summary-demo",
+        help="Run a LangGraph demo through full training summary",
+    )
+    graph_summary_parser.add_argument(
+        "--topic",
+        required=True,
+        help="Defense topic for the LangGraph summary demo",
+    )
+    graph_summary_parser.add_argument(
+        "--thread-id",
+        default="summary-demo-thread",
+        help="LangGraph thread ID used by the checkpointer",
+    )
+    graph_summary_parser.add_argument(
+        "--answer",
+        default=None,
+        help="Optional student answer used to reach follow-up interrupt",
+    )
+    graph_summary_parser.add_argument(
+        "--follow-up-answer",
+        default=None,
+        help="Optional student answer to the generated follow-up question",
+    )
+    graph_summary_parser.add_argument(
         "--top-k",
         type=int,
         default=None,
@@ -3810,6 +3842,71 @@ def main():
                 "FOLLOW UP EVALUATION:",
                 final_result.get("follow_up_evaluation"),
             )
+
+    elif args.command == "graph-summary-demo":
+        top_k = args.top_k if args.top_k is not None else RAG_TOP_K
+
+        try:
+            report = run_summary_demo(
+                topic=args.topic,
+                thread_id=args.thread_id,
+                answer=args.answer,
+                follow_up_answer=args.follow_up_answer,
+                top_k=top_k,
+            )
+        except ValueError as error:
+            print(f"LANGGRAPH SUMMARY ERROR: {error}")
+            raise SystemExit(1) from error
+
+        answer_interrupt = report["answer_interrupt_payload"]
+        answer_result = report["answer_result"]
+        follow_up_interrupt = report["follow_up_interrupt_payload"]
+        final_result = report["final_result"]
+
+        print("LANGGRAPH SUMMARY DEMO")
+        print("THREAD ID:", report["thread_id"])
+        print("ANSWER INTERRUPTED:", answer_interrupt is not None)
+
+        if answer_interrupt is not None:
+            print("ANSWER INTERRUPT TYPE:", answer_interrupt.get("type"))
+            print("QUESTION:", answer_interrupt.get("question"))
+
+        if answer_result is None:
+            print("ANSWER RESUMED:", False)
+        else:
+            print("ANSWER RESUMED:", True)
+            print("ANSWER:", answer_result.get("answer"))
+            print("EVALUATION:", answer_result.get("evaluation"))
+            print("REWRITTEN ANSWER:", answer_result.get("rewritten_answer"))
+            print(
+                "FOLLOW UP QUESTION:",
+                answer_result.get("follow_up_question"),
+            )
+
+        print("FOLLOW UP INTERRUPTED:", follow_up_interrupt is not None)
+
+        if follow_up_interrupt is not None:
+            print(
+                "FOLLOW UP INTERRUPT TYPE:",
+                follow_up_interrupt.get("type"),
+            )
+            print(
+                "FOLLOW UP INTERRUPT QUESTION:",
+                follow_up_interrupt.get("question"),
+            )
+
+        if final_result is None:
+            print("SUMMARY COMPLETED:", False)
+        else:
+            print("SUMMARY COMPLETED:", True)
+            print("STATUS:", final_result.get("status"))
+            print("CURRENT NODE:", final_result.get("current_node"))
+            print("FOLLOW UP ANSWER:", final_result.get("follow_up_answer"))
+            print(
+                "FOLLOW UP EVALUATION:",
+                final_result.get("follow_up_evaluation"),
+            )
+            print("SUMMARY:", final_result.get("summary"))
 
     elif args.command == "list-tools":
         tools = list_registered_tools(
