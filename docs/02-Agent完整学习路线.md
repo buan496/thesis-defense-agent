@@ -1765,3 +1765,55 @@ Agent Harness 的核心不是能调用工具，而是能治理工具。
 Sub-Agent 权限边界和 dry-run 执行策略复盘：
 明确计划生成、执行审批、权限边界、trace 记录和工具审计。
 ```
+
+<!-- roadmap-update-2026-06-26-sub-agent-permission-review -->
+
+## 2026-06-26 路线同步：Sub-Agent 权限与 Dry-Run 复盘已完成
+
+本阶段新增完成文档：
+
+```text
+docs/13-Sub-Agent权限与Dry-Run复盘.md
+```
+
+已复盘能力：
+
+- [x] Sub-Agent spec
+- [x] allowed_tools 权限边界
+- [x] input_fields / output_fields 契约
+- [x] max_steps 边界
+- [x] plan-first 执行策略
+- [x] dry-run 预演
+- [x] plan trace
+- [x] execution trace
+- [x] plan comparator
+- [x] execution comparator
+
+对应代码位置：
+
+```text
+app/sub_agent_specs.py
+app/sub_agent_permissions.py
+app/sub_agent_plan.py
+app/sub_agent_dry_run.py
+app/sub_agent_executor.py
+app/sub_agent_plan_trace.py
+app/sub_agent_execution_trace.py
+app/sub_agent_plan_comparator.py
+app/sub_agent_execution_comparator.py
+```
+
+阶段结论：
+
+```text
+Sub-Agent 的重点不是多一个 Agent，而是把角色、工具、输入输出和执行边界显式化。
+dry-run 是执行前的安全闸门。
+plan trace 审计计划，execution trace 审计真实执行。
+```
+
+下一步学习：
+
+```text
+Trace 回放与工具审计深化：
+把 Agent trace、Sub-Agent plan trace 和 execution trace 串成更清晰的审计报告。
+```

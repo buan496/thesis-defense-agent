@@ -80,6 +80,7 @@ PDF / TXT 论文
 - 支持工具结果长度限制、工具重试、工具超时和标准化错误
 - 支持 Agent trace JSONL 持久化和 trace 分析
 - 已完成 Agent Harness 稳定性治理复盘，覆盖权限、超时、重试、长度限制、错误标准化和 trace 审计
+- 已完成 Sub-Agent 权限与 dry-run 复盘，覆盖角色边界、工具授权、执行计划、plan trace、execution trace 和回归对比
 
 ### Session 与 Memory
 
@@ -361,6 +362,7 @@ docs/09-Task工作流契约.md        手写 Task State 与 LangGraph 旁路迁�
 docs/10-LangGraph旁路迁移.md     LangGraph 旁路迁移过程记录
 docs/11-LangGraph阶段复盘.md     LangGraph 旁路迁移阶段总结和 parity report
 docs/12-Agent-Harness稳定性治理复盘.md 工具权限、超时、重试、结果限制、错误标准化和 trace 审计复盘
+docs/13-Sub-Agent权限与Dry-Run复盘.md Sub-Agent 角色边界、dry-run、计划审计、执行审计和回归对比复盘
 ```
 
 ## 下一步学习
@@ -395,7 +397,7 @@ retrieve_context
 
 下一步按路线进入：
 
-1. Sub-Agent 权限边界和 dry-run 执行策略复盘：明确计划生成、执行审批、权限边界和审计记录。
+1. Trace 回放与工具审计深化：把 Agent trace、Sub-Agent plan trace 和 execution trace 串成更清晰的审计报告。
 2. 对 README 和学习路线做周期性同步，避免文档落后于代码。
 3. 服务化、Docker、数据库和服务器部署继续后移到另一台服务器笔记本。
 
