@@ -26,6 +26,8 @@ docker run --rm `
 ```text
 http://127.0.0.1:8000/health
 http://127.0.0.1:8000/version
+http://127.0.0.1:8000/metrics
+http://127.0.0.1:8000/metrics/prometheus
 http://127.0.0.1:8000/docs
 ```
 
@@ -82,6 +84,8 @@ FastAPI API 服务
 .env 环境变量注入
 ./data:/app/data 数据目录挂载
 /health 健康检查
+/metrics JSON 指标
+/metrics/prometheus Prometheus 文本指标
 ```
 
 注意：
@@ -120,7 +124,7 @@ docker run --rm `
 
 - 暂未拆分数据库、向量库和 API 服务。
 - 暂未提供生产级密钥管理。
-- 暂未提供 metrics。
+- 暂未接入独立 Prometheus 服务。
 - 暂未提供 K8s manifests。
 
 下一阶段再补：

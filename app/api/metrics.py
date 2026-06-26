@@ -38,6 +38,37 @@ def get_api_metrics() -> dict[str, object]:
         }
 
 
+def format_prometheus_metrics() -> str:
+    metrics = get_api_metrics()
+    status_counts = metrics["status_counts"]
+
+    lines = [
+        "# HELP thesis_defense_api_requests_total Total API requests.",
+        "# TYPE thesis_defense_api_requests_total counter",
+        f"thesis_defense_api_requests_total {metrics['request_count']}",
+        "# HELP thesis_defense_api_request_status_total API requests by HTTP status code.",
+        "# TYPE thesis_defense_api_request_status_total counter",
+    ]
+
+    for status_code, count in sorted(status_counts.items()):
+        lines.append(
+            f'thesis_defense_api_request_status_total{{status_code="{status_code}"}} {count}'
+        )
+
+    lines.extend(
+        [
+            "# HELP thesis_defense_api_request_duration_ms_total Total API request duration in milliseconds.",
+            "# TYPE thesis_defense_api_request_duration_ms_total counter",
+            f"thesis_defense_api_request_duration_ms_total {metrics['total_duration_ms']}",
+            "# HELP thesis_defense_api_request_duration_ms_average Average API request duration in milliseconds.",
+            "# TYPE thesis_defense_api_request_duration_ms_average gauge",
+            f"thesis_defense_api_request_duration_ms_average {metrics['average_duration_ms']}",
+        ]
+    )
+
+    return "\n".join(lines) + "\n"
+
+
 def reset_api_metrics() -> None:
     global _request_count
     global _total_duration_ms

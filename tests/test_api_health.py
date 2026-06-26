@@ -85,3 +85,21 @@ def test_metrics_records_api_requests():
     assert metrics["status_counts"]["200"] >= 1
     assert metrics["total_duration_ms"] >= 0
     assert metrics["average_duration_ms"] >= 0
+
+
+def test_prometheus_metrics_returns_text_format():
+    reset_api_metrics()
+
+    client.get("/health")
+    response = client.get("/metrics/prometheus")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/plain")
+
+    body = response.text
+
+    assert "# TYPE thesis_defense_api_requests_total counter" in body
+    assert "thesis_defense_api_requests_total" in body
+    assert 'thesis_defense_api_request_status_total{status_code="200"}' in body
+    assert "thesis_defense_api_request_duration_ms_total" in body
+    assert "thesis_defense_api_request_duration_ms_average" in body
