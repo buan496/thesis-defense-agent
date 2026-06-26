@@ -38,7 +38,7 @@ PDF / TXT 论文
 最新本地测试基线：
 
 ```text
-494 passed
+738 passed
 ```
 
 ## 已实现能力
@@ -148,6 +148,7 @@ retrieve_context
 - SiliconFlow Embedding API
 - BAAI/bge-m3
 - pytest
+- LangGraph
 - Markdown / JSON 本地文件存储
 - GitHub Actions
 
@@ -165,7 +166,7 @@ retrieve_context
 - 私有化部署
 - 服务器环境变量和密钥管理
 
-LangGraph 后续只做旁路迁移，不覆盖当前手写实现。会新增独立目录和独立 CLI，用于和当前 `app/agent.py`、`app/task_*` 对照学习。
+LangGraph 已完成旁路迁移学习版闭环，并保留在 `app/langgraph_workflow/`。它只用于和当前 `app/agent.py`、`app/task_*` 对照学习，不覆盖当前手写实现。数据库级 checkpointer、服务器部署和跨进程恢复继续后移到服务器/数据库阶段。
 
 ## 安装
 
@@ -357,89 +358,59 @@ docs/06-MCP与Sub-Agent前置概念.md MCP / Sub-Agent 概念映射和后续学�
 
 ## 下一步学习
 
-当前 Session / Memory 主线已经完成到本机学习版闭环，Trace 回放与反馈闭环也已完成，BM25 + Vector 混合检索、权重扫描、规则版 reranker、模型版 reranker、规则版 query rewrite、LLM query rewrite、multi-query retrieval 和检索策略组合对比评估也已接入。LangGraph 已开始旁路迁移，当前完成两个学习 demo：
+当前本机学习版已经完成到以下主线：
 
 ```text
-graph-demo-task:
-retrieve_context -> generate_question -> wait_for_answer
+RAG / 检索策略评估
+Tool Calling / Tool Registry / 工具执行治理
+Agent Loop / Trace / Feedback / Benchmark
+Session / Memory / Memory 质量治理
+DefenseTask 可恢复任务流
+Sub-Agent 本地学习版 Harness
+LangGraph 旁路迁移与 parity report
+CI / Local Quality Gate
+```
 
-graph-interrupt-demo:
-retrieve_context -> generate_question -> interrupt -> resume
+LangGraph 旁路迁移当前已完成完整对照链路：
 
-graph-checkpointer-demo:
-interrupt checkpoint -> resume checkpoint
-
-graph-persistent-checkpoint-demo:
-interrupt/resume checkpoint -> JSON snapshot
-
-graph-conditional-demo:
-已有 answer -> finalize
-无 answer -> interrupt -> resume -> finalize
+```text
+retrieve_context
+-> generate_question
+-> answer_interrupt
+-> evaluate_answer
+-> rewrite_answer
+-> generate_follow_up
+-> follow_up_interrupt
+-> evaluate_follow_up_answer
+-> summarize_training
+-> parity_report
 ```
 
 下一步按路线进入：
 
-1. MCP / Sub-Agent 前置概念学习
-2. LangGraph 持久化 checkpointer 的数据库版实现对照学习
-
-服务化、Docker、数据库和服务器部署继续后移到另一台服务器笔记本。
+1. Agent Harness 稳定性治理复盘：工具超时、重试、结果长度限制、错误标准化、权限和审计。
+2. 对 README 和学习路线做周期性同步，避免文档落后于代码。
+3. 服务化、Docker、数据库和服务器部署继续后移到另一台服务器笔记本。
 
 ### LangGraph 旁路 Demo
 
-普通等待节点 demo：
+完整命令见 `docs/11-LangGraph阶段复盘.md`。常用命令：
 
 ```powershell
-uv run python -m app.cli graph-demo-task --topic "系统架构"
-```
-
-Interrupt / resume demo：
-
-```powershell
-uv run python -m app.cli graph-interrupt-demo --topic "系统架构"
-
-uv run python -m app.cli graph-interrupt-demo `
+uv run python -m app.cli graph-summary-demo `
   --topic "系统架构" `
-  --answer "系统按职责拆分模块，便于定位问题。"
-```
-
-说明：当前 `graph-interrupt-demo` 使用 `InMemorySaver`，用于学习同一进程内的 interrupt / resume；跨进程持久恢复会在下一步 checkpointer 学习中继续完善。
-
-Checkpointer 状态观察 demo：
-
-```powershell
-uv run python -m app.cli graph-checkpointer-demo --topic "系统架构"
-
-uv run python -m app.cli graph-checkpointer-demo `
-  --topic "系统架构" `
-  --answer "系统按职责拆分模块，便于定位问题。"
-```
-
-说明：当前 `graph-checkpointer-demo` 观察 `InMemorySaver` 中的 `checkpoint_id`、`next`、`values` 和 `interrupts`，用于理解 LangGraph 如何保存中断点和恢复后的状态。它仍是同进程学习版，不等同于跨进程持久恢复。
-
-持久化 checkpoint 快照 demo：
-
-```powershell
-uv run python -m app.cli graph-persistent-checkpoint-demo `
-  --topic "系统架构" `
+  --thread-id "thread-1" `
   --answer "系统按职责拆分模块，便于定位问题。" `
-  --output data/langgraph_checkpoints/system_architecture.json
+  --follow-up-answer "这样可以把音频读取、数据集、输出头和服务接口的问题分别定位。"
+
+uv run python -m app.cli graph-task-parity
 ```
 
-说明：`graph-persistent-checkpoint-demo` 仍然使用 `InMemorySaver` 执行图，但会把中断前后可观察到的 checkpoint state 保存为 JSON 快照。它用于学习 checkpoint 状态落盘、审计和对比，不等同于数据库级跨进程恢复。真正的持久化 checkpointer 数据库实现留到服务器/数据库阶段对照学习。
+说明：
 
-条件边 / 分支路由 demo：
-
-```powershell
-uv run python -m app.cli graph-conditional-demo `
-  --topic "系统架构" `
-  --answer "系统按职责拆分模块，便于定位问题。"
-
-uv run python -m app.cli graph-conditional-demo `
-  --topic "系统架构" `
-  --resume-answer "系统按职责拆分模块，便于定位问题。"
-```
-
-说明：`graph-conditional-demo` 使用 `add_conditional_edges` 根据 state 中是否已有 `answer` 决定路由。已有回答时直接进入 `finalize`；没有回答时进入 `answer_interrupt`，再通过 resume 继续到 `finalize`。
+- `graph-summary-demo` 覆盖从检索、生成问题、等待回答、评价、改写、追问到训练总结的完整旁路链路。
+- `graph-task-parity` 将 LangGraph 节点与手写 `DefenseTask` 节点做顺序对齐检查。
+- 旁路实现只用于学习对照，不覆盖 `app/task_*` 和 `app/agent.py`。
 <!-- docs-update-2026-06-23-feedback-loop -->
 
 ## 2026-06-23 更新：Trace 回放与反馈驱动 Benchmark 闭环
@@ -461,7 +432,7 @@ Agent Trace
 最新本地测试基线：
 
 ```text
-494 passed
+738 passed
 ```
 
 <!-- docs-update-2026-06-23-hybrid-retrieval -->
@@ -1617,4 +1588,37 @@ memory-context-report 展示最终注入 prompt 的 memory context。
 ```text
 长期记忆必须可审计、可预览、可解释。
 不能只做写入和检索，也要能检查污染、重复、命中和最终注入内容。
+```
+
+<!-- docs-update-2026-06-26-langgraph-phase-summary -->
+
+## 2026-06-26 更新：LangGraph 旁路迁移阶段复盘
+
+新增阶段复盘文档：
+
+```text
+docs/11-LangGraph阶段复盘.md
+```
+
+本阶段完成的 LangGraph 旁路能力：
+
+```text
+demo_task
+interrupt_demo
+checkpointer_demo
+persistent_checkpoint_demo
+conditional_demo
+evaluate_rewrite_demo
+follow_up_demo
+summary_demo
+parity_report
+```
+
+阶段结论：
+
+```text
+LangGraph 是编排层，不是业务逻辑替代品。
+迁移前必须有 Task Workflow Contract。
+迁移后必须有 Parity Report。
+旁路迁移优先于覆盖式重构。
 ```
