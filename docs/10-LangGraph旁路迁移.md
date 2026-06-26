@@ -141,6 +141,8 @@ uv run python -m app.cli graph-summary-demo `
   --thread-id "thread-1" `
   --answer "系统按模块划分。" `
   --follow-up-answer "这样方便定位问题。"
+
+uv run python -m app.cli graph-task-parity
 ```
 
 ## evaluate / rewrite 旁路节点
@@ -222,6 +224,41 @@ retrieve_context
 ```text
 工作流的最后一步不只是结束，而是把完整状态汇总成可保存、可复盘、可进入 Memory 的训练产物。
 LangGraph 的价值在于状态继承和节点编排，业务逻辑仍然复用现有函数。
+```
+
+## Parity Report
+
+本阶段新增旁路迁移对照报告：
+
+```text
+app/langgraph_workflow/parity_report.py
+```
+
+它把 LangGraph 节点映射回手写 Task State 契约：
+
+```text
+answer_interrupt -> wait_for_answer
+follow_up_interrupt -> wait_for_follow_up_answer
+```
+
+对照目标：
+
+```text
+Task Workflow Contract
+== mapped LangGraph summary demo steps
+```
+
+CLI：
+
+```powershell
+uv run python -m app.cli graph-task-parity
+```
+
+这一步学到的重点：
+
+```text
+迁移不是“能跑就行”。
+迁移需要 parity report，证明新旁路实现与旧工作流契约等价。
 ```
 
 ## 后续边界

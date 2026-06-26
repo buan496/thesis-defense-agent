@@ -102,6 +102,9 @@ from app.langgraph_workflow.evaluate_rewrite_demo import (
 )
 from app.langgraph_workflow.follow_up_demo import run_follow_up_demo
 from app.langgraph_workflow.summary_demo import run_summary_demo
+from app.langgraph_workflow.parity_report import (
+    build_langgraph_task_parity_report,
+)
 from app.tool_registry import list_registered_tools
 from app.sub_agent_specs import list_sub_agent_specs
 from app.sub_agent_permissions import check_sub_agent_tool_permission
@@ -1674,6 +1677,11 @@ def main():
         type=int,
         default=None,
         help="Number of chunks to retrieve",
+    )
+
+    subparsers.add_parser(
+        "graph-task-parity",
+        help="Compare LangGraph sidecar steps with the Task workflow contract",
     )
 
     list_tools_parser = subparsers.add_parser(
@@ -3907,6 +3915,18 @@ def main():
                 final_result.get("follow_up_evaluation"),
             )
             print("SUMMARY:", final_result.get("summary"))
+
+    elif args.command == "graph-task-parity":
+        report = build_langgraph_task_parity_report()
+
+        print("LANGGRAPH TASK PARITY")
+        print("PASSED:", report["passed"])
+        print("ORDER MATCHES:", report["order_matches"])
+        print("TASK CONTRACT STEPS:", report["task_contract_steps"])
+        print("LANGGRAPH STEPS:", report["langgraph_steps"])
+        print("MAPPED LANGGRAPH STEPS:", report["mapped_langgraph_steps"])
+        print("MISSING STEPS:", report["missing_steps"])
+        print("EXTRA STEPS:", report["extra_steps"])
 
     elif args.command == "list-tools":
         tools = list_registered_tools(
