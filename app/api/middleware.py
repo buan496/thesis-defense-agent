@@ -5,6 +5,8 @@ from collections.abc import Awaitable, Callable
 
 from fastapi import Request, Response
 
+from app.api.metrics import record_api_request
+
 
 logger = logging.getLogger("app.api.request")
 
@@ -24,6 +26,10 @@ async def log_request_middleware(
         duration_ms = round(
             (time.perf_counter() - start_time) * 1000,
             2,
+        )
+        record_api_request(
+            status_code=status_code,
+            duration_ms=duration_ms,
         )
         logger.info(
             json.dumps(
