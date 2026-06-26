@@ -1721,3 +1721,47 @@ LangGraph 是编排层，不是业务逻辑替代品。
 LangGraph 阶段收尾后，进入 Agent Harness 稳定性治理复盘：
 工具超时、重试、结果长度限制、错误标准化、Sub-Agent 权限和执行审计。
 ```
+
+<!-- roadmap-update-2026-06-26-agent-harness-stability-review -->
+
+## 2026-06-26 路线同步：Agent Harness 稳定性治理复盘已完成
+
+本阶段新增完成文档：
+
+```text
+docs/12-Agent-Harness稳定性治理复盘.md
+```
+
+已复盘能力：
+
+- [x] 工具注册表
+- [x] 工具白名单
+- [x] 工具权限 metadata
+- [x] 工具结果长度限制
+- [x] 工具有限重试
+- [x] 工具超时
+- [x] 标准化错误返回
+- [x] 工具调用 trace 审计
+
+对应代码位置：
+
+```text
+app/tool_registry.py
+app/tool_executor.py
+app/agent.py
+app/agent_models.py
+```
+
+阶段结论：
+
+```text
+Agent Harness 的核心不是能调用工具，而是能治理工具。
+工具治理必须覆盖权限、失败、耗时、输出长度和审计记录。
+```
+
+下一步学习：
+
+```text
+Sub-Agent 权限边界和 dry-run 执行策略复盘：
+明确计划生成、执行审批、权限边界、trace 记录和工具审计。
+```
