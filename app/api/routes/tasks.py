@@ -26,6 +26,15 @@ class TaskStepResponse(BaseModel):
     path: str | None = None
 
 
+class TaskAnalysisResponse(BaseModel):
+    analysis: dict[str, Any]
+
+
+class TaskReportResponse(BaseModel):
+    path: str
+    markdown: str
+
+
 class StartTaskStepRequest(BaseModel):
     input: dict[str, Any] = Field(default_factory=dict)
 
@@ -114,6 +123,37 @@ def submit_follow_up_answer_service(
         answer=answer,
         directory=directory,
     )
+
+
+def analyze_task_service(
+    task_id: str,
+    directory: Path,
+) -> dict[str, Any]:
+    from app.task_service import get_defense_task
+    from app.task_trace_analyzer import analyze_task_trace
+
+    task = get_defense_task(
+        task_id=task_id,
+        directory=directory,
+    )
+
+    return analyze_task_trace(task)
+
+
+def export_task_report_service(
+    task_id: str,
+    directory: Path,
+) -> tuple[Path, str]:
+    from app.task_markdown_exporter import export_task_markdown_report
+    from app.task_service import get_defense_task
+
+    task = get_defense_task(
+        task_id=task_id,
+        directory=directory,
+    )
+    output_path = export_task_markdown_report(task)
+
+    return output_path, output_path.read_text(encoding="utf-8")
 
 
 @router.post("")
@@ -260,6 +300,57 @@ def submit_answer(
         task=asdict(task),
         step=asdict(step),
         path=str(task_path),
+    )
+
+
+@router.get("/{task_id}/analysis")
+def analyze_task(
+    task_id: str,
+    directory: Path = Depends(get_task_directory),
+) -> TaskAnalysisResponse:
+    try:
+        analysis = analyze_task_service(
+            task_id=task_id,
+            directory=directory,
+        )
+    except FileNotFoundError as error:
+        raise HTTPException(
+            status_code=404,
+            detail=str(error),
+        ) from error
+    except ValueError as error:
+        raise HTTPException(
+            status_code=400,
+            detail=str(error),
+        ) from error
+
+    return TaskAnalysisResponse(analysis=analysis)
+
+
+@router.post("/{task_id}/report/export")
+def export_task_report(
+    task_id: str,
+    directory: Path = Depends(get_task_directory),
+) -> TaskReportResponse:
+    try:
+        output_path, markdown = export_task_report_service(
+            task_id=task_id,
+            directory=directory,
+        )
+    except FileNotFoundError as error:
+        raise HTTPException(
+            status_code=404,
+            detail=str(error),
+        ) from error
+    except ValueError as error:
+        raise HTTPException(
+            status_code=400,
+            detail=str(error),
+        ) from error
+
+    return TaskReportResponse(
+        path=str(output_path),
+        markdown=markdown,
     )
 
 

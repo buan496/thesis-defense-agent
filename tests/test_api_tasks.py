@@ -345,3 +345,99 @@ def test_submit_answer_maps_invalid_state_to_400(monkeypatch, tmp_path):
 
     assert response.status_code == 400
     assert response.json()["detail"] == "当前步骤不是 wait_for_answer"
+
+
+def test_analyze_task_returns_trace_summary(monkeypatch, tmp_path):
+    def fake_analyze_task_service(task_id, directory):
+        assert task_id == "task-1"
+        assert directory == tmp_path
+        return {
+            "task_id": "task-1",
+            "step_count": 2,
+            "completed_step_count": 1,
+        }
+
+    monkeypatch.setattr(
+        tasks,
+        "analyze_task_service",
+        fake_analyze_task_service,
+    )
+    app.dependency_overrides[tasks.get_task_directory] = lambda: tmp_path
+
+    try:
+        response = client.get("/tasks/task-1/analysis")
+    finally:
+        clear_overrides()
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "analysis": {
+            "task_id": "task-1",
+            "step_count": 2,
+            "completed_step_count": 1,
+        }
+    }
+
+
+def test_analyze_task_maps_missing_task_to_404(monkeypatch, tmp_path):
+    def fake_analyze_task_service(task_id, directory):
+        raise FileNotFoundError("task missing")
+
+    monkeypatch.setattr(
+        tasks,
+        "analyze_task_service",
+        fake_analyze_task_service,
+    )
+    app.dependency_overrides[tasks.get_task_directory] = lambda: tmp_path
+
+    try:
+        response = client.get("/tasks/missing/analysis")
+    finally:
+        clear_overrides()
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "task missing"
+
+
+def test_export_task_report_returns_path_and_markdown(monkeypatch, tmp_path):
+    def fake_export_task_report_service(task_id, directory):
+        assert task_id == "task-1"
+        assert directory == tmp_path
+        return tmp_path / "task-1.md", "# 论文答辩训练报告\n"
+
+    monkeypatch.setattr(
+        tasks,
+        "export_task_report_service",
+        fake_export_task_report_service,
+    )
+    app.dependency_overrides[tasks.get_task_directory] = lambda: tmp_path
+
+    try:
+        response = client.post("/tasks/task-1/report/export")
+    finally:
+        clear_overrides()
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["path"].endswith("task-1.md")
+    assert body["markdown"] == "# 论文答辩训练报告\n"
+
+
+def test_export_task_report_maps_invalid_task_to_400(monkeypatch, tmp_path):
+    def fake_export_task_report_service(task_id, directory):
+        raise ValueError("invalid task")
+
+    monkeypatch.setattr(
+        tasks,
+        "export_task_report_service",
+        fake_export_task_report_service,
+    )
+    app.dependency_overrides[tasks.get_task_directory] = lambda: tmp_path
+
+    try:
+        response = client.post("/tasks/task-1/report/export")
+    finally:
+        clear_overrides()
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "invalid task"
