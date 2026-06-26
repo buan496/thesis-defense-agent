@@ -38,6 +38,13 @@ persistent_checkpoint_demo.py
 
 conditional_demo.py
 -> 根据是否已有 answer 选择 finalize 或 answer_interrupt
+
+evaluate_rewrite_demo.py
+-> retrieve_context
+-> generate_question
+-> answer_interrupt
+-> evaluate_answer
+-> rewrite_answer
 ```
 
 ## 与 Task Workflow Contract 的关系
@@ -96,6 +103,36 @@ uv run python -m app.cli graph-conditional-demo `
   --topic "系统架构" `
   --thread-id "thread-1" `
   --resume-answer "系统采用模块化设计。"
+
+uv run python -m app.cli graph-evaluate-rewrite-demo `
+  --topic "系统架构" `
+  --thread-id "thread-1" `
+  --answer "系统采用模块化设计。"
+```
+
+## evaluate / rewrite 旁路节点
+
+本阶段新增两个 LangGraph 旁路节点：
+
+```text
+evaluate_answer
+rewrite_answer
+```
+
+它们复用现有业务函数：
+
+```text
+app.evaluation.evaluate_answer
+app.answer_rewrite.rewrite_answer
+```
+
+测试中使用 fake evaluator / fake rewriter，避免调用真实 LLM。
+
+这一阶段学到的重点：
+
+```text
+LangGraph 节点不应该重新发明业务逻辑。
+正确做法是复用已有函数，把节点作为状态推进和编排层。
 ```
 
 ## 后续边界

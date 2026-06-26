@@ -683,3 +683,148 @@ def test_graph_conditional_demo_command_reports_value_error(
     output = capsys.readouterr().out
 
     assert "LANGGRAPH CONDITIONAL ERROR: answer cannot be empty" in output
+
+
+def test_graph_evaluate_rewrite_demo_command_with_answer(
+    monkeypatch,
+    capsys,
+):
+    captured = {}
+
+    def fake_run_evaluate_rewrite_demo(**kwargs):
+        captured.update(kwargs)
+        return {
+            "thread_id": kwargs["thread_id"],
+            "interrupted_result": {
+                "question": "How is the system architecture designed?",
+            },
+            "interrupt_payload": {
+                "type": "answer_required",
+                "question": "How is the system architecture designed?",
+            },
+            "resumed_result": {
+                "status": "answer_rewritten",
+                "current_node": "rewrite_answer",
+                "answer": kwargs["answer"],
+                "evaluation": "Answer is too brief.",
+                "rewritten_answer": (
+                    "The architecture separates modules by responsibility."
+                ),
+            },
+        }
+
+    monkeypatch.setattr(
+        cli,
+        "run_evaluate_rewrite_demo",
+        fake_run_evaluate_rewrite_demo,
+    )
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "app.cli",
+            "graph-evaluate-rewrite-demo",
+            "--topic",
+            "system architecture",
+            "--thread-id",
+            "thread-1",
+            "--answer",
+            "It is modular.",
+            "--top-k",
+            "2",
+        ],
+    )
+
+    cli.main()
+
+    output = capsys.readouterr().out
+
+    assert captured["topic"] == "system architecture"
+    assert captured["thread_id"] == "thread-1"
+    assert captured["answer"] == "It is modular."
+    assert captured["top_k"] == 2
+    assert "LANGGRAPH EVALUATE REWRITE DEMO" in output
+    assert "INTERRUPTED: True" in output
+    assert "RESUMED: True" in output
+    assert "STATUS: answer_rewritten" in output
+    assert "CURRENT NODE: rewrite_answer" in output
+    assert "EVALUATION: Answer is too brief." in output
+    assert (
+        "REWRITTEN ANSWER: The architecture separates modules by responsibility."
+    ) in output
+
+
+def test_graph_evaluate_rewrite_demo_command_without_answer(
+    monkeypatch,
+    capsys,
+):
+    captured = {}
+
+    def fake_run_evaluate_rewrite_demo(**kwargs):
+        captured.update(kwargs)
+        return {
+            "thread_id": kwargs["thread_id"],
+            "interrupted_result": {
+                "question": "How is the system architecture designed?",
+            },
+            "interrupt_payload": {
+                "type": "answer_required",
+                "question": "How is the system architecture designed?",
+            },
+            "resumed_result": None,
+        }
+
+    monkeypatch.setattr(
+        cli,
+        "run_evaluate_rewrite_demo",
+        fake_run_evaluate_rewrite_demo,
+    )
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "app.cli",
+            "graph-evaluate-rewrite-demo",
+            "--topic",
+            "system architecture",
+        ],
+    )
+
+    cli.main()
+
+    output = capsys.readouterr().out
+
+    assert captured["answer"] is None
+    assert "LANGGRAPH EVALUATE REWRITE DEMO" in output
+    assert "INTERRUPT TYPE: answer_required" in output
+    assert "RESUMED: False" in output
+
+
+def test_graph_evaluate_rewrite_demo_command_reports_value_error(
+    monkeypatch,
+    capsys,
+):
+    def fake_run_evaluate_rewrite_demo(**kwargs):
+        raise ValueError("topic cannot be empty")
+
+    monkeypatch.setattr(
+        cli,
+        "run_evaluate_rewrite_demo",
+        fake_run_evaluate_rewrite_demo,
+    )
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "app.cli",
+            "graph-evaluate-rewrite-demo",
+            "--topic",
+            "system architecture",
+        ],
+    )
+
+    try:
+        cli.main()
+    except SystemExit as error:
+        assert error.code == 1
+
+    output = capsys.readouterr().out
+
+    assert "LANGGRAPH EVALUATE REWRITE ERROR: topic cannot be empty" in output
