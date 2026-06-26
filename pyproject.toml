@@ -5,14 +5,17 @@ description = "论文答辩训练agent"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "fastapi",
     "langgraph>=1.2.6",
     "openai>=2.38.0",
     "pypdf>=6.12.2",
     "python-dotenv>=1.2.2",
+    "uvicorn",
 ]
 
 [dependency-groups]
 dev = [
+    "httpx>=0.28.1",
     "pytest>=9.0.3",
 ]
 
