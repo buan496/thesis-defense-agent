@@ -1,3 +1,6 @@
+import json
+import logging
+
 from fastapi.testclient import TestClient
 
 from app.api.main import app
@@ -38,3 +41,29 @@ def test_rag_status_returns_file_flags():
         "metadata_path"
     ] == "data/vector_store_meta.json"
     assert isinstance(body["metadata_exists"], bool)
+
+
+def test_request_logging_middleware_records_request(caplog):
+    caplog.set_level(
+        logging.INFO,
+        logger="app.api.request",
+    )
+
+    response = client.get("/health")
+
+    assert response.status_code == 200
+
+    records = [
+        record
+        for record in caplog.records
+        if record.name == "app.api.request"
+    ]
+    assert records
+
+    log_payload = json.loads(records[-1].message)
+
+    assert log_payload["event"] == "api_request"
+    assert log_payload["method"] == "GET"
+    assert log_payload["path"] == "/health"
+    assert log_payload["status_code"] == 200
+    assert log_payload["duration_ms"] >= 0
