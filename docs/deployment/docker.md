@@ -58,6 +58,25 @@ docker compose up -d --build
 http://127.0.0.1:8001/health
 ```
 
+Prometheus 默认暴露在 `9090`：
+
+```text
+http://127.0.0.1:9090
+```
+
+如果本机 `9090` 端口已被占用：
+
+```powershell
+$env:PROMETHEUS_PORT = "9091"
+docker compose up -d --build
+```
+
+Prometheus targets 页面：
+
+```text
+http://127.0.0.1:9091/targets
+```
+
 查看状态：
 
 ```powershell
@@ -86,6 +105,9 @@ FastAPI API 服务
 /health 健康检查
 /metrics JSON 指标
 /metrics/prometheus Prometheus 文本指标
+Prometheus 服务
+9090:9090 端口映射
+Prometheus 抓取 api:8000/metrics/prometheus
 ```
 
 注意：
@@ -124,14 +146,14 @@ docker run --rm `
 
 - 暂未拆分数据库、向量库和 API 服务。
 - 暂未提供生产级密钥管理。
-- 暂未接入独立 Prometheus 服务。
+- Prometheus 当前只用于本地学习版指标抓取，暂未提供告警规则和持久化存储。
 - 暂未提供 K8s manifests。
 
 下一阶段再补：
 
 ```text
-日志与 metrics
--> 服务器长期运行说明
+服务器长期运行说明
+-> Prometheus 告警规则
 -> PostgreSQL / Qdrant 服务拆分
 -> K8s manifests
 ```
