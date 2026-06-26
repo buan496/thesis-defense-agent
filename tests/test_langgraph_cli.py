@@ -1139,3 +1139,49 @@ def test_graph_summary_demo_command_reports_value_error(
     assert (
         "LANGGRAPH SUMMARY ERROR: answer is required before follow_up_answer"
     ) in output
+
+
+def test_graph_task_parity_command(monkeypatch, capsys):
+    def fake_build_langgraph_task_parity_report():
+        return {
+            "passed": True,
+            "order_matches": True,
+            "task_contract_steps": [
+                "retrieve_context",
+                "generate_question",
+            ],
+            "langgraph_steps": [
+                "retrieve_context",
+                "generate_question",
+            ],
+            "mapped_langgraph_steps": [
+                "retrieve_context",
+                "generate_question",
+            ],
+            "missing_steps": [],
+            "extra_steps": [],
+        }
+
+    monkeypatch.setattr(
+        cli,
+        "build_langgraph_task_parity_report",
+        fake_build_langgraph_task_parity_report,
+    )
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "app.cli",
+            "graph-task-parity",
+        ],
+    )
+
+    cli.main()
+
+    output = capsys.readouterr().out
+
+    assert "LANGGRAPH TASK PARITY" in output
+    assert "PASSED: True" in output
+    assert "ORDER MATCHES: True" in output
+    assert "TASK CONTRACT STEPS: ['retrieve_context', 'generate_question']" in output
+    assert "MISSING STEPS: []" in output
+    assert "EXTRA STEPS: []" in output
