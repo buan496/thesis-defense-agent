@@ -1817,3 +1817,58 @@ plan trace 审计计划，execution trace 审计真实执行。
 Trace 回放与工具审计深化：
 把 Agent trace、Sub-Agent plan trace 和 execution trace 串成更清晰的审计报告。
 ```
+
+<!-- roadmap-update-2026-06-26-trace-audit-review -->
+
+## 2026-06-26 路线同步：Trace 回放与工具审计复盘已完成
+
+本阶段新增完成文档：
+
+```text
+docs/14-Trace回放与工具审计复盘.md
+```
+
+已复盘能力：
+
+- [x] Agent trace
+- [x] Task trace
+- [x] Sub-Agent plan trace
+- [x] Sub-Agent execution trace
+- [x] Agent trace replay
+- [x] Generic trace replay
+- [x] Agent trace comparison
+- [x] Sub-Agent plan comparison
+- [x] Sub-Agent execution comparison
+- [x] Trace feedback
+
+对应代码位置：
+
+```text
+app/agent_trace_logger.py
+app/agent_trace_analyzer.py
+app/agent_trace_replayer.py
+app/trace_replay.py
+app/trace_feedback.py
+app/task_trace_analyzer.py
+app/sub_agent_plan_trace.py
+app/sub_agent_execution_trace.py
+app/sub_agent_plan_comparator.py
+app/sub_agent_execution_comparator.py
+```
+
+阶段结论：
+
+```text
+Trace 是 Agent 工程化的事实来源。
+Replay 解决可读性问题。
+Comparison 解决回归检测问题。
+Feedback 解决数据闭环问题。
+Audit 解决风险识别问题。
+```
+
+下一步学习：
+
+```text
+Memory 污染治理复盘：
+长期记忆写入、检索、注入、审计、裁剪和上下文压缩的风险边界。
+```
