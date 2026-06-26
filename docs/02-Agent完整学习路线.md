@@ -232,10 +232,10 @@ updated: 2026-06-23
 
 ## 阶段 10：服务化与界面
 
-> 当前机器暂不推进服务器部署相关学习。FastAPI、Web 前端、数据库、Docker、K8s 等内容后续放到另一台服务器笔记本上继续。
+> 当前机器已经完成 FastAPI 服务化、Docker Compose 和 Prometheus 本地验证。服务器长期运行、数据库、向量数据库、K8s 和私有化部署继续作为后续阶段。
 
-- [ ] FastAPI
-- [ ] Pydantic 请求模型
+- [x] FastAPI
+- [x] Pydantic 请求模型
 - [ ] SSE 或 WebSocket
 - [ ] 前端答辩界面
 - [ ] 文件上传
@@ -252,9 +252,9 @@ updated: 2026-06-23
 - [x] GitHub Actions 离线质量门禁
 - [x] CI 失败诊断和修复
 - [ ] Langfuse
-- [ ] Prometheus 指标
+- [x] Prometheus 指标
 - [ ] 错误告警
-- [ ] Docker
+- [x] Docker
 - [ ] PostgreSQL
 - [ ] Qdrant / Milvus
 - [ ] K8s 基础部署
@@ -303,7 +303,8 @@ RAG
 边界说明：
 
 - LangGraph 后续只做旁路迁移，不覆盖当前手写 Task State / Agent Harness 源码。
-- FastAPI、Docker、K8s、数据库、服务器部署和私有化运行环境放到另一台服务器笔记本学习。
+- FastAPI、Dockerfile、docker-compose 和 Prometheus 本机验证已完成。
+- 数据库、向量数据库、K8s、私有化部署和服务器长期运行继续作为后续阶段。
 
 ## 下一步学习重点
 
@@ -1479,7 +1480,8 @@ Spec -> Permission -> Plan -> Dry-Run -> Execute -> Trace -> Comparison -> Quali
 
 ```text
 LangGraph 后续只做旁路迁移，不覆盖现有手写 Agent Harness。
-FastAPI、Docker、K8s、数据库、服务器部署放到另一台服务器笔记本学习。
+FastAPI、Dockerfile、docker-compose 和 Prometheus 本机验证已完成。
+数据库、向量数据库、K8s、私有化部署和服务器长期运行继续作为后续阶段。
 ```
 
 <!-- roadmap-update-2026-06-25-trace-replay-feedback -->
@@ -2013,13 +2015,87 @@ docs/17-本机学习版阶段总复盘.md
 服务器笔记本阶段建议顺序：
 
 ```text
-1. FastAPI 服务化
-2. 文件上传与任务 API
+1. 服务器长期运行验证
+2. 文件上传 API
 3. SSE / WebSocket 流式输出
 4. PostgreSQL 存储 task / session / trace
 5. Qdrant 或 Milvus 替换本地 JSON 向量库
-6. Docker Compose
-7. Prometheus / 日志 / 健康检查
+6. Prometheus 告警规则和日志集中采集
+7. K8s manifests
 8. MCP Server 实际接入
 9. 权限审批和 workspace 隔离
+```
+
+<!-- roadmap-update-2026-06-26-fastapi-docker-prometheus -->
+
+## 2026-06-26 路线同步：FastAPI / Docker / Prometheus 本机验证已完成
+
+本阶段已完成服务化与本机部署验证：
+
+```text
+FastAPI API
+-> RAG Search API
+-> DefenseTask API
+-> Task answer / follow-up answer API
+-> Task analysis / Markdown report API
+-> request logging
+-> JSON metrics
+-> Prometheus text metrics
+-> Dockerfile
+-> docker-compose
+-> Prometheus compose service
+-> server runtime guide
+```
+
+已完成接口：
+
+```text
+GET  /health
+GET  /version
+GET  /metrics
+GET  /metrics/prometheus
+GET  /rag/status
+POST /rag/search
+POST /tasks
+GET  /tasks/{task_id}
+POST /tasks/{task_id}/steps/start
+POST /tasks/{task_id}/steps/execute
+POST /tasks/{task_id}/answer
+POST /tasks/{task_id}/follow-up-answer
+GET  /tasks/{task_id}/analysis
+POST /tasks/{task_id}/report/export
+```
+
+已完成部署能力：
+
+```text
+Dockerfile
+docker-compose.yml
+observability/prometheus/prometheus.yml
+docs/deployment/local-fastapi.md
+docs/deployment/docker.md
+docs/deployment/server.md
+```
+
+当前边界：
+
+```text
+尚未实现文件上传 API。
+尚未实现 SSE / WebSocket 流式输出。
+尚未接 PostgreSQL。
+尚未接 Qdrant / Milvus。
+尚未提供 Prometheus 告警规则。
+尚未提供 K8s manifests。
+```
+
+下一阶段建议顺序：
+
+```text
+1. 服务器长期运行验证
+2. 文件上传 API
+3. SSE / WebSocket 流式输出
+4. PostgreSQL
+5. Qdrant / Milvus
+6. Prometheus 告警规则
+7. K8s manifests
 ```
