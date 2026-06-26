@@ -1672,3 +1672,52 @@ Memory 质量治理必须先只读审计，再预览修改，最后才允许写�
 
 - 将 `feat/memory-audit` 推送并合并。
 - 合并后进入 LangGraph 旁路迁移前整理，保留现有手写 Agent Harness 作为学习对照。
+
+<!-- roadmap-update-2026-06-26-langgraph-phase-summary -->
+
+## 2026-06-26 路线同步：LangGraph 旁路迁移阶段已完成
+
+本阶段新增完成能力：
+
+- [x] `demo_task`：基础 StateGraph
+- [x] `interrupt_demo`：人工输入中断
+- [x] `checkpointer_demo`：checkpoint 状态检查
+- [x] `persistent_checkpoint_demo`：checkpoint 快照保存
+- [x] `conditional_demo`：条件路由
+- [x] `evaluate_rewrite_demo`：评价与改写节点
+- [x] `follow_up_demo`：追问链路与第二次 interrupt
+- [x] `summary_demo`：完整训练总结节点
+- [x] `parity_report`：LangGraph 与 Task Workflow Contract 对照
+- [x] 新增 `docs/11-LangGraph阶段复盘.md`
+
+阶段链路：
+
+```text
+Task Workflow Contract
+-> LangGraph sidecar demos
+-> interrupt / checkpoint / conditional routing
+-> evaluate / rewrite / follow-up / summary
+-> parity report
+```
+
+学到的关键点：
+
+```text
+LangGraph 是编排层，不是业务逻辑替代品。
+旁路迁移比覆盖式重构更适合学习和验证。
+迁移完成标准不是“能跑”，而是通过 parity report 证明与原工作流契约等价。
+```
+
+暂不进入：
+
+- 覆盖替换 `app/task_*`
+- 数据库 checkpoint
+- 服务端部署
+- Web UI
+
+下一步学习：
+
+```text
+LangGraph 阶段收尾后，进入 Agent Harness 稳定性治理复盘：
+工具超时、重试、结果长度限制、错误标准化、Sub-Agent 权限和执行审计。
+```
