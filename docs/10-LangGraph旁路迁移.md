@@ -55,6 +55,17 @@ follow_up_demo.py
 -> generate_follow_up
 -> follow_up_interrupt
 -> evaluate_follow_up_answer
+
+summary_demo.py
+-> retrieve_context
+-> generate_question
+-> answer_interrupt
+-> evaluate_answer
+-> rewrite_answer
+-> generate_follow_up
+-> follow_up_interrupt
+-> evaluate_follow_up_answer
+-> summarize_training
 ```
 
 ## 与 Task Workflow Contract 的关系
@@ -124,6 +135,12 @@ uv run python -m app.cli graph-follow-up-demo `
   --thread-id "thread-1" `
   --answer "系统按模块划分。" `
   --follow-up-answer "这样方便定位问题。"
+
+uv run python -m app.cli graph-summary-demo `
+  --topic "系统架构" `
+  --thread-id "thread-1" `
+  --answer "系统按模块划分。" `
+  --follow-up-answer "这样方便定位问题。"
 ```
 
 ## evaluate / rewrite 旁路节点
@@ -176,6 +193,35 @@ follow_up_interrupt
 ```text
 多轮答辩训练不是简单的一次 interrupt。
 真实任务型 Agent 需要在同一条状态图中多次暂停、恢复，并继续继承前文状态。
+```
+
+## summarize_training 旁路节点
+
+本阶段新增完整训练总结节点：
+
+```text
+summarize_training
+```
+
+完整 LangGraph 旁路链路已经覆盖 Task State 主链路：
+
+```text
+retrieve_context
+-> generate_question
+-> wait_for_answer / answer_interrupt
+-> evaluate_answer
+-> rewrite_answer
+-> generate_follow_up
+-> wait_for_follow_up_answer / follow_up_interrupt
+-> evaluate_follow_up_answer
+-> summarize_training
+```
+
+这一阶段学到的重点：
+
+```text
+工作流的最后一步不只是结束，而是把完整状态汇总成可保存、可复盘、可进入 Memory 的训练产物。
+LangGraph 的价值在于状态继承和节点编排，业务逻辑仍然复用现有函数。
 ```
 
 ## 后续边界
