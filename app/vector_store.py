@@ -1,9 +1,15 @@
 import math
 import logging
 
-from app.embeddings import create_fake_embedding
-
 logger = logging.getLogger(__name__)
+
+
+def create_fake_embedding(text: str) -> list[float]:
+    return [
+        float(len(text)),
+        float(text.count("论文")),
+        float(text.count("系统")),
+    ]
 
 def dot_product(a: list[float],b: list[float]) -> float:
     if len(a) != len(b):
