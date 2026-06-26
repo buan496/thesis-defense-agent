@@ -281,6 +281,18 @@ http://127.0.0.1:8000/docs
 docs/deployment/local-fastapi.md
 ```
 
+构建本地 FastAPI Docker 镜像：
+
+```powershell
+docker build -t thesis-defense-agent:local .
+```
+
+Docker 说明：
+
+```text
+docs/deployment/docker.md
+```
+
 关闭 Session 压缩：
 
 ```powershell
