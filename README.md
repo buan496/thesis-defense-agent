@@ -81,6 +81,7 @@ PDF / TXT 论文
 - 支持 Agent trace JSONL 持久化和 trace 分析
 - 已完成 Agent Harness 稳定性治理复盘，覆盖权限、超时、重试、长度限制、错误标准化和 trace 审计
 - 已完成 Sub-Agent 权限与 dry-run 复盘，覆盖角色边界、工具授权、执行计划、plan trace、execution trace 和回归对比
+- 已完成 MCP 工具协议对照学习，明确 Tool Registry、Tool Schema、Tool Metadata、权限控制、调用执行、资源暴露和审计链路的映射关系
 
 ### Session 与 Memory
 
@@ -367,6 +368,7 @@ docs/12-Agent-Harness稳定性治理复盘.md 工具权限、超时、重试、�
 docs/13-Sub-Agent权限与Dry-Run复盘.md Sub-Agent 角色边界、dry-run、计划审计、执行审计和回归对比复盘
 docs/14-Trace回放与工具审计复盘.md Agent trace、Task trace、Sub-Agent trace、回放、对比、反馈和审计复盘
 docs/15-Memory污染治理复盘.md 长期记忆写入、裁剪、命中审计、注入预览和污染风险治理复盘
+docs/16-MCP工具协议对照学习.md 当前本地 Tool Harness 与 MCP 工具发现、调用、授权、资源和审计模型对照
 ```
 
 ## 下一步学习
@@ -401,7 +403,7 @@ retrieve_context
 
 下一步按路线进入：
 
-1. MCP 工具协议对照学习：将当前 Tool Registry、Sub-Agent 权限和工具审计能力映射到 MCP 的工具发现、授权、调用和审计模型。
+1. 项目阶段总复盘：汇总本机学习版 Agent Harness 已完成能力、未完成边界、可展示命令、简历表达和服务器阶段学习计划。
 2. 对 README 和学习路线做周期性同步，避免文档落后于代码。
 3. 服务化、Docker、数据库和服务器部署继续后移到另一台服务器笔记本。
 
