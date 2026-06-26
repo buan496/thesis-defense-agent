@@ -45,6 +45,16 @@ evaluate_rewrite_demo.py
 -> answer_interrupt
 -> evaluate_answer
 -> rewrite_answer
+
+follow_up_demo.py
+-> retrieve_context
+-> generate_question
+-> answer_interrupt
+-> evaluate_answer
+-> rewrite_answer
+-> generate_follow_up
+-> follow_up_interrupt
+-> evaluate_follow_up_answer
 ```
 
 ## 与 Task Workflow Contract 的关系
@@ -108,6 +118,12 @@ uv run python -m app.cli graph-evaluate-rewrite-demo `
   --topic "系统架构" `
   --thread-id "thread-1" `
   --answer "系统采用模块化设计。"
+
+uv run python -m app.cli graph-follow-up-demo `
+  --topic "系统架构" `
+  --thread-id "thread-1" `
+  --answer "系统按模块划分。" `
+  --follow-up-answer "这样方便定位问题。"
 ```
 
 ## evaluate / rewrite 旁路节点
@@ -133,6 +149,33 @@ app.answer_rewrite.rewrite_answer
 ```text
 LangGraph 节点不应该重新发明业务逻辑。
 正确做法是复用已有函数，把节点作为状态推进和编排层。
+```
+
+## follow-up 旁路节点
+
+本阶段新增完整追问链路：
+
+```text
+generate_follow_up
+follow_up_interrupt
+evaluate_follow_up_answer
+```
+
+它展示了 LangGraph 中同一条工作流里的两次人工输入：
+
+```text
+answer_interrupt
+-> 学生回答原问题
+
+follow_up_interrupt
+-> 学生回答追问
+```
+
+这一阶段学到的重点：
+
+```text
+多轮答辩训练不是简单的一次 interrupt。
+真实任务型 Agent 需要在同一条状态图中多次暂停、恢复，并继续继承前文状态。
 ```
 
 ## 后续边界
