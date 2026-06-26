@@ -139,6 +139,7 @@ retrieve_context
 - 评估报告回归对比
 - 指标下降、预测翻转和稳定性退化检测
 - GitHub Actions 离线质量门禁
+- 已完成 Trace 回放与工具审计复盘，覆盖 Agent trace、Task trace、Sub-Agent plan trace、execution trace、replay、comparison 和 feedback
 
 ## 当前技术栈
 
@@ -363,6 +364,7 @@ docs/10-LangGraph旁路迁移.md     LangGraph 旁路迁移过程记录
 docs/11-LangGraph阶段复盘.md     LangGraph 旁路迁移阶段总结和 parity report
 docs/12-Agent-Harness稳定性治理复盘.md 工具权限、超时、重试、结果限制、错误标准化和 trace 审计复盘
 docs/13-Sub-Agent权限与Dry-Run复盘.md Sub-Agent 角色边界、dry-run、计划审计、执行审计和回归对比复盘
+docs/14-Trace回放与工具审计复盘.md Agent trace、Task trace、Sub-Agent trace、回放、对比、反馈和审计复盘
 ```
 
 ## 下一步学习
@@ -397,7 +399,7 @@ retrieve_context
 
 下一步按路线进入：
 
-1. Trace 回放与工具审计深化：把 Agent trace、Sub-Agent plan trace 和 execution trace 串成更清晰的审计报告。
+1. Memory 污染治理复盘：长期记忆写入、检索、注入、审计、裁剪和上下文压缩的风险边界。
 2. 对 README 和学习路线做周期性同步，避免文档落后于代码。
 3. 服务化、Docker、数据库和服务器部署继续后移到另一台服务器笔记本。
 
