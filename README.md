@@ -79,6 +79,7 @@ PDF / TXT 论文
 - 支持工具异常恢复、工具成功 / 失败记录、工具耗时统计
 - 支持工具结果长度限制、工具重试、工具超时和标准化错误
 - 支持 Agent trace JSONL 持久化和 trace 分析
+- 已完成 Agent Harness 稳定性治理复盘，覆盖权限、超时、重试、长度限制、错误标准化和 trace 审计
 
 ### Session 与 Memory
 
@@ -354,6 +355,12 @@ app/evaluation_report_comparator.py 评估报告回归对比
 app/cli.py                       统一 CLI
 docs/05-Task-State工作流复盘.md   Task State 状态机、节点、边和 LangGraph 旁路迁移前复盘
 docs/06-MCP与Sub-Agent前置概念.md MCP / Sub-Agent 概念映射和后续学习边界
+docs/07-Sub-Agent阶段复盘.md     Sub-Agent 本地学习版 Harness、dry-run、plan replay 和执行边界
+docs/08-Memory阶段复盘.md        长期记忆、记忆注入、记忆审计和上下文压缩复盘
+docs/09-Task工作流契约.md        手写 Task State 与 LangGraph 旁路迁移的工作流契约
+docs/10-LangGraph旁路迁移.md     LangGraph 旁路迁移过程记录
+docs/11-LangGraph阶段复盘.md     LangGraph 旁路迁移阶段总结和 parity report
+docs/12-Agent-Harness稳定性治理复盘.md 工具权限、超时、重试、结果限制、错误标准化和 trace 审计复盘
 ```
 
 ## 下一步学习
@@ -388,7 +395,7 @@ retrieve_context
 
 下一步按路线进入：
 
-1. Agent Harness 稳定性治理复盘：工具超时、重试、结果长度限制、错误标准化、权限和审计。
+1. Sub-Agent 权限边界和 dry-run 执行策略复盘：明确计划生成、执行审批、权限边界和审计记录。
 2. 对 README 和学习路线做周期性同步，避免文档落后于代码。
 3. 服务化、Docker、数据库和服务器部署继续后移到另一台服务器笔记本。
 
