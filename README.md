@@ -1,6 +1,7 @@
 # Thesis Defense Agent
 
 [![CI](https://github.com/buan496/thesis-defense-agent/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/buan496/thesis-defense-agent/actions/workflows/ci.yml)
+[![Docker Build](https://github.com/buan496/thesis-defense-agent/actions/workflows/docker-build.yml/badge.svg?branch=main)](https://github.com/buan496/thesis-defense-agent/actions/workflows/docker-build.yml)
 
 ## 项目目标
 
