@@ -1,17 +1,18 @@
-# Docker CI Build
+# Docker CI Build And GHCR Publish
 
 ## Purpose
 
-This workflow verifies that the project Docker image can be built in GitHub Actions.
+This workflow verifies that the project Docker image can be built in GitHub Actions and publishes the image to GitHub Container Registry when code is merged to the default branch.
 
 Current scope:
 
 - Build the image from `Dockerfile`.
 - Use Docker Buildx.
 - Reuse GitHub Actions cache.
-- Do not push the image to any registry.
+- Build pull requests without publishing images.
+- Publish images for non-PR runs, including `main`.
 
-This is a build-only quality gate. It checks whether container packaging stays healthy when code changes.
+This keeps PR validation safe while allowing the default branch to produce deployable images.
 
 ## Workflow
 
@@ -38,15 +39,49 @@ docker/build-push-action
 with:
 
 ```text
-push: false
-tags: thesis-defense-agent:ci
+push: ${{ github.event_name != 'pull_request' }}
+tags: ${{ steps.meta.outputs.tags }}
+labels: ${{ steps.meta.outputs.labels }}
 ```
 
-## Why This Comes Before Registry Push
+## Image Registry
 
-The current learning stage only needs to prove that the image can be built consistently in CI.
+Images are published to:
 
-Registry publishing should be added later as a separate step:
+```text
+ghcr.io/buan496/thesis-defense-agent
+```
+
+The workflow uses:
+
+```text
+docker/login-action
+docker/metadata-action
+docker/build-push-action
+```
+
+The workflow permission required for publishing is:
+
+```yaml
+permissions:
+  contents: read
+  packages: write
+```
+
+## Tag Strategy
+
+The workflow generates tags with `docker/metadata-action`:
+
+- `latest` for the default branch.
+- `sha-<commit>` for each commit.
+- branch tags for branch builds.
+- PR tags for pull request builds.
+
+PR tags are only used for local CI metadata. PR builds do not push images.
+
+## Deployment Flow
+
+The intended deployment flow is:
 
 ```text
 code
@@ -56,7 +91,7 @@ code
 -> server pulls image
 ```
 
-Keeping build and publish separate makes failures easier to locate:
+This separates failure types:
 
 - Docker build failure means packaging or dependency issue.
 - Registry push failure means authentication or permission issue.
@@ -64,15 +99,10 @@ Keeping build and publish separate makes failures easier to locate:
 
 ## Next Stage
 
-After this workflow is stable, add GHCR publishing:
+After this workflow is stable, update server deployment to pull:
 
 ```text
-ghcr.io/buan496/thesis-defense-agent:<tag>
+ghcr.io/buan496/thesis-defense-agent:latest
 ```
 
-That stage will require:
-
-- `packages: write` permission.
-- GitHub Container Registry authentication.
-- Image tags for branch, commit SHA, and release.
-- A server deployment command that pulls the published image instead of building locally.
+instead of building the image on the server.
