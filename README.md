@@ -34,12 +34,13 @@ PDF / TXT 论文
 → 可恢复 DefenseTask
 → 评价 / 改写 / 追问 / 总结
 → Trace / benchmark / CI
+→ FastAPI / Docker / Prometheus / GHCR 发布流程
 ```
 
 最新本地测试基线：
 
 ```text
-738 passed
+764 passed
 ```
 
 本机学习版阶段已完成，阶段总复盘见：
@@ -163,12 +164,16 @@ retrieve_context
 - LangGraph
 - FastAPI
 - Uvicorn
+- Docker
+- Docker Compose
+- GitHub Container Registry
+- Prometheus
 - Markdown / JSON 本地文件存储
 - GitHub Actions
 
 ## 暂缓范围
 
-当前已经开始在本机推进 FastAPI 服务化、Docker Compose 和 Prometheus 本地验证。以下内容暂缓到后续服务器长期运行或数据库阶段：
+当前已经开始在本机推进 FastAPI 服务化、Docker Compose、Prometheus 本地验证和 GHCR 镜像发布流程。以下内容暂缓到后续服务器长期运行或数据库阶段：
 
 - Web 前端
 - PostgreSQL
@@ -179,7 +184,7 @@ retrieve_context
 
 LangGraph 已完成旁路迁移学习版闭环，并保留在 `app/langgraph_workflow/`。它只用于和当前 `app/agent.py`、`app/task_*` 对照学习，不覆盖当前手写实现。数据库级 checkpointer、服务器部署和跨进程恢复继续后移到服务器/数据库阶段。
 
-FastAPI、Dockerfile、docker-compose 和 Prometheus 抓取已完成本机验证；服务器长期运行、数据库、向量数据库和 K8s 继续作为后续阶段。
+FastAPI、Dockerfile、docker-compose、Prometheus 抓取和 GitHub Actions Docker 镜像构建已完成本机/CI 验证；GHCR 发布流程进入当前阶段。服务器长期运行、数据库、向量数据库和 K8s 继续作为后续阶段。
 
 ## 安装
 

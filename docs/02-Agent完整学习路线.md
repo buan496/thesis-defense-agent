@@ -232,7 +232,7 @@ updated: 2026-06-23
 
 ## 阶段 10：服务化与界面
 
-> 当前机器已经完成 FastAPI 服务化、Docker Compose 和 Prometheus 本地验证。服务器长期运行、数据库、向量数据库、K8s 和私有化部署继续作为后续阶段。
+> 当前机器已经完成 FastAPI 服务化、Docker Compose、Prometheus 本地验证和 Docker 镜像 CI 构建；GHCR 镜像发布进入当前阶段。服务器长期运行、数据库、向量数据库、K8s 和私有化部署继续作为后续阶段。
 
 - [x] FastAPI
 - [x] Pydantic 请求模型
@@ -255,6 +255,8 @@ updated: 2026-06-23
 - [x] Prometheus 指标
 - [ ] 错误告警
 - [x] Docker
+- [x] Docker build CI
+- [x] GHCR 镜像发布流程
 - [ ] PostgreSQL
 - [ ] Qdrant / Milvus
 - [ ] K8s 基础部署
@@ -2044,6 +2046,8 @@ FastAPI API
 -> Dockerfile
 -> docker-compose
 -> Prometheus compose service
+-> Docker build CI
+-> GHCR image publish workflow
 -> server runtime guide
 ```
 
@@ -2074,6 +2078,7 @@ docker-compose.yml
 observability/prometheus/prometheus.yml
 docs/deployment/local-fastapi.md
 docs/deployment/docker.md
+docs/deployment/docker-ci.md
 docs/deployment/server.md
 ```
 
@@ -2091,11 +2096,12 @@ docs/deployment/server.md
 下一阶段建议顺序：
 
 ```text
-1. 服务器长期运行验证
-2. 文件上传 API
-3. SSE / WebSocket 流式输出
-4. PostgreSQL
-5. Qdrant / Milvus
-6. Prometheus 告警规则
-7. K8s manifests
+1. GHCR 镜像发布验证
+2. 服务器拉取 GHCR 镜像运行
+3. 文件上传 API
+4. SSE / WebSocket 流式输出
+5. PostgreSQL
+6. Qdrant / Milvus
+7. Prometheus 告警规则
+8. K8s manifests
 ```
