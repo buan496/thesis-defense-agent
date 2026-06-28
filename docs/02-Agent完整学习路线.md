@@ -257,6 +257,7 @@ updated: 2026-06-23
 - [x] Docker
 - [x] Docker build CI
 - [x] GHCR 镜像发布流程
+- [x] GHCR 镜像拉取与运行验证
 - [ ] PostgreSQL
 - [ ] Qdrant / Milvus
 - [ ] K8s 基础部署
@@ -2096,12 +2097,11 @@ docs/deployment/server.md
 下一阶段建议顺序：
 
 ```text
-1. GHCR 镜像发布验证
-2. 服务器拉取 GHCR 镜像运行
-3. 文件上传 API
-4. SSE / WebSocket 流式输出
-5. PostgreSQL
-6. Qdrant / Milvus
-7. Prometheus 告警规则
-8. K8s manifests
+1. 服务器拉取 GHCR 镜像运行
+2. 文件上传 API
+3. SSE / WebSocket 流式输出
+4. PostgreSQL
+5. Qdrant / Milvus
+6. Prometheus 告警规则
+7. K8s manifests
 ```
