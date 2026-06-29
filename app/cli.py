@@ -42,6 +42,7 @@ from app.config import (
     RAG_MIN_CHUNK_SIZE,
     RAG_TOP_K,
     RAG_VECTOR_STORE_PATH,
+    STORAGE_BACKEND,
     SUB_AGENT_EXECUTION_TRACE_PATH,
     SUB_AGENT_PLAN_TRACE_PATH,
 )
@@ -132,6 +133,7 @@ from app.local_quality_gate import (
 )
 from app.postgres_migrations import build_postgres_migration_plan
 from app.postgres_migration_runner import run_postgres_migrations
+from app.repository_factory import create_repositories
 from app.feedback_store import (
     create_feedback_record,
     load_feedback_records,
@@ -1965,6 +1967,24 @@ def main():
         "--directory",
         default=None,
         help="Optional PostgreSQL migration directory",
+    )
+
+    show_repositories_parser = subparsers.add_parser(
+        "show-repositories",
+        help="Show selected repository implementations without connecting",
+    )
+    show_repositories_parser.add_argument(
+        "--storage-backend",
+        default=STORAGE_BACKEND,
+        help="Storage backend to inspect: json or postgres",
+    )
+    show_repositories_parser.add_argument(
+        "--database-url",
+        default=None,
+        help=(
+            "PostgreSQL connection URL. Defaults to DATABASE_URL from the "
+            "environment. The value is not printed."
+        ),
     )
     
     args = parser.parse_args()
@@ -4373,6 +4393,37 @@ def main():
                 report.skipped,
                 ensure_ascii=False,
             ))
+
+    elif args.command == "show-repositories":
+        database_url = (
+            args.database_url
+            if args.database_url is not None
+            else DATABASE_URL
+        )
+
+        try:
+            repositories = create_repositories(
+                storage_backend=args.storage_backend,
+                database_url=database_url,
+            )
+        except ValueError as error:
+            print(f"REPOSITORY CONFIG ERROR: {error}")
+            raise SystemExit(1) from error
+
+        print("REPOSITORY CONFIG")
+        print("STORAGE BACKEND:", repositories.storage_backend)
+        print(
+            "TASK REPOSITORY:",
+            type(repositories.task_repository).__name__,
+        )
+        print(
+            "SESSION REPOSITORY:",
+            type(repositories.session_repository).__name__,
+        )
+        print(
+            "TRACE REPOSITORY:",
+            type(repositories.trace_repository).__name__,
+        )
 
     elif args.command == "show-task":
         task = get_defense_task(

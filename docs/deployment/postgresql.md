@@ -260,6 +260,49 @@ Current boundary: `PostgresTraceRepository` is implemented and tested, but the
 application still writes JSONL traces unless a future repository factory selects
 PostgreSQL through configuration.
 
+## Repository Factory
+
+Repository selection lives in:
+
+```text
+app/repository_factory.py
+```
+
+It creates a `RepositoryBundle` containing:
+
+- `task_repository`
+- `session_repository`
+- `trace_repository`
+- `storage_backend`
+
+Supported backends:
+
+```text
+json
+postgres
+```
+
+Default behavior remains:
+
+```env
+STORAGE_BACKEND=json
+```
+
+Inspect the selected repository implementations without connecting to
+PostgreSQL:
+
+```powershell
+uv run python -m app.cli show-repositories
+uv run python -m app.cli show-repositories --storage-backend postgres --database-url "postgresql://..."
+```
+
+The CLI prints repository class names only. It does not print the full
+`DATABASE_URL`.
+
+Current boundary: the factory can construct JSON or PostgreSQL repositories, but
+the API service still uses the existing JSON-oriented service functions until a
+future integration step wires repositories into runtime services.
+
 ## Why Not Replace JSON Immediately
 
 Replacing storage directly would mix two changes:
@@ -271,5 +314,6 @@ The project should keep those concerns separate. The repository abstraction lets
 
 ## Next Steps
 
-- Add repository factory / configuration selection for JSON vs PostgreSQL.
 - Add JSON-to-PostgreSQL import scripts.
+- Wire repository factory into runtime services after import / rollback
+  strategy is defined.

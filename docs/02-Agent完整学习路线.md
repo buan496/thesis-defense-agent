@@ -267,6 +267,7 @@ updated: 2026-06-29
 - [x] PostgresTaskRepository
 - [x] PostgresSessionRepository
 - [x] PostgresTraceRepository
+- [x] Repository factory / STORAGE_BACKEND selection
 - [ ] PostgreSQL
 - [ ] Qdrant / Milvus
 - [ ] K8s 基础部署
@@ -498,6 +499,39 @@ API service 仍默认使用 JSON / JSONL storage。
 ```text
 Repository factory / configuration selection。
 根据 STORAGE_BACKEND=json|postgres 创建 Task / Session / Trace repositories。
+```
+
+<!-- roadmap-update-2026-06-29-repository-factory -->
+
+## 2026-06-29 路线同步：Repository Factory 已完成
+
+本阶段完成的是 repository 创建与配置选择，不切换现有 service 的默认运行路径。
+
+已完成：
+
+- [x] `app.repository_factory.RepositoryBundle`
+- [x] `create_repositories(storage_backend=...)`
+- [x] `STORAGE_BACKEND=json` 创建 `JsonTaskRepository` / `JsonSessionRepository` / `JsonlTraceRepository`
+- [x] `STORAGE_BACKEND=postgres` 创建 `PostgresTaskRepository` / `PostgresSessionRepository` / `PostgresTraceRepository`
+- [x] PostgreSQL backend 要求 `DATABASE_URL`
+- [x] `show-repositories` CLI
+- [x] CLI 不打印完整 `DATABASE_URL`
+- [x] factory 和 CLI 单元测试
+
+当前边界：
+
+```text
+repository factory 已完成。
+默认 backend 仍是 json。
+runtime service 尚未通过 factory 注入 repository。
+尚未实现 JSON -> PostgreSQL 导入脚本。
+```
+
+下一步学习：
+
+```text
+JSON-to-PostgreSQL import scripts。
+先支持 task / session / trace 从本地文件导入 PostgreSQL repository，再考虑切换 runtime service。
 ```
 
 已经完成的 Task State 能力：
