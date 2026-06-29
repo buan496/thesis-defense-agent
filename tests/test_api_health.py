@@ -68,6 +68,45 @@ def test_request_logging_middleware_records_request(caplog):
     assert log_payload["path"] == "/health"
     assert log_payload["status_code"] == 200
     assert log_payload["duration_ms"] >= 0
+    assert log_payload["correlation_id"]
+    assert response.headers["X-Correlation-ID"] == log_payload[
+        "correlation_id"
+    ]
+
+
+def test_request_logging_middleware_reuses_incoming_correlation_id(caplog):
+    caplog.set_level(
+        logging.INFO,
+        logger="app.api.request",
+    )
+
+    response = client.get(
+        "/health",
+        headers={
+            "X-Correlation-ID": "test-correlation-id",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.headers["X-Correlation-ID"] == "test-correlation-id"
+
+    records = [
+        record
+        for record in caplog.records
+        if record.name == "app.api.request"
+    ]
+    assert records
+
+    log_payload = json.loads(records[-1].message)
+
+    assert log_payload["correlation_id"] == "test-correlation-id"
+
+
+def test_request_logging_middleware_generates_correlation_id():
+    response = client.get("/health")
+
+    assert response.status_code == 200
+    assert response.headers["X-Correlation-ID"]
 
 
 def test_metrics_records_api_requests():

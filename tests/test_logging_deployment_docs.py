@@ -27,6 +27,8 @@ def test_logging_deployment_documentation_covers_queries_and_boundaries():
     assert "# Logging and Retention" in docs_text
     assert "app/api/middleware.py" in docs_text
     assert "logger name: app.api.request" in docs_text
+    assert "X-Correlation-ID" in docs_text
+    assert '"correlation_id":' in docs_text
     assert "docker compose logs -f api" in docs_text
     assert "docker compose logs --tail 100 api" in docs_text
     assert "docker compose logs --since 30m api" in docs_text

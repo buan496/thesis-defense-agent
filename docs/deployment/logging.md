@@ -35,8 +35,16 @@ Each request log is JSON text with:
   "method": "GET",
   "path": "/health",
   "status_code": 200,
-  "duration_ms": 12.34
+  "duration_ms": 12.34,
+  "correlation_id": "9a5a9e55-6a35-4ad1-ae64-7ff2a407d2e7"
 }
+```
+
+The API accepts an incoming `X-Correlation-ID` header. If the header is missing,
+the middleware generates one. The response always includes:
+
+```text
+X-Correlation-ID: <correlation_id>
 ```
 
 ### Agent Trace Logs
@@ -126,6 +134,13 @@ docker compose logs api |
   Select-String '"path": "/tasks"'
 ```
 
+Filter by correlation ID:
+
+```powershell
+docker compose logs api |
+  Select-String '"correlation_id": "test-correlation-id"'
+```
+
 Filter likely server errors:
 
 ```powershell
@@ -171,6 +186,8 @@ Completed:
 
 ```text
 structured API request logs
+X-Correlation-ID response header
+correlation ID in request logs
 Docker Compose log rotation
 basic Docker log query commands
 Agent trace JSONL files
@@ -185,19 +202,20 @@ Not completed:
 centralized log storage
 Loki / Elasticsearch
 log-based alerting
-correlation IDs across request -> task -> tool call
+full correlation across request -> task -> tool call
 PII redaction policy
 long-term archive retention
 ```
 
 ## Next Step
 
-After local log retention is documented, the next observability step is either:
+After request-level correlation IDs are available, the next observability step is
+either:
 
 ```text
-correlation IDs
+propagating correlation IDs into task/tool traces
 or centralized log collection
 ```
 
-Correlation IDs are recommended first because they improve every later logging
-backend.
+Task/tool trace correlation is recommended first because it connects API request
+logs with Agent execution artifacts.

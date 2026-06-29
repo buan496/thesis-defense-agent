@@ -800,6 +800,8 @@ docs/deployment/logging.md
 
 ```text
 API structured request logs
+X-Correlation-ID response header
+correlation_id in API request logs
 Docker Compose json-file log rotation
 DOCKER_LOG_MAX_SIZE / DOCKER_LOG_MAX_FILE
 Docker logs query commands
@@ -811,7 +813,7 @@ Agent trace analyze / replay commands
 ```text
 尚未接 Loki / Elasticsearch。
 尚未做 log-based alerting。
-尚未实现 request -> task -> tool call correlation ID。
+尚未实现 request -> task -> tool call 全链路 correlation ID 传播。
 ```
 
 ## 2026-06-29 Update: Vector Store Repository Abstraction
