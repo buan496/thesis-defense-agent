@@ -272,7 +272,7 @@ updated: 2026-06-29
 - [x] Task runtime repository pilot
 - [x] Session runtime repository integration
 - [x] Trace runtime repository integration
-- [ ] PostgreSQL
+- [x] PostgreSQL runtime smoke test
 - [ ] Qdrant / Milvus
 - [ ] K8s 基础部署
 - [ ] 私有化配置和密钥管理

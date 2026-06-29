@@ -111,17 +111,20 @@ Default local environment variables:
 
 ```env
 STORAGE_BACKEND=json
-DATABASE_URL=postgresql://thesis_agent:thesis_agent_dev_password@localhost:5432/thesis_defense_agent
+DATABASE_URL=postgresql://thesis_agent:thesis_agent_dev_password@127.0.0.1:5432/thesis_defense_agent
 POSTGRES_DB=thesis_defense_agent
 POSTGRES_USER=thesis_agent
 POSTGRES_PASSWORD=thesis_agent_dev_password
 POSTGRES_PORT=5432
 ```
 
-`STORAGE_BACKEND=json` remains the default. The application still uses JSON /
-JSONL storage unless future code explicitly selects PostgreSQL repositories.
-The Compose database is a preparation step for schema migrations and repository
-implementation, not a behavior change for the current API.
+`STORAGE_BACKEND=json` remains the default. Runtime task, session, and trace
+paths can use PostgreSQL when `STORAGE_BACKEND=postgres` and `DATABASE_URL` are
+selected explicitly.
+
+On Windows / Docker Desktop, prefer `127.0.0.1` in `DATABASE_URL`. In local
+smoke testing, `localhost` worked functionally but made repeated PostgreSQL
+connections much slower.
 
 ## Migration Files
 
@@ -174,7 +177,7 @@ Run against the local Compose database:
 docker compose up -d postgres
 
 uv run python -m app.cli run-postgres-migrations `
-  --database-url "postgresql://thesis_agent:thesis_agent_dev_password@localhost:5432/thesis_defense_agent"
+  --database-url "postgresql://thesis_agent:thesis_agent_dev_password@127.0.0.1:5432/thesis_defense_agent"
 ```
 
 Or use `.env`:
@@ -315,7 +318,7 @@ CLI:
 
 ```powershell
 uv run python -m app.cli import-json-to-postgres `
-  --database-url "postgresql://thesis_agent:thesis_agent_dev_password@localhost:5432/thesis_defense_agent"
+  --database-url "postgresql://thesis_agent:thesis_agent_dev_password@127.0.0.1:5432/thesis_defense_agent"
 ```
 
 Preview without writing:
@@ -395,8 +398,8 @@ uv run python -m app.cli import-json-to-postgres --dry-run
 uv run python -m app.cli import-json-to-postgres
 ```
 
-Current boundary: task runtime is the first repository-backed runtime pilot.
-Session runtime and trace runtime still have separate migration steps.
+Current boundary: task runtime can use the selected repository. JSON remains
+the default backend.
 
 ## Session Runtime Repository Integration
 
@@ -419,8 +422,7 @@ STORAGE_BACKEND=json
 ```
 
 Current boundary: task runtime and chat session runtime are repository-backed.
-Trace runtime still writes through the existing JSONL path until its dedicated
-migration step is implemented.
+JSON remains the default backend.
 
 ## Trace Runtime Repository Integration
 
@@ -445,6 +447,84 @@ STORAGE_BACKEND=json
 Current boundary: task, session, and trace runtime can use selected
 repositories. Commands that intentionally compare two explicit trace files keep
 file-path semantics.
+
+## Local PostgreSQL Runtime Smoke Test
+
+Recommended local validation sequence:
+
+```powershell
+docker compose up -d postgres
+docker compose exec postgres pg_isready -U thesis_agent -d thesis_defense_agent
+
+uv run python -m app.cli run-postgres-migrations `
+  --database-url "postgresql://thesis_agent:thesis_agent_dev_password@127.0.0.1:5432/thesis_defense_agent"
+
+uv run python -m app.cli import-json-to-postgres `
+  --database-url "postgresql://thesis_agent:thesis_agent_dev_password@127.0.0.1:5432/thesis_defense_agent" `
+  --dry-run
+
+uv run python -m app.cli import-json-to-postgres `
+  --database-url "postgresql://thesis_agent:thesis_agent_dev_password@127.0.0.1:5432/thesis_defense_agent"
+```
+
+Then verify runtime repository selection:
+
+```powershell
+$env:STORAGE_BACKEND = "postgres"
+$env:DATABASE_URL = "postgresql://thesis_agent:thesis_agent_dev_password@127.0.0.1:5432/thesis_defense_agent"
+
+uv run python -m app.cli show-repositories
+```
+
+Expected repository classes:
+
+```text
+TASK REPOSITORY: PostgresTaskRepository
+SESSION REPOSITORY: PostgresSessionRepository
+TRACE REPOSITORY: PostgresTraceRepository
+```
+
+Task runtime smoke test:
+
+```powershell
+$out = uv run python -m app.cli create-task --topic "postgres-smoke"
+$taskId = (($out | Select-String '^TASK ID:').Line -replace '^TASK ID:\s*','')
+uv run python -m app.cli start-task-step --task-id $taskId --input '{\"topic\":\"postgres-smoke\"}'
+uv run python -m app.cli show-task --task-id $taskId
+```
+
+Trace runtime smoke test:
+
+```powershell
+uv run python -m app.cli plan-sub-agent-call `
+  --sub-agent retrieval_agent `
+  --tool search_thesis `
+  --argument query=postgres-smoke `
+  --save-trace `
+  --trace-file data/traces/postgres_smoke_plan.jsonl
+
+uv run python -m app.cli analyze-sub-agent-plans `
+  --file data/traces/postgres_smoke_plan.jsonl
+```
+
+Clean shell variables when finished:
+
+```powershell
+Remove-Item Env:STORAGE_BACKEND -ErrorAction SilentlyContinue
+Remove-Item Env:DATABASE_URL -ErrorAction SilentlyContinue
+```
+
+Validated local smoke test scope:
+
+```text
+PostgreSQL service health
+schema migration application
+JSON-to-PostgreSQL import
+repository factory selection
+PostgreSQL-backed task create/start/show
+PostgreSQL-backed session save/load
+PostgreSQL-backed Sub-Agent plan trace save/analyze
+```
 
 ## Why Not Replace JSON Immediately
 

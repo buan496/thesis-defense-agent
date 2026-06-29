@@ -80,6 +80,30 @@ def test_save_and_load_sub_agent_plan_trace_can_use_repository(tmp_path):
     assert not (tmp_path / "missing.jsonl").exists()
 
 
+def test_load_sub_agent_plan_traces_filters_repository_records(tmp_path):
+    repository = InMemoryTraceRepository()
+    repository.records.append(
+        {
+            "event_type": "agent_run",
+            "user_message": "not a sub-agent plan",
+        }
+    )
+
+    save_sub_agent_plan_trace(
+        create_plan(),
+        file_path=str(tmp_path / "missing.jsonl"),
+        trace_repository=repository,
+    )
+
+    records = load_sub_agent_plan_traces(
+        str(tmp_path / "missing.jsonl"),
+        trace_repository=repository,
+    )
+
+    assert len(records) == 1
+    assert records[0]["event_type"] == "sub_agent_plan_created"
+
+
 def test_load_sub_agent_plan_traces_missing_file(tmp_path):
     records = load_sub_agent_plan_traces(
         str(tmp_path / "missing.jsonl")
@@ -110,6 +134,28 @@ def test_summarize_sub_agent_plan_traces(tmp_path):
         },
         "by_tool": {
             "search_thesis": 2,
+        },
+    }
+
+
+def test_summarize_sub_agent_plan_traces_skips_non_plan_records():
+    records = [
+        {
+            "event_type": "agent_run",
+            "user_message": "not a sub-agent plan",
+        },
+        build_sub_agent_plan_trace_record(create_plan()),
+    ]
+
+    summary = summarize_sub_agent_plan_traces(records)
+
+    assert summary == {
+        "total": 1,
+        "by_sub_agent": {
+            "retrieval_agent": 1,
+        },
+        "by_tool": {
+            "search_thesis": 1,
         },
     }
 
