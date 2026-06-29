@@ -96,12 +96,13 @@ Qdrant query_points search
 import-vector-store-to-qdrant CLI
 local import smoke test: 70 chunks imported from data/vector_store.json
 local repository search smoke test
+compare-vector-store-backends CLI
+JSON vs Qdrant benchmark comparison path
 ```
 
 Not completed:
 
 ```text
-Qdrant benchmark comparison against JSON vector store
 Qdrant collection reset/delete CLI
 Qdrant operational backup/restore
 ```
@@ -138,6 +139,31 @@ Clean the variable when finished:
 Remove-Item Env:VECTOR_STORE_BACKEND -ErrorAction SilentlyContinue
 ```
 
+## Compare JSON and Qdrant Backends
+
+The benchmark comparison uses the same RAG benchmark questions and compares
+quality plus query latency across the JSON repository and Qdrant repository.
+
+```powershell
+uv run python -m app.cli compare-vector-store-backends `
+  --source data/vector_store.json `
+  --url http://127.0.0.1:6333 `
+  --collection thesis_chunks `
+  --vector-size 1024 `
+  --distance Cosine
+```
+
+The report includes:
+
+```text
+average_score
+average_duration_ms
+score_delta_qdrant_minus_json
+duration_delta_ms_qdrant_minus_json
+missing keywords per query
+cache hits / misses
+```
+
 ## Current Runtime Boundary
 
 The default remains:
@@ -151,5 +177,5 @@ side-by-side.
 
 ## Next Step
 
-Run the RAG benchmark against both JSON and Qdrant vector store backends and
-compare retrieval quality and latency.
+Add collection reset/delete tooling and define backup/restore guidance before
+using Qdrant as a long-running production dependency.

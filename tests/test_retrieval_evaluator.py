@@ -5,7 +5,9 @@ import pytest
 from app.retrieval_evaluator import (
     compare_retrieval_strategies,
     compare_retrievers,
+    compare_vector_store_repositories,
     evaluate_retrieval,
+    evaluate_vector_store_repository,
     scan_hybrid_weights,
     search_multi_query_store,
 )
@@ -16,6 +18,29 @@ def fake_embedding(text: str) -> list[float]:
         return [1.0, 0.0]
 
     return [0.0, 1.0]
+
+
+class FakeVectorStoreRepository:
+    def __init__(self, results):
+        self.results = results
+        self.search_calls = []
+
+    def save(self, store):
+        return "fake"
+
+    def load(self):
+        return []
+
+    def search(self, query, top_k, embedding_fn):
+        self.search_calls.append(
+            {
+                "query": query,
+                "top_k": top_k,
+                "embedding": embedding_fn(query),
+            }
+        )
+
+        return self.results
 
 
 def test_evaluate_retrieval(tmp_path):
@@ -68,6 +93,168 @@ def test_evaluate_retrieval(tmp_path):
     assert report["embedding_cache"]["hits"] == 0
     assert report["embedding_cache"]["misses"] == 1
     assert embedding_cache_path.exists()
+
+
+def test_evaluate_vector_store_repository_scores_and_tracks_latency(tmp_path):
+    benchmark_path = tmp_path / "benchmark.json"
+    cache_path = tmp_path / "cache.json"
+    benchmark = [
+        {
+            "query": "system modules",
+            "expected_keywords": ["feature", "training"],
+        }
+    ]
+    benchmark_path.write_text(
+        json.dumps(benchmark, ensure_ascii=False),
+        encoding="utf-8",
+    )
+    repository = FakeVectorStoreRepository(
+        [
+            {
+                "id": 0,
+                "text": "feature processing and training module",
+                "source": "test",
+                "score": 0.99,
+            }
+        ]
+    )
+
+    report = evaluate_vector_store_repository(
+        benchmark_path=str(benchmark_path),
+        repository=repository,
+        repository_name="fake",
+        top_k=3,
+        embedding_fn=lambda text: [1.0, 0.0],
+        embedding_cache_path=str(cache_path),
+        embedding_model="test-model",
+    )
+
+    assert report["repository"] == "fake"
+    assert report["top_k"] == 3
+    assert report["average_score"] == 1.0
+    assert report["average_duration_ms"] >= 0
+    assert report["total_duration_ms"] >= 0
+    assert report["embedding_cache"]["misses"] == 1
+    assert report["results"][0]["hit_count"] == 2
+    assert report["results"][0]["missing"] == []
+    assert repository.search_calls == [
+        {
+            "query": "system modules",
+            "top_k": 3,
+            "embedding": [1.0, 0.0],
+        }
+    ]
+
+
+def test_evaluate_vector_store_repository_reuses_embedding_cache(tmp_path):
+    benchmark_path = tmp_path / "benchmark.json"
+    cache_path = tmp_path / "cache.json"
+    benchmark = [
+        {
+            "query": "system modules",
+            "expected_keywords": ["feature"],
+        }
+    ]
+    benchmark_path.write_text(
+        json.dumps(benchmark, ensure_ascii=False),
+        encoding="utf-8",
+    )
+    repository = FakeVectorStoreRepository(
+        [
+            {
+                "id": 0,
+                "text": "feature processing",
+                "source": "test",
+                "score": 0.99,
+            }
+        ]
+    )
+    call_count = {"value": 0}
+
+    def embedding_for_test(text: str) -> list[float]:
+        call_count["value"] += 1
+        return [1.0, 0.0]
+
+    first_report = evaluate_vector_store_repository(
+        benchmark_path=str(benchmark_path),
+        repository=repository,
+        repository_name="fake",
+        top_k=1,
+        embedding_fn=embedding_for_test,
+        embedding_cache_path=str(cache_path),
+        embedding_model="test-model",
+    )
+    second_report = evaluate_vector_store_repository(
+        benchmark_path=str(benchmark_path),
+        repository=repository,
+        repository_name="fake",
+        top_k=1,
+        embedding_fn=embedding_for_test,
+        embedding_cache_path=str(cache_path),
+        embedding_model="test-model",
+    )
+
+    assert first_report["embedding_cache"]["misses"] == 1
+    assert first_report["embedding_cache"]["hits"] == 0
+    assert second_report["embedding_cache"]["misses"] == 0
+    assert second_report["embedding_cache"]["hits"] == 1
+    assert call_count["value"] == 1
+
+
+def test_compare_vector_store_repositories_reports_deltas(tmp_path):
+    benchmark_path = tmp_path / "benchmark.json"
+    cache_path = tmp_path / "cache.json"
+    benchmark = [
+        {
+            "query": "system modules",
+            "expected_keywords": ["feature", "training"],
+        }
+    ]
+    benchmark_path.write_text(
+        json.dumps(benchmark, ensure_ascii=False),
+        encoding="utf-8",
+    )
+    repositories = {
+        "json": FakeVectorStoreRepository(
+            [
+                {
+                    "id": 0,
+                    "text": "feature processing",
+                    "source": "test",
+                    "score": 0.8,
+                }
+            ]
+        ),
+        "qdrant": FakeVectorStoreRepository(
+            [
+                {
+                    "id": 1,
+                    "text": "feature processing and training module",
+                    "source": "test",
+                    "score": 0.9,
+                }
+            ]
+        ),
+    }
+
+    report = compare_vector_store_repositories(
+        benchmark_path=str(benchmark_path),
+        vector_store_path="vector_store.json",
+        top_k=1,
+        embedding_fn=lambda text: [1.0, 0.0],
+        embedding_cache_path=str(cache_path),
+        embedding_model="test-model",
+        repositories=repositories,
+    )
+
+    assert report["top_k"] == 1
+    assert report["best_repository"] == "qdrant"
+    assert report["score_delta_qdrant_minus_json"] == 0.5
+    assert report["duration_delta_ms_qdrant_minus_json"] is not None
+    assert [
+        item["repository"]
+        for item in report["reports"]
+    ] == ["json", "qdrant"]
 
 
 def test_evaluate_retrieval_reuses_embedding_cache(tmp_path):

@@ -413,6 +413,107 @@ def test_compare_retrieval_strategies_command(
     assert output_path.exists()
 
 
+def test_compare_vector_store_backends_command(
+    monkeypatch,
+    capsys,
+    tmp_path,
+):
+    captured = {}
+    output_path = tmp_path / "backend-comparison.json"
+
+    def fake_compare_vector_store_repositories(**kwargs):
+        captured.update(kwargs)
+        return {
+            "top_k": kwargs["top_k"],
+            "best_repository": "qdrant",
+            "score_delta_qdrant_minus_json": 0.0,
+            "duration_delta_ms_qdrant_minus_json": 12.5,
+            "reports": [
+                {
+                    "repository": "json",
+                    "average_score": 1.0,
+                    "average_duration_ms": 1.2,
+                    "embedding_cache": {
+                        "hits": 1,
+                        "misses": 0,
+                    },
+                    "results": [
+                        {
+                            "query": "system modules",
+                            "score": 1.0,
+                            "duration_ms": 1.2,
+                            "missing": [],
+                        }
+                    ],
+                },
+                {
+                    "repository": "qdrant",
+                    "average_score": 1.0,
+                    "average_duration_ms": 13.7,
+                    "embedding_cache": {
+                        "hits": 1,
+                        "misses": 0,
+                    },
+                    "results": [
+                        {
+                            "query": "system modules",
+                            "score": 1.0,
+                            "duration_ms": 13.7,
+                            "missing": [],
+                        }
+                    ],
+                },
+            ],
+        }
+
+    monkeypatch.setattr(
+        cli,
+        "compare_vector_store_repositories",
+        fake_compare_vector_store_repositories,
+    )
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "app.cli",
+            "compare-vector-store-backends",
+            "--top-k",
+            "5",
+            "--source",
+            "data/vector_store.json",
+            "--url",
+            "http://127.0.0.1:6333",
+            "--collection",
+            "test_chunks",
+            "--vector-size",
+            "1024",
+            "--distance",
+            "Cosine",
+            "--api-key",
+            "secret",
+            "--output",
+            str(output_path),
+        ],
+    )
+
+    cli.main()
+
+    output = capsys.readouterr().out
+
+    assert captured["top_k"] == 5
+    assert captured["vector_store_path"] == "data/vector_store.json"
+    assert captured["qdrant_url"] == "http://127.0.0.1:6333"
+    assert captured["qdrant_collection"] == "test_chunks"
+    assert captured["qdrant_vector_size"] == 1024
+    assert captured["qdrant_distance"] == "Cosine"
+    assert captured["qdrant_api_key"] == "secret"
+    assert "VECTOR STORE BACKEND COMPARISON" in output
+    assert "BEST REPOSITORY: qdrant" in output
+    assert "REPOSITORY: json" in output
+    assert "REPOSITORY: qdrant" in output
+    assert "REPORT SAVED:" in output
+    assert output_path.exists()
+
+
 def test_evaluate_rag_command_accepts_model_reranker_options(
     monkeypatch,
     capsys,
