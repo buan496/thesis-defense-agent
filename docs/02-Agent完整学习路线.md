@@ -66,6 +66,7 @@ updated: 2026-06-29
 - [x] 多查询检索
 - [x] 检索策略组合对比
 - [x] 向量库 repository 抽象
+- [x] Qdrant Compose service / config skeleton
 - [ ] Qdrant 或 Milvus
 
 基础知识：
@@ -275,6 +276,7 @@ updated: 2026-06-29
 - [x] Trace runtime repository integration
 - [x] PostgreSQL runtime smoke test
 - [x] Vector store repository abstraction
+- [x] Qdrant Compose service / config skeleton
 - [ ] Qdrant / Milvus
 - [ ] K8s 基础部署
 - [ ] 私有化配置和密钥管理

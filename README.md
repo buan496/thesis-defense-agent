@@ -508,6 +508,13 @@ RAG_MIN_CHUNK_SIZE=30
 RAG_VECTOR_STORE_PATH=data/vector_store.json
 RAG_VECTOR_STORE_META_PATH=data/vector_store_meta.json
 VECTOR_STORE_BACKEND=json
+QDRANT_URL=http://127.0.0.1:6333
+QDRANT_COLLECTION=thesis_chunks
+QDRANT_VECTOR_SIZE=1024
+QDRANT_DISTANCE=Cosine
+QDRANT_HTTP_PORT=6333
+QDRANT_GRPC_PORT=6334
+QDRANT_API_KEY=
 QUERY_EMBEDDING_CACHE_PATH=data/query_embedding_cache.json
 
 AGENT_TRACE_PATH=data/traces/agent_trace.jsonl
@@ -779,6 +786,40 @@ Retrieval evaluator load path
 JSON 仍是默认向量库后端。
 Qdrant / Milvus 只预留 backend 名称，尚未接真实服务。
 这一步的目的，是把后续外部向量数据库替换点固定下来。
+```
+
+## 2026-06-29 Update: Qdrant Compose Service
+
+项目现在增加了本地 Qdrant Compose 服务和配置骨架：
+
+```text
+docker-compose.yml -> qdrant service
+qdrant/qdrant:v1.18.2
+qdrant_data volume -> /qdrant/storage
+QDRANT_URL / QDRANT_COLLECTION / QDRANT_VECTOR_SIZE / QDRANT_DISTANCE
+```
+
+本地启动：
+
+```powershell
+docker compose up -d qdrant
+docker compose ps qdrant
+Invoke-RestMethod http://127.0.0.1:6333
+```
+
+当前边界：
+
+```text
+VECTOR_STORE_BACKEND=json 仍是默认值。
+Qdrant 服务和配置已准备。
+QdrantVectorStoreRepository 尚未实现。
+运行时检索仍走 JSON 向量库。
+```
+
+说明文档：
+
+```text
+docs/deployment/qdrant.md
 ```
 
 ### LangGraph 旁路 Demo
