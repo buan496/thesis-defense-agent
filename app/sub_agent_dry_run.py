@@ -1,6 +1,7 @@
 from dataclasses import asdict, dataclass
 
 from app.config import SUB_AGENT_PLAN_TRACE_PATH
+from app.storage_repositories import TraceRepository
 from app.sub_agent_permissions import check_sub_agent_tool_permission
 from app.sub_agent_plan import SubAgentExecutionPlan, create_sub_agent_execution_plan
 from app.sub_agent_plan_trace import save_sub_agent_plan_trace
@@ -29,6 +30,7 @@ def dry_run_sub_agent_tool_call(
     tool_arguments: dict,
     save_trace: bool = False,
     trace_file: str = SUB_AGENT_PLAN_TRACE_PATH,
+    trace_repository: TraceRepository | None = None,
 ) -> SubAgentDryRunReport:
     permission = check_sub_agent_tool_permission(
         sub_agent_name=sub_agent_name,
@@ -46,6 +48,7 @@ def dry_run_sub_agent_tool_call(
             save_sub_agent_plan_trace(
                 plan,
                 file_path=trace_file,
+                trace_repository=trace_repository,
             )
         )
 

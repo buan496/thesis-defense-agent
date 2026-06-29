@@ -3,6 +3,7 @@ import time
 from dataclasses import asdict, dataclass
 
 from app.config import SUB_AGENT_EXECUTION_TRACE_PATH
+from app.storage_repositories import TraceRepository
 from app.sub_agent_permissions import validate_sub_agent_tool_call
 from app.sub_agent_plan import (
     SubAgentExecutionPlan,
@@ -59,6 +60,7 @@ def execute_sub_agent_plan(
     tool_runner=None,
     save_trace: bool = False,
     trace_file: str = SUB_AGENT_EXECUTION_TRACE_PATH,
+    trace_repository: TraceRepository | None = None,
 ) -> SubAgentExecutionResult:
     validate_sub_agent_tool_call(
         sub_agent_name=plan.sub_agent_name,
@@ -100,6 +102,7 @@ def execute_sub_agent_plan(
             save_sub_agent_execution_trace(
                 result,
                 file_path=trace_file,
+                trace_repository=trace_repository,
             )
         )
         result = SubAgentExecutionResult(
@@ -123,6 +126,7 @@ def execute_sub_agent_tool_call(
     tool_runner=None,
     save_trace: bool = False,
     trace_file: str = SUB_AGENT_EXECUTION_TRACE_PATH,
+    trace_repository: TraceRepository | None = None,
 ) -> SubAgentExecutionResult:
     plan = create_sub_agent_execution_plan(
         sub_agent_name=sub_agent_name,
@@ -135,4 +139,5 @@ def execute_sub_agent_tool_call(
         tool_runner=tool_runner,
         save_trace=save_trace,
         trace_file=trace_file,
+        trace_repository=trace_repository,
     )

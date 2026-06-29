@@ -271,6 +271,7 @@ updated: 2026-06-29
 - [x] JSON-to-PostgreSQL import scripts
 - [x] Task runtime repository pilot
 - [x] Session runtime repository integration
+- [x] Trace runtime repository integration
 - [ ] PostgreSQL
 - [ ] Qdrant / Milvus
 - [ ] K8s 基础部署
@@ -674,6 +675,44 @@ Trace runtime 尚未接 trace_repository。
 ```text
 Trace runtime repository integration。
 把 Agent trace / Sub-Agent trace / trace analysis 相关写入读取路径接入 trace_repository，仍保持 JSON 默认后端。
+```
+
+<!-- roadmap-update-2026-06-29-trace-runtime-repository-integration -->
+
+## 2026-06-29 路线同步：Trace Runtime Repository Integration 已完成
+
+本阶段完成 trace runtime 的 repository 接入，不改变默认 JSONL 行为。
+
+已完成：
+
+- [x] `save_agent_trace` 支持注入 `trace_repository`
+- [x] `load_agent_trace_records` 支持注入 `trace_repository`
+- [x] `analyze_agent_traces` 支持注入 `trace_repository`
+- [x] `replay_agent_trace` 支持注入 `trace_repository`
+- [x] `replay_trace_file` 支持注入 `trace_repository`
+- [x] `save_sub_agent_plan_trace` / `load_sub_agent_plan_traces`
+- [x] `save_sub_agent_execution_trace` / `load_sub_agent_execution_traces`
+- [x] `dry_run_sub_agent_tool_call` 支持 trace repository
+- [x] `execute_sub_agent_tool_call` 支持 trace repository
+- [x] trace CLI 通过 `RepositoryBundle` 创建 trace repository
+- [x] fake repository 测试覆盖读写路径
+- [x] CLI 测试覆盖 repository factory 接入
+
+当前边界：
+
+```text
+Task runtime repository pilot 已完成。
+Session runtime repository integration 已完成。
+Trace runtime repository integration 已完成。
+默认 STORAGE_BACKEND 仍是 json。
+比较两个显式 trace 文件的 compare 命令仍保持文件路径语义。
+```
+
+下一步学习：
+
+```text
+PostgreSQL runtime smoke test。
+本机启动 PostgreSQL，运行 migrations，导入 JSON 数据，然后用 STORAGE_BACKEND=postgres 跑一条小的 task/chat/trace 工作流。
 ```
 
 已经完成的 Task State 能力：

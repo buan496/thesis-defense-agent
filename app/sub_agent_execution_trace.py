@@ -3,6 +3,7 @@ from datetime import datetime
 from pathlib import Path
 
 from app.config import SUB_AGENT_EXECUTION_TRACE_PATH
+from app.storage_repositories import TraceRepository
 
 
 def build_sub_agent_execution_trace_record(
@@ -25,11 +26,15 @@ def build_sub_agent_execution_trace_record(
 def save_sub_agent_execution_trace(
     execution_result,
     file_path: str = SUB_AGENT_EXECUTION_TRACE_PATH,
-) -> Path:
+    trace_repository: TraceRepository | None = None,
+) -> str | Path:
+    record = build_sub_agent_execution_trace_record(execution_result)
+
+    if trace_repository is not None:
+        return trace_repository.append(record)
+
     path = Path(file_path)
     path.parent.mkdir(parents=True, exist_ok=True)
-
-    record = build_sub_agent_execution_trace_record(execution_result)
 
     with path.open("a", encoding="utf-8") as file:
         file.write(json.dumps(record, ensure_ascii=False) + "\n")
@@ -39,7 +44,11 @@ def save_sub_agent_execution_trace(
 
 def load_sub_agent_execution_traces(
     file_path: str = SUB_AGENT_EXECUTION_TRACE_PATH,
+    trace_repository: TraceRepository | None = None,
 ) -> list[dict]:
+    if trace_repository is not None:
+        return trace_repository.load_all()
+
     path = Path(file_path)
 
     if not path.exists():

@@ -3,6 +3,18 @@ import json
 from app import cli
 
 
+class InMemoryTraceRepository:
+    def __init__(self, records):
+        self.records = records
+
+    def append(self, record):
+        self.records.append(record)
+        return f"repository:{len(self.records)}"
+
+    def load_all(self):
+        return list(self.records)
+
+
 def write_jsonl(path, records):
     path.write_text(
         "\n".join(
@@ -63,6 +75,74 @@ def test_replay_trace_command_outputs_summary(
     assert "FAILED TOOL CALL COUNT: 1" in output
     assert "TOTAL DURATION MS: 30.0" in output
     assert "search_thesis" in output
+
+
+def test_replay_trace_command_uses_repository_factory(
+    monkeypatch,
+    capsys,
+    tmp_path,
+):
+    repository = InMemoryTraceRepository(
+        [
+            {
+                "audit": {
+                    "tool_name": "search_thesis",
+                    "success": True,
+                    "duration_ms": 10,
+                },
+            }
+        ]
+    )
+    factory_calls = []
+
+    def fake_create_repositories(
+        storage_backend,
+        database_url,
+        trace_file_path,
+    ):
+        factory_calls.append(
+            {
+                "storage_backend": storage_backend,
+                "database_url": database_url,
+                "trace_file_path": trace_file_path,
+            }
+        )
+
+        return type(
+            "RepositoryBundleStub",
+            (),
+            {
+                "trace_repository": repository,
+            },
+        )()
+
+    trace_path = tmp_path / "missing.jsonl"
+    monkeypatch.setattr(cli, "create_repositories", fake_create_repositories)
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "app.cli",
+            "replay-trace",
+            "--file",
+            str(trace_path),
+            "--source-type",
+            "sub_agent_execution",
+        ],
+    )
+
+    cli.main()
+    output = capsys.readouterr().out
+
+    assert "TRACE REPLAY SUMMARY" in output
+    assert "RECORD COUNT: 1" in output
+    assert not trace_path.exists()
+    assert factory_calls == [
+        {
+            "storage_backend": cli.STORAGE_BACKEND,
+            "database_url": cli.DATABASE_URL,
+            "trace_file_path": str(trace_path),
+        }
+    ]
 
 
 def test_trace_feedback_command_records_feedback_for_failed_trace(

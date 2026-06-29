@@ -422,6 +422,30 @@ Current boundary: task runtime and chat session runtime are repository-backed.
 Trace runtime still writes through the existing JSONL path until its dedicated
 migration step is implemented.
 
+## Trace Runtime Repository Integration
+
+Trace runtime now creates trace repositories through the repository factory for
+single-trace save/load/analyze/replay paths.
+
+Covered behavior:
+
+```text
+Agent trace save / load / analyze / replay
+generic trace replay
+Sub-Agent plan trace save / load / analyze
+Sub-Agent execution trace save / load / analyze
+```
+
+Default local behavior still uses JSONL:
+
+```env
+STORAGE_BACKEND=json
+```
+
+Current boundary: task, session, and trace runtime can use selected
+repositories. Commands that intentionally compare two explicit trace files keep
+file-path semantics.
+
 ## Why Not Replace JSON Immediately
 
 Replacing storage directly would mix two changes:
@@ -433,5 +457,4 @@ The project should keep those concerns separate. The repository abstraction lets
 
 ## Next Steps
 
-- Wire repository factory into runtime services after import / rollback
-  strategy is defined.
+- Run a local PostgreSQL runtime smoke test after migrations and import.

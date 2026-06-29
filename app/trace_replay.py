@@ -3,6 +3,8 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
+from app.storage_repositories import TraceRepository
+
 
 @dataclass
 class TraceReplayRecord:
@@ -23,7 +25,13 @@ class TraceReplayRecord:
         return asdict(self)
 
 
-def load_jsonl_trace_records(file_path: str) -> list[dict[str, Any]]:
+def load_jsonl_trace_records(
+    file_path: str,
+    trace_repository: TraceRepository | None = None,
+) -> list[dict[str, Any]]:
+    if trace_repository is not None:
+        return trace_repository.load_all()
+
     path = Path(file_path)
 
     if not path.exists():
@@ -51,8 +59,12 @@ def load_jsonl_trace_records(file_path: str) -> list[dict[str, Any]]:
 def replay_trace_file(
     file_path: str,
     source_type: str,
+    trace_repository: TraceRepository | None = None,
 ) -> dict[str, Any]:
-    raw_records = load_jsonl_trace_records(file_path)
+    raw_records = load_jsonl_trace_records(
+        file_path,
+        trace_repository=trace_repository,
+    )
 
     records = [
         normalize_trace_record(

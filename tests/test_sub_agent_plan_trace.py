@@ -19,6 +19,18 @@ def create_plan(plan_id: str = "plan-1"):
     )
 
 
+class InMemoryTraceRepository:
+    def __init__(self):
+        self.records = []
+
+    def append(self, record):
+        self.records.append(record)
+        return f"repository:{len(self.records)}"
+
+    def load_all(self):
+        return list(self.records)
+
+
 def test_build_sub_agent_plan_trace_record():
     plan = create_plan()
 
@@ -46,6 +58,26 @@ def test_save_and_load_sub_agent_plan_trace(tmp_path):
     assert len(records) == 1
     assert records[0]["plan"]["plan_id"] == "plan-1"
     assert records[0]["audit"]["tool_name"] == "search_thesis"
+
+
+def test_save_and_load_sub_agent_plan_trace_can_use_repository(tmp_path):
+    repository = InMemoryTraceRepository()
+    plan = create_plan()
+
+    saved_identifier = save_sub_agent_plan_trace(
+        plan,
+        file_path=str(tmp_path / "missing.jsonl"),
+        trace_repository=repository,
+    )
+    records = load_sub_agent_plan_traces(
+        str(tmp_path / "missing.jsonl"),
+        trace_repository=repository,
+    )
+
+    assert saved_identifier == "repository:1"
+    assert len(records) == 1
+    assert records[0]["plan"]["plan_id"] == "plan-1"
+    assert not (tmp_path / "missing.jsonl").exists()
 
 
 def test_load_sub_agent_plan_traces_missing_file(tmp_path):
@@ -117,6 +149,72 @@ def test_plan_sub_agent_call_cli_saves_trace(
     assert "TRACE SAVED:" in output
     assert len(records) == 1
     assert records[0]["audit"]["sub_agent_name"] == "retrieval_agent"
+
+
+def test_plan_sub_agent_call_cli_uses_repository_factory(
+    monkeypatch,
+    capsys,
+    tmp_path,
+):
+    repository = InMemoryTraceRepository()
+    factory_calls = []
+
+    def fake_create_repositories(
+        storage_backend,
+        database_url,
+        trace_file_path,
+    ):
+        factory_calls.append(
+            {
+                "storage_backend": storage_backend,
+                "database_url": database_url,
+                "trace_file_path": trace_file_path,
+            }
+        )
+
+        return type(
+            "RepositoryBundleStub",
+            (),
+            {
+                "trace_repository": repository,
+            },
+        )()
+
+    trace_path = tmp_path / "trace.jsonl"
+    monkeypatch.setattr(cli, "create_repositories", fake_create_repositories)
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "app.cli",
+            "plan-sub-agent-call",
+            "--sub-agent",
+            "retrieval_agent",
+            "--tool",
+            "search_thesis",
+            "--argument",
+            "query=系统架构",
+            "--save-trace",
+            "--trace-file",
+            str(trace_path),
+        ],
+    )
+
+    cli.main()
+    output = capsys.readouterr().out
+
+    assert "TRACE SAVED: repository:1" in output
+    assert len(repository.records) == 1
+    assert repository.records[0]["audit"]["sub_agent_name"] == (
+        "retrieval_agent"
+    )
+    assert not trace_path.exists()
+    assert factory_calls == [
+        {
+            "storage_backend": cli.STORAGE_BACKEND,
+            "database_url": cli.DATABASE_URL,
+            "trace_file_path": str(trace_path),
+        }
+    ]
 
 
 def test_analyze_sub_agent_plans_cli(

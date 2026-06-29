@@ -3,13 +3,13 @@ import json
 from collections import Counter
 from pathlib import Path
 
+from app.storage_repositories import TraceRepository
 
-def analyze_agent_traces(file_path: str) -> dict:
-    path = Path(file_path)
 
-    if not path.exists():
-        raise FileNotFoundError(f"Trace 文件不存在：{file_path}")
-
+def analyze_agent_traces(
+    file_path: str,
+    trace_repository: TraceRepository | None = None,
+) -> dict:
     run_count = 0
     tool_call_count = 0
     success_count = 0
@@ -26,69 +26,61 @@ def analyze_agent_traces(file_path: str) -> dict:
 
     most_expensive_run = None
 
-    with path.open("r", encoding="utf-8") as file:
-        for line_number, line in enumerate(file, start=1):
-            line = line.strip()
+    trace_records = _load_agent_trace_payloads(
+        file_path,
+        trace_repository=trace_repository,
+    )
 
-            if not line:
-                continue
+    for line_number, trace in enumerate(trace_records, start=1):
+        run_count += 1
 
-            try:
-                trace = json.loads(line)
-            except json.JSONDecodeError as error:
-                raise ValueError(
-                    f"Trace 第 {line_number} 行不是合法 JSON"
-                ) from error
+        result = trace.get("result", {})
 
-            run_count += 1
+        tool_traces = result.get("tool_traces", [])
 
-            result = trace.get("result", {})
+        for tool_trace in tool_traces:
+            tool_call_count += 1
+            tool_counts[tool_trace["tool_name"]] += 1
+            total_duration_ms += tool_trace["duration_ms"]
 
-            tool_traces = result.get("tool_traces", [])
+            if tool_trace["success"]:
+                success_count += 1
+            else:
+                failure_count += 1
 
-            for tool_trace in tool_traces:
-                tool_call_count += 1
-                tool_counts[tool_trace["tool_name"]] += 1
-                total_duration_ms += tool_trace["duration_ms"]
+        token_usage = result.get("token_usage", {})
+        prompt_tokens = token_usage.get("prompt_tokens", 0)
+        completion_tokens = token_usage.get(
+            "completion_tokens",
+            0,
+        )
+        run_total_tokens = token_usage.get("total_tokens", 0)
 
-                if tool_trace["success"]:
-                    success_count += 1
-                else:
-                    failure_count += 1
+        total_prompt_tokens += prompt_tokens
+        total_completion_tokens += completion_tokens
+        total_tokens += run_total_tokens
 
-            token_usage = result.get("token_usage", {})
-            prompt_tokens = token_usage.get("prompt_tokens", 0)
-            completion_tokens = token_usage.get(
-                "completion_tokens",
-                0,
-            )
-            run_total_tokens = token_usage.get("total_tokens", 0)
+        cost_estimate = result.get("cost_estimate", {})
+        run_cost = cost_estimate.get("total_cost", 0.0)
+        run_currency = cost_estimate.get("currency")
 
-            total_prompt_tokens += prompt_tokens
-            total_completion_tokens += completion_tokens
-            total_tokens += run_total_tokens
+        total_cost += run_cost
 
-            cost_estimate = result.get("cost_estimate", {})
-            run_cost = cost_estimate.get("total_cost", 0.0)
-            run_currency = cost_estimate.get("currency")
+        if currency is None and run_currency:
+            currency = run_currency
 
-            total_cost += run_cost
-
-            if currency is None and run_currency:
-                currency = run_currency
-
-            if (
-                most_expensive_run is None
-                or run_cost > most_expensive_run["total_cost"]
-            ):
-                most_expensive_run = {
-                    "line_number": line_number,
-                    "created_at": trace.get("created_at"),
-                    "user_message": trace.get("user_message"),
-                    "total_cost": run_cost,
-                    "total_tokens": run_total_tokens,
-                    "currency": run_currency,
-                }
+        if (
+            most_expensive_run is None
+            or run_cost > most_expensive_run["total_cost"]
+        ):
+            most_expensive_run = {
+                "line_number": line_number,
+                "created_at": trace.get("created_at"),
+                "user_message": trace.get("user_message"),
+                "total_cost": run_cost,
+                "total_tokens": run_total_tokens,
+                "currency": run_currency,
+            }
 
     if tool_call_count == 0:
         success_rate = 0.0
@@ -122,3 +114,34 @@ def analyze_agent_traces(file_path: str) -> dict:
         "currency": currency,
         "most_expensive_run": most_expensive_run,
     }
+
+
+def _load_agent_trace_payloads(
+    file_path: str,
+    trace_repository: TraceRepository | None = None,
+) -> list[dict]:
+    if trace_repository is not None:
+        return trace_repository.load_all()
+
+    path = Path(file_path)
+
+    if not path.exists():
+        raise FileNotFoundError(f"Trace 文件不存在：{file_path}")
+
+    records = []
+
+    with path.open("r", encoding="utf-8") as file:
+        for line_number, line in enumerate(file, start=1):
+            line = line.strip()
+
+            if not line:
+                continue
+
+            try:
+                records.append(json.loads(line))
+            except json.JSONDecodeError as error:
+                raise ValueError(
+                    f"Trace 第 {line_number} 行不是合法 JSON"
+                ) from error
+
+    return records

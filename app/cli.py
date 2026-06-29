@@ -254,6 +254,16 @@ def create_session_repository_for_cli(directory: str):
 
     return repositories.session_repository
 
+
+def create_trace_repository_for_cli(file_path: str):
+    repositories = create_repositories(
+        storage_backend=STORAGE_BACKEND,
+        database_url=DATABASE_URL,
+        trace_file_path=file_path,
+    )
+
+    return repositories.trace_repository
+
 def main():
     parser = argparse.ArgumentParser(
         description="Thesis Defense Agent CLI"
@@ -2334,7 +2344,11 @@ def main():
             )
             print("REPORT SAVED:", output_path)
     elif args.command == "analyze-traces":
-        report = analyze_agent_traces(args.file)
+        trace_repository = create_trace_repository_for_cli(args.file)
+        report = analyze_agent_traces(
+            args.file,
+            trace_repository=trace_repository,
+        )
 
         print("AGENT RUNS:", report["run_count"])
         print("TOOL CALLS:", report["tool_call_count"])
@@ -2387,9 +2401,11 @@ def main():
 
     elif args.command == "replay-agent-trace":
         try:
+            trace_repository = create_trace_repository_for_cli(args.file)
             replay = replay_agent_trace(
                 file_path=args.file,
                 line_number=args.line_number,
+                trace_repository=trace_repository,
             )
         except (FileNotFoundError, ValueError) as error:
             print(f"TRACE REPLAY ERROR: {error}")
@@ -2434,9 +2450,11 @@ def main():
 
     elif args.command == "replay-trace":
         try:
+            trace_repository = create_trace_repository_for_cli(args.file)
             summary = replay_trace_file(
                 file_path=args.file,
                 source_type=args.source_type,
+                trace_repository=trace_repository,
             )
         except (FileNotFoundError, ValueError) as error:
             print(f"TRACE REPLAY ERROR: {error}")
@@ -2458,9 +2476,11 @@ def main():
 
     elif args.command == "trace-feedback":
         try:
+            trace_repository = create_trace_repository_for_cli(args.file)
             summary = replay_trace_file(
                 file_path=args.file,
                 source_type=args.source_type,
+                trace_repository=trace_repository,
             )
             source_id = args.source_id
 
@@ -4165,14 +4185,22 @@ def main():
         print("STATUS:", plan.status)
 
         if args.save_trace:
+            trace_repository = create_trace_repository_for_cli(
+                args.trace_file,
+            )
             trace_path = save_sub_agent_plan_trace(
                 plan,
                 file_path=args.trace_file,
+                trace_repository=trace_repository,
             )
             print("TRACE SAVED:", trace_path)
 
     elif args.command == "analyze-sub-agent-plans":
-        records = load_sub_agent_plan_traces(args.file)
+        trace_repository = create_trace_repository_for_cli(args.file)
+        records = load_sub_agent_plan_traces(
+            args.file,
+            trace_repository=trace_repository,
+        )
         summary = summarize_sub_agent_plan_traces(records)
 
         print("SUB-AGENT PLAN TRACE SUMMARY")
@@ -4242,6 +4270,11 @@ def main():
                 tool_arguments=tool_arguments,
                 save_trace=args.save_trace,
                 trace_file=args.trace_file,
+                trace_repository=(
+                    create_trace_repository_for_cli(args.trace_file)
+                    if args.save_trace
+                    else None
+                ),
             )
         except ValueError as error:
             print(f"SUB-AGENT DRY-RUN ERROR: {error}")
@@ -4293,6 +4326,11 @@ def main():
                 tool_arguments=tool_arguments,
                 save_trace=args.save_trace,
                 trace_file=args.trace_file,
+                trace_repository=(
+                    create_trace_repository_for_cli(args.trace_file)
+                    if args.save_trace
+                    else None
+                ),
             )
         except ValueError as error:
             print(f"SUB-AGENT EXECUTION ERROR: {error}")
@@ -4316,7 +4354,11 @@ def main():
         print("RESULT:", result.result_text)
 
     elif args.command == "analyze-sub-agent-executions":
-        records = load_sub_agent_execution_traces(args.file)
+        trace_repository = create_trace_repository_for_cli(args.file)
+        records = load_sub_agent_execution_traces(
+            args.file,
+            trace_repository=trace_repository,
+        )
         summary = summarize_sub_agent_execution_traces(records)
 
         print("SUB-AGENT EXECUTION TRACE SUMMARY")
