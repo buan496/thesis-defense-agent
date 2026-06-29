@@ -118,6 +118,43 @@ Current behavior:
 - rejects blank messages
 - validates `chunk_size`
 
+### WebSocket Task Control
+
+```text
+WS /ws/tasks/{task_id}
+```
+
+Supported client messages:
+
+```json
+{"type": "ping"}
+{"type": "start_next_step", "input": {"topic": "系统架构"}}
+{"type": "execute_current_step"}
+{"type": "submit_answer", "answer": "模块化便于定位问题"}
+{"type": "submit_follow_up_answer", "answer": "可以结合特征处理模块说明排错过程"}
+{"type": "analyze_task"}
+```
+
+Possible server messages:
+
+```json
+{"type": "connected", "task_id": "..."}
+{"type": "pong", "task_id": "..."}
+{"type": "step_started", "task": {}, "step": {}, "path": "..."}
+{"type": "step_completed", "task": {}, "step": {}, "path": "..."}
+{"type": "answer_submitted", "task": {}, "step": {}, "path": "..."}
+{"type": "follow_up_answer_submitted", "task": {}, "step": {}, "path": "..."}
+{"type": "task_analysis", "analysis": {}}
+{"type": "error", "message": "..."}
+```
+
+Current scope:
+
+- provides a bidirectional control channel for `DefenseTask`
+- reuses the existing task service layer
+- does not replace the HTTP Task API
+- does not include browser UI yet
+
 ### RAG 状态与检索
 
 ```text
