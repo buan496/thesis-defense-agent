@@ -437,12 +437,30 @@ retrieve_context
 
 LangGraph 已完成旁路迁移学习版闭环，并保留在 `app/langgraph_workflow/`。它只用于和当前 `app/agent.py`、`app/task_*` 对照学习，不覆盖当前手写实现。数据库级 checkpointer、服务器部署和跨进程恢复继续后移到服务器/数据库阶段。
 
-FastAPI、Dockerfile、docker-compose、Prometheus 抓取和 GitHub Actions Docker 镜像构建已完成本机/CI 验证；GHCR 发布流程进入当前阶段。服务器长期运行、数据库、向量数据库和 K8s 继续作为后续阶段。
+FastAPI、Dockerfile、docker-compose、Prometheus 抓取和 GitHub Actions Docker 镜像构建已完成本机/CI 验证；GHCR 发布流程已完成。服务器长期运行、向量数据库和 K8s 继续作为后续阶段。
 
-PostgreSQL 当前只完成存储接口抽象和表结构设计，现有运行路径仍默认使用 JSON / JSONL 文件存储。设计说明见：
+PostgreSQL 当前已完成 Compose 服务、schema migration、JSON-to-PostgreSQL import、task/session/trace repository 实现，以及 task/session/trace runtime repository integration。默认后端仍是 `STORAGE_BACKEND=json`，本机或服务器运行时可以通过 `STORAGE_BACKEND=postgres` 和 `DATABASE_URL` 显式切换。设计说明见：
 
 ```text
 docs/deployment/postgresql.md
+```
+
+本机 PostgreSQL runtime smoke test 已验证：
+
+```text
+run-postgres-migrations
+import-json-to-postgres
+show-repositories
+PostgreSQL-backed task create/start/show
+PostgreSQL-backed session save/load
+PostgreSQL-backed Sub-Agent plan trace save/analyze
+```
+
+Windows / Docker Desktop 本机连接建议使用 `127.0.0.1`，避免 `localhost` 解析导致 PostgreSQL 连接明显变慢：
+
+```powershell
+$env:STORAGE_BACKEND = "postgres"
+$env:DATABASE_URL = "postgresql://thesis_agent:thesis_agent_dev_password@127.0.0.1:5432/thesis_defense_agent"
 ```
 
 ## 安装

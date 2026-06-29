@@ -48,7 +48,11 @@ def load_sub_agent_plan_traces(
     trace_repository: TraceRepository | None = None,
 ) -> list[dict]:
     if trace_repository is not None:
-        return trace_repository.load_all()
+        return [
+            record
+            for record in trace_repository.load_all()
+            if record.get("event_type") == "sub_agent_plan_created"
+        ]
 
     path = Path(file_path)
 
@@ -67,10 +71,15 @@ def load_sub_agent_plan_traces(
 def summarize_sub_agent_plan_traces(
     records: list[dict],
 ) -> dict:
+    plan_records = [
+        record
+        for record in records
+        if record.get("event_type") == "sub_agent_plan_created"
+    ]
     by_sub_agent = {}
     by_tool = {}
 
-    for record in records:
+    for record in plan_records:
         audit = record["audit"]
         sub_agent_name = audit["sub_agent_name"]
         tool_name = audit["tool_name"]
@@ -81,7 +90,7 @@ def summarize_sub_agent_plan_traces(
         by_tool[tool_name] = by_tool.get(tool_name, 0) + 1
 
     return {
-        "total": len(records),
+        "total": len(plan_records),
         "by_sub_agent": dict(sorted(by_sub_agent.items())),
         "by_tool": dict(sorted(by_tool.items())),
     }

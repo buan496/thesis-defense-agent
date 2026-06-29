@@ -33,7 +33,7 @@ def test_env_example_documents_postgres_defaults():
     assert "STORAGE_BACKEND=json" in env_text
     assert (
         "DATABASE_URL=postgresql://thesis_agent:"
-        "thesis_agent_dev_password@localhost:5432/thesis_defense_agent"
+        "thesis_agent_dev_password@127.0.0.1:5432/thesis_defense_agent"
         in env_text
     )
     assert "POSTGRES_DB=thesis_defense_agent" in env_text

@@ -5,6 +5,7 @@ import pytest
 from app import cli
 from app.sub_agent_execution_trace import (
     load_sub_agent_execution_traces,
+    save_sub_agent_execution_trace,
     summarize_sub_agent_execution_traces,
 )
 from app.sub_agent_executor import (
@@ -22,6 +23,18 @@ def create_plan():
         tool_arguments={"query": "system architecture"},
         plan_id="plan-1",
     )
+
+
+class InMemoryTraceRepository:
+    def __init__(self):
+        self.records = []
+
+    def append(self, record):
+        self.records.append(record)
+        return f"repository:{len(self.records)}"
+
+    def load_all(self):
+        return list(self.records)
 
 
 def test_execute_sub_agent_plan_with_fake_runner():
@@ -102,6 +115,34 @@ def test_execute_sub_agent_plan_saves_trace(tmp_path):
     assert records[0]["audit"]["success"] is True
 
 
+def test_load_sub_agent_execution_traces_filters_repository_records(tmp_path):
+    repository = InMemoryTraceRepository()
+    repository.records.append(
+        {
+            "event_type": "agent_run",
+            "user_message": "not a sub-agent execution",
+        }
+    )
+
+    result = execute_sub_agent_plan(
+        create_plan(),
+        tool_runner=lambda input_plan: '{"ok": true}',
+    )
+    save_sub_agent_execution_trace(
+        result,
+        file_path=str(tmp_path / "missing.jsonl"),
+        trace_repository=repository,
+    )
+
+    records = load_sub_agent_execution_traces(
+        str(tmp_path / "missing.jsonl"),
+        trace_repository=repository,
+    )
+
+    assert len(records) == 1
+    assert records[0]["event_type"] == "sub_agent_tool_executed"
+
+
 def test_summarize_sub_agent_execution_traces(tmp_path):
     trace_path = tmp_path / "execution_trace.jsonl"
 
@@ -113,6 +154,40 @@ def test_summarize_sub_agent_execution_traces(tmp_path):
     )
 
     records = load_sub_agent_execution_traces(str(trace_path))
+    summary = summarize_sub_agent_execution_traces(records)
+
+    assert summary == {
+        "total": 1,
+        "successful": 1,
+        "failed": 0,
+        "by_sub_agent": {
+            "retrieval_agent": 1,
+        },
+        "by_tool": {
+            "search_thesis": 1,
+        },
+    }
+
+
+def test_summarize_sub_agent_execution_traces_skips_non_execution_records():
+    repository = InMemoryTraceRepository()
+    result = execute_sub_agent_plan(
+        create_plan(),
+        tool_runner=lambda input_plan: '{"ok": true}',
+    )
+    save_sub_agent_execution_trace(
+        result,
+        trace_repository=repository,
+    )
+
+    records = [
+        {
+            "event_type": "agent_run",
+            "user_message": "not a sub-agent execution",
+        },
+        *repository.records,
+    ]
+
     summary = summarize_sub_agent_execution_traces(records)
 
     assert summary == {

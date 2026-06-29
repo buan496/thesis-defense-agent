@@ -47,7 +47,11 @@ def load_sub_agent_execution_traces(
     trace_repository: TraceRepository | None = None,
 ) -> list[dict]:
     if trace_repository is not None:
-        return trace_repository.load_all()
+        return [
+            record
+            for record in trace_repository.load_all()
+            if record.get("event_type") == "sub_agent_tool_executed"
+        ]
 
     path = Path(file_path)
 
@@ -66,12 +70,17 @@ def load_sub_agent_execution_traces(
 def summarize_sub_agent_execution_traces(
     records: list[dict],
 ) -> dict:
+    execution_records = [
+        record
+        for record in records
+        if record.get("event_type") == "sub_agent_tool_executed"
+    ]
     by_sub_agent = {}
     by_tool = {}
     successful = 0
     failed = 0
 
-    for record in records:
+    for record in execution_records:
         audit = record["audit"]
         sub_agent_name = audit["sub_agent_name"]
         tool_name = audit["tool_name"]
@@ -87,7 +96,7 @@ def summarize_sub_agent_execution_traces(
             failed += 1
 
     return {
-        "total": len(records),
+        "total": len(execution_records),
         "successful": successful,
         "failed": failed,
         "by_sub_agent": dict(sorted(by_sub_agent.items())),
