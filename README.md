@@ -68,10 +68,36 @@ docker compose exec postgres pg_isready -U thesis_agent -d thesis_defense_agent
 docker compose down
 ```
 
+<!-- docs-update-2026-06-29-postgres-migrations -->
+
+## 2026-06-29 Update: PostgreSQL Schema Migrations
+
+PostgreSQL schema migration assets are now available under:
+
+```text
+db/migrations/postgres/
+```
+
+Current migration:
+
+```text
+001_initial_schema.sql
+```
+
+It defines durable storage tables for task, session, trace, feedback, and
+benchmark candidate records. The migration is still an infrastructure asset:
+the application default remains JSON / JSONL storage.
+
+Inspect the migration plan without connecting to PostgreSQL:
+
+```powershell
+uv run python -m app.cli postgres-migrations
+```
+
 最新本地测试基线：
 
 ```text
-795 passed
+806 passed
 ```
 
 本机学习版阶段已完成，阶段总复盘见：

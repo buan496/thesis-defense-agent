@@ -123,6 +123,42 @@ JSONL storage unless future code explicitly selects PostgreSQL repositories.
 The Compose database is a preparation step for schema migrations and repository
 implementation, not a behavior change for the current API.
 
+## Migration Files
+
+PostgreSQL migration SQL files live in:
+
+```text
+db/migrations/postgres/
+```
+
+Current migration:
+
+```text
+001_initial_schema.sql
+```
+
+It defines:
+
+- `schema_migrations`
+- `defense_tasks`
+- `agent_sessions`
+- `trace_records`
+- `feedback_records`
+- `benchmark_candidates`
+
+The migration is idempotent and uses `CREATE TABLE IF NOT EXISTS` / `CREATE
+INDEX IF NOT EXISTS` so it can be used for local integration testing before a
+full migration runner is introduced.
+
+To inspect migration metadata without executing SQL:
+
+```powershell
+uv run python -m app.cli postgres-migrations
+```
+
+This command prints version, name, path, and checksum. It does not connect to
+PostgreSQL and does not modify the database.
+
 ## Why Not Replace JSON Immediately
 
 Replacing storage directly would mix two changes:
@@ -135,7 +171,8 @@ The project should keep those concerns separate. The repository abstraction lets
 ## Next Steps
 
 - Add PostgreSQL dependencies after selecting the client library.
-- Add migration tooling and schema files.
+- Add a migration runner that records applied migration versions in
+  `schema_migrations`.
 - Add `PostgresTaskRepository`.
 - Add `PostgresSessionRepository`.
 - Add `PostgresTraceRepository`.

@@ -129,6 +129,7 @@ from app.local_quality_gate import (
     save_local_quality_gate_markdown,
     save_local_quality_gate_report,
 )
+from app.postgres_migrations import build_postgres_migration_plan
 from app.feedback_store import (
     create_feedback_record,
     load_feedback_records,
@@ -1934,6 +1935,16 @@ def main():
         "--markdown-output",
         default=None,
         help="Optional Markdown output path for the quality gate report",
+    )
+
+    postgres_migrations_parser = subparsers.add_parser(
+        "postgres-migrations",
+        help="Show PostgreSQL migration files without executing them",
+    )
+    postgres_migrations_parser.add_argument(
+        "--directory",
+        default=None,
+        help="Optional PostgreSQL migration directory",
     )
     
     args = parser.parse_args()
@@ -4282,6 +4293,26 @@ def main():
 
         if not report.passed and not args.allow_fail:
             raise SystemExit(1)
+
+    elif args.command == "postgres-migrations":
+        try:
+            if args.directory is None:
+                plan = build_postgres_migration_plan()
+            else:
+                plan = build_postgres_migration_plan(args.directory)
+        except (FileNotFoundError, ValueError) as error:
+            print(f"POSTGRES MIGRATION ERROR: {error}")
+            raise SystemExit(1) from error
+
+        print("POSTGRES MIGRATION PLAN")
+        print("COUNT:", len(plan))
+
+        for migration in plan:
+            print("-" * 40)
+            print("VERSION:", migration["version"])
+            print("NAME:", migration["name"])
+            print("PATH:", migration["path"])
+            print("CHECKSUM:", migration["checksum"])
 
     elif args.command == "show-task":
         task = get_defense_task(
