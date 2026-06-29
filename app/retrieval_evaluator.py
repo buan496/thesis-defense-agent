@@ -13,7 +13,10 @@ from app.model_reranker import rerank_results_with_model
 from app.query_rewriter import rewrite_query
 from app.reranker import rerank_results
 from app.vector_store import search_vector_store
-from app.vector_store_io import load_vector_store
+from app.vector_store_repository import (
+    VectorStoreRepository,
+    JsonVectorStoreRepository,
+)
 from app.embedding_cache import (
     get_cached_embedding,
     load_embedding_cache,
@@ -42,6 +45,7 @@ def evaluate_retrieval(
     llm_query_rewriter: Callable[[str], str] = rewrite_query_with_llm,
     use_multi_query: bool = False,
     multi_query_generator: Callable[[str], list[str]] = generate_multi_queries,
+    vector_store_repository: VectorStoreRepository | None = None,
 ) -> dict:
     if retriever not in {"vector", "bm25", "hybrid"}:
         raise ValueError("retriever must be vector, bm25, or hybrid")
@@ -66,7 +70,10 @@ def evaluate_retrieval(
             "use_query_rewrite and use_llm_query_rewrite cannot both be true"
         )
 
-    store = load_vector_store(vector_store_path)
+    repository = vector_store_repository or JsonVectorStoreRepository(
+        vector_store_path
+    )
+    store = repository.load()
     embedding_cache = load_embedding_cache(
         embedding_cache_path,
         embedding_model,

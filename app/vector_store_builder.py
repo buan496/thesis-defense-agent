@@ -9,6 +9,7 @@ from app.config import (
     RAG_VECTOR_STORE_PATH,
     EMBEDDING_MODEL, 
     RAG_VECTOR_STORE_META_PATH,
+    VECTOR_STORE_BACKEND,
 )
 from app.document_cleaner import (
     normalize_pdf_line_breaks,
@@ -18,12 +19,14 @@ from app.document_cleaner import (
 from app.embeddings import create_embedding
 from app.pdf_loader import read_pdf_file
 from app.text_splitter import split_text_by_paragraphs_with_metadata
-from app.vector_store import build_vector_store
-from app.vector_store_io import save_vector_store,load_vector_store
 from app.vector_store_metadata import (
     save_vector_store_metadata,
     load_vector_store_metadata,
     is_vector_store_metadata_match,
+)
+from app.vector_store_repository import (
+    VectorStoreRepository,
+    create_vector_store_repository,
 )
 
 
@@ -35,7 +38,8 @@ def build_pdf_vector_store(
     chunk_size: int = RAG_CHUNK_SIZE,
     overlap: int = RAG_CHUNK_OVERLAP,
     min_chunk_size: int = RAG_MIN_CHUNK_SIZE,  
-    force: bool = False,                     
+    force: bool = False,
+    vector_store_repository: VectorStoreRepository | None = None,
     ) -> None:
     
     start_time = time.perf_counter()
@@ -95,11 +99,15 @@ def build_pdf_vector_store(
 
     logger.info("chunk 数量: %s", len(chunks))
 
+    repository = vector_store_repository or create_vector_store_repository(
+        backend=VECTOR_STORE_BACKEND,
+        vector_store_path=RAG_VECTOR_STORE_PATH,
+    )
     store_path = Path(RAG_VECTOR_STORE_PATH)
 
     if store_path.exists():
         logger.info("发现已有向量库，尝试断点恢复: %s", RAG_VECTOR_STORE_PATH)
-        store = load_vector_store(RAG_VECTOR_STORE_PATH)
+        store = repository.load()
     else:
         store = []
 
@@ -128,11 +136,11 @@ def build_pdf_vector_store(
         processed_since_save += 1
 
         if processed_since_save >= save_every:
-            save_vector_store(store, RAG_VECTOR_STORE_PATH)
+            repository.save(store)
             logger.info("已保存断点，当前向量数量: %s", len(store))
             processed_since_save = 0
 
-    save_vector_store(store, RAG_VECTOR_STORE_PATH)
+    repository.save(store)
     save_vector_store_metadata(
     RAG_VECTOR_STORE_META_PATH,
         source_file=file_path,

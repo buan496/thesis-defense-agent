@@ -22,6 +22,38 @@ def fake_embedding(text: str) -> list[float]:
     return [0.0, 1.0]
 
 
+class FakeVectorStoreRepository:
+    def __init__(self):
+        self.search_calls = []
+
+    def save(self, store: list[dict]) -> str:
+        return "fake-vector-store"
+
+    def load(self) -> list[dict]:
+        return []
+
+    def search(
+        self,
+        query: str,
+        top_k: int,
+        embedding_fn,
+    ) -> list[dict]:
+        self.search_calls.append(
+            {
+                "query": query,
+                "top_k": top_k,
+            }
+        )
+        return [
+            {
+                "id": 10,
+                "text": "系统架构包括特征处理和训练模块。",
+                "source": "fake-store",
+                "score": 0.9,
+            }
+        ]
+
+
 def fake_question_generator(context: str) -> list[str]:
     assert "系统架构" in context
 
@@ -203,6 +235,32 @@ def test_execute_retrieve_context_step_accepts_topic_as_query(tmp_path):
     assert result_step.status == "completed"
     assert result_step.output["query"] == "系统架构"
     assert "训练模块" in result_step.output["context"]
+
+
+def test_execute_retrieve_context_step_can_use_vector_store_repository():
+    repository = FakeVectorStoreRepository()
+    step = TaskStep(
+        step_type="retrieve_context",
+        input={
+            "query": "系统架构",
+        },
+    )
+
+    result_step = execute_retrieve_context_step(
+        step,
+        top_k=1,
+        embedding_fn=fake_embedding,
+        vector_store_repository=repository,
+    )
+
+    assert result_step.status == "completed"
+    assert "fake-store" in result_step.output["context"]
+    assert repository.search_calls == [
+        {
+            "query": "系统架构",
+            "top_k": 1,
+        }
+    ]
 
 
 def test_execute_retrieve_context_step_requires_query_or_topic():

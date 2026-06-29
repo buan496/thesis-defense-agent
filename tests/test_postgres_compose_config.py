@@ -31,6 +31,7 @@ def test_env_example_documents_postgres_defaults():
     env_text = (ROOT / ".env.example").read_text(encoding="utf-8")
 
     assert "STORAGE_BACKEND=json" in env_text
+    assert "VECTOR_STORE_BACKEND=json" in env_text
     assert (
         "DATABASE_URL=postgresql://thesis_agent:"
         "thesis_agent_dev_password@127.0.0.1:5432/thesis_defense_agent"

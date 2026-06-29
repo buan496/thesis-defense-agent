@@ -319,6 +319,7 @@ docs/17-本机学习版阶段总复盘.md
 - 支持 chunk metadata：`id`、`text`、`source`、`length`
 - 支持真实 Embedding API
 - 支持内存向量库、余弦相似度检索、JSON 持久化
+- 支持向量库 repository 抽象，当前默认实现为 JSON 后端
 - 支持向量库 metadata、参数一致性检查、断点恢复和增量跳过
 - 支持 query embedding cache，减少重复评估时的 API 调用
 - 支持 RAG benchmark，统计 Top-K 召回关键字覆盖率
@@ -506,6 +507,7 @@ RAG_CHUNK_OVERLAP=100
 RAG_MIN_CHUNK_SIZE=30
 RAG_VECTOR_STORE_PATH=data/vector_store.json
 RAG_VECTOR_STORE_META_PATH=data/vector_store_meta.json
+VECTOR_STORE_BACKEND=json
 QUERY_EMBEDDING_CACHE_PATH=data/query_embedding_cache.json
 
 AGENT_TRACE_PATH=data/traces/agent_trace.jsonl
@@ -677,6 +679,7 @@ app/embeddings.py                Embedding 调用
 app/embedding_cache.py           Query embedding 缓存
 app/vector_store.py              向量检索
 app/vector_store_io.py           向量库保存和加载
+app/vector_store_repository.py   向量库后端抽象和 JSON 实现
 app/vector_store_builder.py      PDF 向量库构建，支持断点恢复
 app/rag.py                       RAG 上下文拼接和问答
 app/retrieval_evaluator.py       RAG benchmark
@@ -751,7 +754,32 @@ retrieve_context
 
 1. 服务器长期运行验证：在服务器拉取 main，用 docker compose 运行 API 和 Prometheus。
 2. 对 README 和学习路线做周期性同步，避免文档落后于代码。
-3. 后续继续推进文件上传、流式输出、PostgreSQL、Qdrant / Milvus、真实 MCP Server 和 K8s 样例。
+3. 后续继续推进 Qdrant / Milvus、真实 MCP Server、Prometheus 告警和 K8s 样例。
+
+## 2026-06-29 Update: Vector Store Repository Abstraction
+
+RAG 向量库现在开始从“直接读写 JSON 文件”过渡到 repository 抽象：
+
+```text
+VECTOR_STORE_BACKEND=json -> JsonVectorStoreRepository
+VECTOR_STORE_BACKEND=qdrant / milvus -> reserved backend names, not implemented yet
+```
+
+已接入路径：
+
+```text
+PDF vector store builder
+Task retrieve_context step
+Retrieval evaluator load path
+```
+
+当前边界：
+
+```text
+JSON 仍是默认向量库后端。
+Qdrant / Milvus 只预留 backend 名称，尚未接真实服务。
+这一步的目的，是把后续外部向量数据库替换点固定下来。
+```
 
 ### LangGraph 旁路 Demo
 
