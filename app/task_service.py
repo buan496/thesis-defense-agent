@@ -27,17 +27,51 @@ from app.task_store import (
     load_defense_task,
     save_defense_task,
 )
+from app.storage_repositories import TaskRepository
+
+
+TaskSaveReference = str | Path
+
+
+def _load_task(
+    task_id: str,
+    directory: str | Path,
+    task_repository: TaskRepository | None,
+) -> DefenseTask:
+    if task_repository is not None:
+        return task_repository.load(task_id)
+
+    return load_defense_task(
+        task_id=task_id,
+        directory=directory,
+    )
+
+
+def _save_task(
+    task: DefenseTask,
+    directory: str | Path,
+    task_repository: TaskRepository | None,
+) -> TaskSaveReference:
+    if task_repository is not None:
+        return task_repository.save(task)
+
+    return save_defense_task(
+        task,
+        directory=directory,
+    )
 
 
 def create_defense_task(
     topic: str,
     directory: str | Path = DEFAULT_TASK_DIRECTORY,
-) -> tuple[DefenseTask, Path]:
+    task_repository: TaskRepository | None = None,
+) -> tuple[DefenseTask, TaskSaveReference]:
     task = DefenseTask(topic=topic)
 
-    task_path = save_defense_task(
+    task_path = _save_task(
         task,
         directory=directory,
+        task_repository=task_repository,
     )
 
     return task, task_path
@@ -47,10 +81,26 @@ def start_next_task_step(
     task_id: str,
     directory: str | Path = DEFAULT_TASK_DIRECTORY,
     input: dict[str, Any] | None = None,
-) -> tuple[DefenseTask, TaskStep | None, Path]:
-    task = load_defense_task(
+    task_repository: TaskRepository | None = None,
+) -> tuple[DefenseTask, TaskStep | None, TaskSaveReference]:
+    return _start_next_task_step_with_repository(
         task_id=task_id,
         directory=directory,
+        input=input,
+        task_repository=task_repository,
+    )
+
+
+def _start_next_task_step_with_repository(
+    task_id: str,
+    directory: str | Path = DEFAULT_TASK_DIRECTORY,
+    input: dict[str, Any] | None = None,
+    task_repository: TaskRepository | None = None,
+) -> tuple[DefenseTask, TaskStep | None, TaskSaveReference]:
+    task = _load_task(
+        task_id=task_id,
+        directory=directory,
+        task_repository=task_repository,
     )
 
     step = create_next_step(
@@ -58,9 +108,10 @@ def start_next_task_step(
         input=input,
     )
 
-    task_path = save_defense_task(
+    task_path = _save_task(
         task,
         directory=directory,
+        task_repository=task_repository,
     )
 
     return task, step, task_path
@@ -70,10 +121,12 @@ def complete_task_step(
     task_id: str,
     directory: str | Path = DEFAULT_TASK_DIRECTORY,
     output: dict[str, Any] | None = None,
-) -> tuple[DefenseTask, TaskStep, Path]:
-    task = load_defense_task(
+    task_repository: TaskRepository | None = None,
+) -> tuple[DefenseTask, TaskStep, TaskSaveReference]:
+    task = _load_task(
         task_id=task_id,
         directory=directory,
+        task_repository=task_repository,
     )
 
     step = complete_current_step(
@@ -81,9 +134,10 @@ def complete_task_step(
         output=output,
     )
 
-    task_path = save_defense_task(
+    task_path = _save_task(
         task,
         directory=directory,
+        task_repository=task_repository,
     )
 
     return task, step, task_path
@@ -114,10 +168,12 @@ def execute_current_task_step(
         str,
     ] = summarize_training,
     long_term_memory_path: str | Path | None = None,
-) -> tuple[DefenseTask, TaskStep, Path]:
-    task = load_defense_task(
+    task_repository: TaskRepository | None = None,
+) -> tuple[DefenseTask, TaskStep, TaskSaveReference]:
+    task = _load_task(
         task_id=task_id,
         directory=directory,
+        task_repository=task_repository,
     )
 
     step = task.get_current_step()
@@ -144,22 +200,25 @@ def execute_current_task_step(
     except Exception as error:
         step.mark_failed(f"{type(error).__name__}: {error}")
         task.mark_failed(step.error or str(error))
-        save_defense_task(
+        _save_task(
             task,
             directory=directory,
+            task_repository=task_repository,
         )
         raise
 
-    task_path = save_defense_task(
+    task_path = _save_task(
         task,
         directory=directory,
+        task_repository=task_repository,
     )
 
     if get_next_step_type(task) is None:
         task.mark_completed()
-        task_path = save_defense_task(
+        task_path = _save_task(
             task,
             directory=directory,
+            task_repository=task_repository,
         )
     
     if (
@@ -209,13 +268,15 @@ def submit_task_answer(
     task_id: str,
     answer: str,
     directory: str | Path = DEFAULT_TASK_DIRECTORY,
-) -> tuple[DefenseTask, TaskStep, Path]:
+    task_repository: TaskRepository | None = None,
+) -> tuple[DefenseTask, TaskStep, TaskSaveReference]:
     if not answer.strip():
         raise ValueError("学生回答不能为空")
 
-    task = load_defense_task(
+    task = _load_task(
         task_id=task_id,
         directory=directory,
+        task_repository=task_repository,
     )
 
     step = task.get_current_step()
@@ -240,9 +301,10 @@ def submit_task_answer(
 
     step.mark_completed(output=output)
 
-    task_path = save_defense_task(
+    task_path = _save_task(
         task,
         directory=directory,
+        task_repository=task_repository,
     )
 
     return task, step, task_path
@@ -252,13 +314,15 @@ def submit_follow_up_answer(
     task_id: str,
     answer: str,
     directory: str | Path = DEFAULT_TASK_DIRECTORY,
-) -> tuple[DefenseTask, TaskStep, Path]:
+    task_repository: TaskRepository | None = None,
+) -> tuple[DefenseTask, TaskStep, TaskSaveReference]:
     if not answer.strip():
         raise ValueError("追问回答不能为空")
 
-    task = load_defense_task(
+    task = _load_task(
         task_id=task_id,
         directory=directory,
+        task_repository=task_repository,
     )
 
     step = task.get_current_step()
@@ -292,9 +356,10 @@ def submit_follow_up_answer(
 
     step.mark_completed(output=output)
 
-    task_path = save_defense_task(
+    task_path = _save_task(
         task,
         directory=directory,
+        task_repository=task_repository,
     )
 
     return task, step, task_path
@@ -303,8 +368,10 @@ def submit_follow_up_answer(
 def get_defense_task(
     task_id: str,
     directory: str | Path = DEFAULT_TASK_DIRECTORY,
+    task_repository: TaskRepository | None = None,
 ) -> DefenseTask:
-    return load_defense_task(
+    return _load_task(
         task_id=task_id,
         directory=directory,
+        task_repository=task_repository,
     )

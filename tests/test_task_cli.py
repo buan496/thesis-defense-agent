@@ -2,6 +2,22 @@ from app import cli
 from app.task_models import DefenseTask, TaskStep
 
 
+class RecordingTaskRepository:
+    def __init__(self):
+        self.saved_tasks = []
+
+    def save(self, task: DefenseTask) -> str:
+        self.saved_tasks.append(task)
+        return f"repository:{task.task_id}"
+
+    def load(self, task_id: str) -> DefenseTask:
+        for task in self.saved_tasks:
+            if task.task_id == task_id:
+                return task
+
+        raise FileNotFoundError(task_id)
+
+
 def extract_value(
     output: str,
     prefix: str,
@@ -42,6 +58,68 @@ def test_create_task_command(
 
     assert task_id
     assert (tmp_path / f"{task_id}.json").exists()
+
+
+def test_create_task_command_uses_repository_factory(
+    monkeypatch,
+    capsys,
+    tmp_path,
+):
+    repository = RecordingTaskRepository()
+    factory_calls = []
+
+    def fake_create_repositories(
+        storage_backend,
+        database_url,
+        task_directory,
+    ):
+        factory_calls.append(
+            {
+                "storage_backend": storage_backend,
+                "database_url": database_url,
+                "task_directory": task_directory,
+            }
+        )
+
+        return type(
+            "RepositoryBundleStub",
+            (),
+            {
+                "task_repository": repository,
+            },
+        )()
+
+    monkeypatch.setattr(
+        cli,
+        "create_repositories",
+        fake_create_repositories,
+    )
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "app.cli",
+            "create-task",
+            "--topic",
+            "系统架构",
+            "--directory",
+            str(tmp_path),
+        ],
+    )
+
+    cli.main()
+    output = capsys.readouterr().out
+
+    assert "TASK CREATED" in output
+    assert "SAVED: repository:" in output
+    assert len(repository.saved_tasks) == 1
+    assert repository.saved_tasks[0].topic == "系统架构"
+    assert factory_calls == [
+        {
+            "storage_backend": cli.STORAGE_BACKEND,
+            "database_url": cli.DATABASE_URL,
+            "task_directory": str(tmp_path),
+        }
+    ]
 
 
 def test_task_cli_can_start_complete_and_show_task(
@@ -258,10 +336,12 @@ def test_execute_task_step_command(
         task_id,
         directory,
         long_term_memory_path=None,
+        task_repository=None,
     ):
         assert task_id == "task-001"
         assert directory == str(tmp_path)
         assert long_term_memory_path is not None
+        assert task_repository is not None
         return task, step, tmp_path / "task-001.json"
 
     monkeypatch.setattr(
@@ -300,8 +380,10 @@ def test_execute_task_step_command_reports_task_error(
         task_id,
         directory,
         long_term_memory_path=None,
+        task_repository=None,
     ):
         assert long_term_memory_path is not None
+        assert task_repository is not None
         raise ValueError("当前任务没有可执行步骤")
 
     monkeypatch.setattr(

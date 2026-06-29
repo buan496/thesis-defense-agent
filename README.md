@@ -170,6 +170,38 @@ Runtime storage still defaults to JSON / JSONL.
 Service-level repository injection is a later step.
 ```
 
+<!-- docs-update-2026-06-29-task-runtime-repository-pilot -->
+
+## 2026-06-29 Update: Task Runtime Repository Pilot
+
+Task workflow commands now use the repository abstraction at runtime. The CLI
+creates a task repository from `STORAGE_BACKEND` through the repository factory
+and injects it into task service functions.
+
+Covered task commands:
+
+```text
+create-task
+start-task-step
+complete-task-step
+execute-task-step
+submit-task-answer
+submit-follow-up-answer
+resume-task
+analyze-task
+export-task-markdown
+export-task-memory
+show-task
+```
+
+Current boundary:
+
+```text
+STORAGE_BACKEND=json remains the default.
+Task runtime can use the selected task repository.
+Session and trace runtime integration are later steps.
+```
+
 <!-- docs-update-2026-06-29-postgres-trace-repository -->
 
 ## 2026-06-29 Update: PostgresTraceRepository
@@ -207,7 +239,7 @@ Repository selection through STORAGE_BACKEND is a later step.
 最新本地测试基线：
 
 ```text
-855 passed
+859 passed
 ```
 
 本机学习版阶段已完成，阶段总复盘见：

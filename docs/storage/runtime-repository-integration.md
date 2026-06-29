@@ -30,7 +30,8 @@ Repository path
 
 The repository path can construct both JSON and PostgreSQL adapters, and the
 JSON-to-PostgreSQL import command can copy existing local records into
-PostgreSQL. Runtime services still default to the direct JSON / JSONL path.
+PostgreSQL. Task workflow runtime now uses the task repository abstraction.
+Session and trace runtime integration remain later steps.
 
 ## Target Direction
 
@@ -134,6 +135,15 @@ Expected change:
 Task service accepts task_repository dependency.
 CLI creates RepositoryBundle once.
 Task CLI commands use repositories.task_repository.
+```
+
+Status:
+
+```text
+Implemented.
+Task service functions accept task_repository.
+Task CLI commands create the task repository through RepositoryBundle.
+Default JSON behavior is preserved through JsonTaskRepository.
 ```
 
 Rollback:

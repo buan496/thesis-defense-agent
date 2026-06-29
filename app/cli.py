@@ -234,6 +234,16 @@ def parse_key_value_arguments(
 
     return arguments
 
+
+def create_task_repository_for_cli(directory: str):
+    repositories = create_repositories(
+        storage_backend=STORAGE_BACKEND,
+        database_url=DATABASE_URL,
+        task_directory=directory,
+    )
+
+    return repositories.task_repository
+
 def main():
     parser = argparse.ArgumentParser(
         description="Thesis Defense Agent CLI"
@@ -3408,9 +3418,11 @@ def main():
     elif args.command == "mock-defense":
         run_mock_defense(training_query=args.topic)
     elif args.command == "create-task":
+        task_repository = create_task_repository_for_cli(args.directory)
         task, task_path = create_defense_task(
             topic=args.topic,
             directory=args.directory,
+            task_repository=task_repository,
         )
 
         print("TASK CREATED")
@@ -3429,10 +3441,12 @@ def main():
             print(f"ARGUMENT ERROR: {error}")
             raise SystemExit(2) from error
 
+        task_repository = create_task_repository_for_cli(args.directory)
         task, step, task_path = start_next_task_step(
             task_id=args.task_id,
             directory=args.directory,
             input=step_input,
+            task_repository=task_repository,
         )
 
         print("TASK UPDATED")
@@ -3460,10 +3474,12 @@ def main():
             raise SystemExit(2) from error
 
         try:
+            task_repository = create_task_repository_for_cli(args.directory)
             task, step, task_path = complete_task_step(
                 task_id=args.task_id,
                 directory=args.directory,
                 output=step_output,
+                task_repository=task_repository,
             )
         except ValueError as error:
             print(f"TASK ERROR: {error}")
@@ -3479,10 +3495,12 @@ def main():
 
     elif args.command == "execute-task-step":
         try:
+            task_repository = create_task_repository_for_cli(args.directory)
             task, step, task_path = execute_current_task_step(
                 task_id=args.task_id,
                 directory=args.directory,
                 long_term_memory_path=LONG_TERM_MEMORY_PATH,
+                task_repository=task_repository,
             )
         except ValueError as error:
             print(f"TASK ERROR: {error}")
@@ -3504,9 +3522,11 @@ def main():
         print(f"SAVED: {task_path}")
 
     elif args.command == "resume-task":
+        task_repository = create_task_repository_for_cli(args.directory)
         task = get_defense_task(
             task_id=args.task_id,
             directory=args.directory,
+            task_repository=task_repository,
         )
         status = get_resumable_task_status(task)
 
@@ -3526,9 +3546,11 @@ def main():
         print(f"MESSAGE: {status.message}")
 
     elif args.command == "analyze-task":
+        task_repository = create_task_repository_for_cli(args.directory)
         task = get_defense_task(
             task_id=args.task_id,
             directory=args.directory,
+            task_repository=task_repository,
         )
         report = analyze_task_trace(task)
 
@@ -3566,10 +3588,12 @@ def main():
 
     elif args.command == "submit-task-answer":
         try:
+            task_repository = create_task_repository_for_cli(args.directory)
             task, step, task_path = submit_task_answer(
                 task_id=args.task_id,
                 answer=args.answer,
                 directory=args.directory,
+                task_repository=task_repository,
             )
         except ValueError as error:
             print(f"TASK ERROR: {error}")
@@ -3586,10 +3610,12 @@ def main():
 
     elif args.command == "submit-follow-up-answer":
         try:
+            task_repository = create_task_repository_for_cli(args.directory)
             task, step, task_path = submit_follow_up_answer(
                 task_id=args.task_id,
                 answer=args.answer,
                 directory=args.directory,
+                task_repository=task_repository,
             )
         except ValueError as error:
             print(f"TASK ERROR: {error}")
@@ -3605,9 +3631,11 @@ def main():
         print(f"SAVED: {task_path}")
 
     elif args.command == "export-task-markdown":
+        task_repository = create_task_repository_for_cli(args.directory)
         task = get_defense_task(
             task_id=args.task_id,
             directory=args.directory,
+            task_repository=task_repository,
         )
 
         report_path = export_task_markdown_report(
@@ -3622,9 +3650,11 @@ def main():
 
     elif args.command == "export-task-memory":
         try:
+            task_repository = create_task_repository_for_cli(args.directory)
             task = get_defense_task(
                 task_id=args.task_id,
                 directory=args.directory,
+                task_repository=task_repository,
             )
             report = export_task_to_long_term_memory(
                 task=task,
@@ -4521,9 +4551,11 @@ def main():
         print("TOTAL IMPORTED COUNT:", report.total_imported_count)
 
     elif args.command == "show-task":
+        task_repository = create_task_repository_for_cli(args.directory)
         task = get_defense_task(
             task_id=args.task_id,
             directory=args.directory,
+            task_repository=task_repository,
         )
 
         print("TASK")
