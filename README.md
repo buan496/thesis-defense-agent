@@ -833,6 +833,7 @@ Qdrant collection ensure/create
 JSON vector store items upsert into Qdrant
 Qdrant query_points search
 import-vector-store-to-qdrant CLI
+delete-qdrant-collection CLI with explicit confirmation
 ```
 
 导入现有 JSON 向量库到 Qdrant：
@@ -867,6 +868,17 @@ uv run python -m app.cli compare-vector-store-backends `
   --collection thesis_chunks `
   --vector-size 1024 `
   --distance Cosine
+```
+
+删除 Qdrant collection 必须显式确认 collection 名称：
+
+```powershell
+uv run python -m app.cli delete-qdrant-collection `
+  --url http://127.0.0.1:6333 `
+  --collection thesis_chunks `
+  --vector-size 1024 `
+  --distance Cosine `
+  --confirm-collection thesis_chunks
 ```
 
 ### LangGraph 旁路 Demo

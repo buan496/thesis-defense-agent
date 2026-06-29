@@ -98,12 +98,12 @@ local import smoke test: 70 chunks imported from data/vector_store.json
 local repository search smoke test
 compare-vector-store-backends CLI
 JSON vs Qdrant benchmark comparison path
+delete-qdrant-collection CLI with explicit confirmation
 ```
 
 Not completed:
 
 ```text
-Qdrant collection reset/delete CLI
 Qdrant operational backup/restore
 ```
 
@@ -164,6 +164,29 @@ missing keywords per query
 cache hits / misses
 ```
 
+## Delete a Qdrant Collection
+
+Collection deletion is destructive, so the CLI requires explicit confirmation.
+The value passed to `--confirm-collection` must exactly match `--collection`.
+
+```powershell
+uv run python -m app.cli delete-qdrant-collection `
+  --url http://127.0.0.1:6333 `
+  --collection thesis_chunks `
+  --vector-size 1024 `
+  --distance Cosine `
+  --confirm-collection thesis_chunks
+```
+
+If the collection does not exist, the command succeeds with:
+
+```text
+DELETED: False
+```
+
+If the confirmation does not match, the command exits before contacting
+Qdrant.
+
 ## Current Runtime Boundary
 
 The default remains:
@@ -177,5 +200,5 @@ side-by-side.
 
 ## Next Step
 
-Add collection reset/delete tooling and define backup/restore guidance before
-using Qdrant as a long-running production dependency.
+Define backup/restore guidance before using Qdrant as a long-running
+production dependency.

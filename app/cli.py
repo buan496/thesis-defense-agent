@@ -2112,6 +2112,45 @@ def main():
         help="Path to save backend comparison report as JSON",
     )
 
+    delete_qdrant_collection_parser = subparsers.add_parser(
+        "delete-qdrant-collection",
+        help="Delete a Qdrant collection with explicit confirmation",
+    )
+    delete_qdrant_collection_parser.add_argument(
+        "--url",
+        default=QDRANT_URL,
+        help="Qdrant URL",
+    )
+    delete_qdrant_collection_parser.add_argument(
+        "--collection",
+        default=QDRANT_COLLECTION,
+        help="Qdrant collection name",
+    )
+    delete_qdrant_collection_parser.add_argument(
+        "--vector-size",
+        type=int,
+        default=QDRANT_VECTOR_SIZE,
+        help="Qdrant vector size",
+    )
+    delete_qdrant_collection_parser.add_argument(
+        "--distance",
+        default=QDRANT_DISTANCE,
+        help="Qdrant distance metric",
+    )
+    delete_qdrant_collection_parser.add_argument(
+        "--api-key",
+        default=None,
+        help="Optional Qdrant API key. Defaults to QDRANT_API_KEY.",
+    )
+    delete_qdrant_collection_parser.add_argument(
+        "--confirm-collection",
+        required=True,
+        help=(
+            "Required destructive confirmation. Must exactly match "
+            "--collection."
+        ),
+    )
+
     import_json_to_postgres_parser = subparsers.add_parser(
         "import-json-to-postgres",
         help="Import local JSON / JSONL storage into PostgreSQL repositories",
@@ -4752,6 +4791,36 @@ def main():
                 encoding="utf-8",
             )
             print("REPORT SAVED:", output_path)
+
+    elif args.command == "delete-qdrant-collection":
+        if args.confirm_collection != args.collection:
+            print(
+                "QDRANT DELETE ERROR: --confirm-collection must exactly "
+                "match --collection"
+            )
+            raise SystemExit(1)
+
+        try:
+            repository = QdrantVectorStoreRepository(
+                url=args.url,
+                collection_name=args.collection,
+                vector_size=args.vector_size,
+                distance=args.distance,
+                api_key=(
+                    args.api_key
+                    if args.api_key is not None
+                    else QDRANT_API_KEY
+                ),
+            )
+            deleted = repository.delete_collection()
+        except (ValueError, RuntimeError) as error:
+            print(f"QDRANT DELETE ERROR: {error}")
+            raise SystemExit(1) from error
+
+        print("QDRANT COLLECTION DELETE")
+        print("QDRANT URL:", args.url)
+        print("COLLECTION:", args.collection)
+        print("DELETED:", deleted)
 
     elif args.command == "import-json-to-postgres":
         database_url = (
