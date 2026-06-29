@@ -268,6 +268,7 @@ updated: 2026-06-29
 - [x] PostgresSessionRepository
 - [x] PostgresTraceRepository
 - [x] Repository factory / STORAGE_BACKEND selection
+- [x] JSON-to-PostgreSQL import scripts
 - [ ] PostgreSQL
 - [ ] Qdrant / Milvus
 - [ ] K8s 基础部署
@@ -524,14 +525,47 @@ Repository factory / configuration selection。
 repository factory 已完成。
 默认 backend 仍是 json。
 runtime service 尚未通过 factory 注入 repository。
-尚未实现 JSON -> PostgreSQL 导入脚本。
+JSON -> PostgreSQL 导入脚本已在后续阶段完成。
+```
+
+后续学习记录：
+
+```text
+JSON-to-PostgreSQL import scripts 已在下一节完成。
+```
+
+<!-- roadmap-update-2026-06-29-postgres-json-import -->
+
+## 2026-06-29 路线同步：JSON-to-PostgreSQL Import 已完成
+
+本阶段完成的是显式导入工具，不切换默认运行路径。
+
+已完成：
+
+- [x] `app.postgres_json_importer`
+- [x] task JSON directory -> PostgreSQL task repository
+- [x] session JSON directory -> PostgreSQL session repository
+- [x] trace JSONL file -> PostgreSQL trace repository
+- [x] `--dry-run` 预览
+- [x] `--skip-tasks` / `--skip-sessions` / `--skip-traces`
+- [x] `import-json-to-postgres` CLI
+- [x] CLI 不打印完整 `DATABASE_URL`
+- [x] fake repository 单元测试，不依赖真实数据库
+
+当前边界：
+
+```text
+导入工具已完成。
+默认 STORAGE_BACKEND 仍是 json。
+runtime service 尚未通过 repository factory 注入。
+尚未提供切换前的自动回滚策略。
 ```
 
 下一步学习：
 
 ```text
-JSON-to-PostgreSQL import scripts。
-先支持 task / session / trace 从本地文件导入 PostgreSQL repository，再考虑切换 runtime service。
+Runtime repository integration design。
+先设计 service 注入边界和 rollback 策略，再决定是否把 task/session/trace service 接到 repository factory。
 ```
 
 已经完成的 Task State 能力：
