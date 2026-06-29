@@ -36,6 +36,11 @@ from app.config import (
     FEEDBACK_STORE_PATH,
     BENCHMARK_CANDIDATE_DIRECTORY,
     LONG_TERM_MEMORY_PATH,
+    QDRANT_API_KEY,
+    QDRANT_COLLECTION,
+    QDRANT_DISTANCE,
+    QDRANT_URL,
+    QDRANT_VECTOR_SIZE,
     RAG_BENCHMARK_PATH,
     RAG_CHUNK_OVERLAP,
     RAG_CHUNK_SIZE,
@@ -45,6 +50,7 @@ from app.config import (
     STORAGE_BACKEND,
     SUB_AGENT_EXECUTION_TRACE_PATH,
     SUB_AGENT_PLAN_TRACE_PATH,
+    VECTOR_STORE_BACKEND,
 )
 from app.agent_routing_evaluator import evaluate_agent_routing
 from app.agent_trace_analyzer import analyze_agent_traces
@@ -135,6 +141,8 @@ from app.postgres_migrations import build_postgres_migration_plan
 from app.postgres_migration_runner import run_postgres_migrations
 from app.postgres_json_importer import import_json_storage_to_repositories
 from app.repository_factory import create_repositories
+from app.vector_store_io import load_vector_store
+from app.vector_store_repository import QdrantVectorStoreRepository
 from app.session_store import DEFAULT_SESSION_DIRECTORY
 from app.feedback_store import (
     create_feedback_record,
@@ -2017,6 +2025,42 @@ def main():
             "PostgreSQL connection URL. Defaults to DATABASE_URL from the "
             "environment. The value is not printed."
         ),
+    )
+
+    import_vector_store_to_qdrant_parser = subparsers.add_parser(
+        "import-vector-store-to-qdrant",
+        help="Import local JSON vector store items into Qdrant",
+    )
+    import_vector_store_to_qdrant_parser.add_argument(
+        "--source",
+        default=RAG_VECTOR_STORE_PATH,
+        help="Local JSON vector store path",
+    )
+    import_vector_store_to_qdrant_parser.add_argument(
+        "--url",
+        default=QDRANT_URL,
+        help="Qdrant URL",
+    )
+    import_vector_store_to_qdrant_parser.add_argument(
+        "--collection",
+        default=QDRANT_COLLECTION,
+        help="Qdrant collection name",
+    )
+    import_vector_store_to_qdrant_parser.add_argument(
+        "--vector-size",
+        type=int,
+        default=QDRANT_VECTOR_SIZE,
+        help="Qdrant vector size",
+    )
+    import_vector_store_to_qdrant_parser.add_argument(
+        "--distance",
+        default=QDRANT_DISTANCE,
+        help="Qdrant distance metric",
+    )
+    import_vector_store_to_qdrant_parser.add_argument(
+        "--api-key",
+        default=None,
+        help="Optional Qdrant API key. Defaults to QDRANT_API_KEY.",
     )
 
     import_json_to_postgres_parser = subparsers.add_parser(
@@ -4560,6 +4604,33 @@ def main():
             "TRACE REPOSITORY:",
             type(repositories.trace_repository).__name__,
         )
+
+    elif args.command == "import-vector-store-to-qdrant":
+        try:
+            store = load_vector_store(args.source)
+            repository = QdrantVectorStoreRepository(
+                url=args.url,
+                collection_name=args.collection,
+                vector_size=args.vector_size,
+                distance=args.distance,
+                api_key=(
+                    args.api_key
+                    if args.api_key is not None
+                    else QDRANT_API_KEY
+                ),
+            )
+            saved_identifier = repository.save(store)
+        except (FileNotFoundError, ValueError, RuntimeError) as error:
+            print(f"QDRANT IMPORT ERROR: {error}")
+            raise SystemExit(1) from error
+
+        print("QDRANT VECTOR STORE IMPORT")
+        print("SOURCE:", args.source)
+        print("QDRANT URL:", args.url)
+        print("COLLECTION:", saved_identifier)
+        print("VECTOR SIZE:", args.vector_size)
+        print("DISTANCE:", args.distance)
+        print("IMPORTED COUNT:", len(store))
 
     elif args.command == "import-json-to-postgres":
         database_url = (
