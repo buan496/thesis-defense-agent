@@ -568,6 +568,37 @@ Runtime repository integration design。
 先设计 service 注入边界和 rollback 策略，再决定是否把 task/session/trace service 接到 repository factory。
 ```
 
+<!-- roadmap-update-2026-06-29-runtime-repository-integration-design -->
+
+## 2026-06-29 路线同步：Runtime Repository Integration Design 已完成
+
+本阶段完成的是运行时存储切换设计，不直接切换默认存储后端。
+
+设计文档：
+
+```text
+docs/storage/runtime-repository-integration.md
+```
+
+已明确：
+
+- [x] 当前 JSON / JSONL runtime path 与 repository path 的边界
+- [x] `RepositoryBundle` 的注入位置
+- [x] Task / Session / Trace 的分阶段迁移顺序
+- [x] `STORAGE_BACKEND=json|postgres` 的配置规则
+- [x] `DATABASE_URL` 不打印完整值的安全要求
+- [x] JSON 默认后端保留策略
+- [x] PostgreSQL 切换失败时回滚到 JSON 的策略
+- [x] 不要求普通单元测试依赖真实 PostgreSQL
+
+下一步学习：
+
+```text
+Task runtime repository pilot。
+先把 task workflow 的 create/start/execute/submit/resume/analyze/export 接到 task_repository 依赖。
+保持 STORAGE_BACKEND=json 为默认值，不在同一 PR 内迁移 session 和 trace。
+```
+
 已经完成的 Task State 能力：
 
 - [x] `DefenseTask / TaskStep`
