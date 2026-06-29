@@ -261,7 +261,8 @@ updated: 2026-06-29
 - [x] CI 失败诊断和修复
 - [ ] Langfuse
 - [x] Prometheus 指标
-- [ ] 错误告警
+- [x] Prometheus 告警规则
+- [ ] Alertmanager / 通知渠道
 - [x] Docker
 - [x] Docker build CI
 - [x] GHCR 镜像发布流程
@@ -2467,7 +2468,7 @@ docs/17-本机学习版阶段总复盘.md
 1. 服务器长期运行验证
 2. PostgreSQL 存储 task / session / trace
 3. Qdrant 生产化治理或 Milvus 替换本地 JSON 向量库
-4. Prometheus 告警规则和日志集中采集
+4. Alertmanager / 通知渠道和日志集中采集
 5. K8s manifests
 8. MCP Server 实际接入
 9. 权限审批和 workspace 隔离
@@ -2532,7 +2533,7 @@ docs/deployment/server.md
 ```text
 尚未切换 PostgreSQL 存储。
 Qdrant 已有本地最小实现；尚未做生产化治理和 Milvus。
-尚未提供 Prometheus 告警规则。
+Prometheus 告警规则已完成；尚未提供 Alertmanager / 通知渠道。
 尚未提供 K8s manifests。
 ```
 
@@ -2542,6 +2543,6 @@ Qdrant 已有本地最小实现；尚未做生产化治理和 Milvus。
 1. 服务器拉取 GHCR 镜像运行
 2. PostgreSQL
 3. Qdrant 生产化治理 / Milvus
-4. Prometheus 告警规则
+4. Alertmanager / 通知渠道
 5. K8s manifests
 ```
