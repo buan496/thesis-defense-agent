@@ -133,7 +133,9 @@ from app.local_quality_gate import (
 )
 from app.postgres_migrations import build_postgres_migration_plan
 from app.postgres_migration_runner import run_postgres_migrations
+from app.postgres_json_importer import import_json_storage_to_repositories
 from app.repository_factory import create_repositories
+from app.session_store import DEFAULT_SESSION_DIRECTORY
 from app.feedback_store import (
     create_feedback_record,
     load_feedback_records,
@@ -1985,6 +1987,54 @@ def main():
             "PostgreSQL connection URL. Defaults to DATABASE_URL from the "
             "environment. The value is not printed."
         ),
+    )
+
+    import_json_to_postgres_parser = subparsers.add_parser(
+        "import-json-to-postgres",
+        help="Import local JSON / JSONL storage into PostgreSQL repositories",
+    )
+    import_json_to_postgres_parser.add_argument(
+        "--database-url",
+        default=None,
+        help=(
+            "PostgreSQL connection URL. Defaults to DATABASE_URL from the "
+            "environment. The value is not printed."
+        ),
+    )
+    import_json_to_postgres_parser.add_argument(
+        "--task-directory",
+        default=str(DEFAULT_TASK_DIRECTORY),
+        help="Local JSON task directory",
+    )
+    import_json_to_postgres_parser.add_argument(
+        "--session-directory",
+        default=str(DEFAULT_SESSION_DIRECTORY),
+        help="Local JSON session directory",
+    )
+    import_json_to_postgres_parser.add_argument(
+        "--trace-file",
+        default=AGENT_TRACE_PATH,
+        help="Local JSONL trace file",
+    )
+    import_json_to_postgres_parser.add_argument(
+        "--skip-tasks",
+        action="store_true",
+        help="Skip task import",
+    )
+    import_json_to_postgres_parser.add_argument(
+        "--skip-sessions",
+        action="store_true",
+        help="Skip session import",
+    )
+    import_json_to_postgres_parser.add_argument(
+        "--skip-traces",
+        action="store_true",
+        help="Skip trace import",
+    )
+    import_json_to_postgres_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Count source records without writing to PostgreSQL",
     )
     
     args = parser.parse_args()
@@ -4424,6 +4474,51 @@ def main():
             "TRACE REPOSITORY:",
             type(repositories.trace_repository).__name__,
         )
+
+    elif args.command == "import-json-to-postgres":
+        database_url = (
+            args.database_url
+            if args.database_url is not None
+            else DATABASE_URL
+        )
+
+        if not database_url:
+            print(
+                "POSTGRES IMPORT ERROR: DATABASE_URL is required. "
+                "Set DATABASE_URL or pass --database-url."
+            )
+            raise SystemExit(1)
+
+        try:
+            repositories = create_repositories(
+                storage_backend="postgres",
+                database_url=database_url,
+            )
+            report = import_json_storage_to_repositories(
+                repositories=repositories,
+                task_directory=args.task_directory,
+                session_directory=args.session_directory,
+                trace_file_path=args.trace_file,
+                include_tasks=not args.skip_tasks,
+                include_sessions=not args.skip_sessions,
+                include_traces=not args.skip_traces,
+                dry_run=args.dry_run,
+            )
+        except (FileNotFoundError, ValueError, RuntimeError) as error:
+            print(f"POSTGRES IMPORT ERROR: {error}")
+            raise SystemExit(1) from error
+
+        print("POSTGRES JSON IMPORT")
+        print("DATABASE URL: configured")
+        print("DRY RUN:", report.dry_run)
+        print("TASK SOURCE COUNT:", report.tasks.source_count)
+        print("TASK IMPORTED COUNT:", report.tasks.imported_count)
+        print("SESSION SOURCE COUNT:", report.sessions.source_count)
+        print("SESSION IMPORTED COUNT:", report.sessions.imported_count)
+        print("TRACE SOURCE COUNT:", report.traces.source_count)
+        print("TRACE IMPORTED COUNT:", report.traces.imported_count)
+        print("TOTAL SOURCE COUNT:", report.total_source_count)
+        print("TOTAL IMPORTED COUNT:", report.total_imported_count)
 
     elif args.command == "show-task":
         task = get_defense_task(

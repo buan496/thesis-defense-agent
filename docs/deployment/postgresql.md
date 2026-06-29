@@ -303,6 +303,62 @@ Current boundary: the factory can construct JSON or PostgreSQL repositories, but
 the API service still uses the existing JSON-oriented service functions until a
 future integration step wires repositories into runtime services.
 
+## JSON-to-PostgreSQL Import
+
+Local JSON / JSONL storage can be imported into PostgreSQL repositories through:
+
+```text
+app/postgres_json_importer.py
+```
+
+CLI:
+
+```powershell
+uv run python -m app.cli import-json-to-postgres `
+  --database-url "postgresql://thesis_agent:thesis_agent_dev_password@localhost:5432/thesis_defense_agent"
+```
+
+Preview without writing:
+
+```powershell
+uv run python -m app.cli import-json-to-postgres `
+  --database-url "postgresql://thesis_agent:thesis_agent_dev_password@localhost:5432/thesis_defense_agent" `
+  --dry-run
+```
+
+Optional source overrides:
+
+```powershell
+uv run python -m app.cli import-json-to-postgres `
+  --task-directory data/defense_tasks `
+  --session-directory data/agent_sessions `
+  --trace-file data/traces/agent_trace.jsonl
+```
+
+Optional section skips:
+
+```powershell
+uv run python -m app.cli import-json-to-postgres `
+  --skip-tasks `
+  --skip-sessions `
+  --skip-traces
+```
+
+The CLI prints counts only and intentionally does not print the full
+`DATABASE_URL`.
+
+Recommended order for a local PostgreSQL import:
+
+```powershell
+docker compose up -d postgres
+uv run python -m app.cli run-postgres-migrations
+uv run python -m app.cli import-json-to-postgres --dry-run
+uv run python -m app.cli import-json-to-postgres
+```
+
+Current boundary: import scripts are explicit operational tools. They do not
+change runtime storage behavior; `STORAGE_BACKEND=json` remains the default.
+
 ## Why Not Replace JSON Immediately
 
 Replacing storage directly would mix two changes:
@@ -314,6 +370,5 @@ The project should keep those concerns separate. The repository abstraction lets
 
 ## Next Steps
 
-- Add JSON-to-PostgreSQL import scripts.
 - Wire repository factory into runtime services after import / rollback
   strategy is defined.

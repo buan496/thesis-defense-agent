@@ -147,6 +147,29 @@ The factory can create PostgreSQL repositories, but runtime service integration
 is intentionally left for a later step after import and rollback strategy are defined.
 ```
 
+<!-- docs-update-2026-06-29-postgres-json-import -->
+
+## 2026-06-29 Update: JSON-to-PostgreSQL Import
+
+The project now includes explicit import tooling for moving local JSON / JSONL
+storage into PostgreSQL repositories:
+
+```powershell
+uv run python -m app.cli import-json-to-postgres --dry-run
+uv run python -m app.cli import-json-to-postgres
+```
+
+The import command supports task, session, and trace records. It reports source
+and imported counts, and it does not print the full `DATABASE_URL`.
+
+Current boundary:
+
+```text
+Import is an explicit operational command.
+Runtime storage still defaults to JSON / JSONL.
+Service-level repository injection is a later step.
+```
+
 <!-- docs-update-2026-06-29-postgres-trace-repository -->
 
 ## 2026-06-29 Update: PostgresTraceRepository
@@ -184,7 +207,7 @@ Repository selection through STORAGE_BACKEND is a later step.
 最新本地测试基线：
 
 ```text
-844 passed
+855 passed
 ```
 
 本机学习版阶段已完成，阶段总复盘见：
