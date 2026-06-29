@@ -9,6 +9,8 @@ updated: 2026-06-29
 # Agent 完整学习路线
 
 > 路线按依赖顺序推进。没有完成前置阶段时，不为了“技术栈好看”提前堆框架。
+>
+> 本文后半部分保留了按时间追加的 `roadmap-update-*` 学习记录，其中的“下一步学习”表示当时阶段的下一步。当前有效状态以本文顶部阶段清单、`docs/01-当前进度.md` 和文末“当前边界 / 下一阶段建议顺序”为准。
 
 ## 阶段 0：Python 工程基础
 
@@ -38,7 +40,7 @@ updated: 2026-06-29
 - [x] token 使用量和成本统计
 - [x] 调用后预算上限
 - [x] 调用前预算预检
-- [ ] 流式输出
+- [x] 流式输出
 
 基础知识：
 
@@ -214,7 +216,7 @@ updated: 2026-06-29
 - [x] Interrupt / resume demo：`retrieve_context -> generate_question -> interrupt -> resume`
 - [x] Checkpointer 状态观察 demo
 - [x] Conditional edge demo：已有回答跳过 interrupt，无回答进入 interrupt
-- [ ] 将当前手写 Agent Loop 旁路迁移到 LangGraph
+- [x] 将当前手写 Agent Loop 旁路迁移到 LangGraph
 
 原则：
 
@@ -227,18 +229,23 @@ updated: 2026-06-29
 
 ## 阶段 9：MCP 与 Sub-Agent
 
-- [ ] MCP Client
-- [ ] MCP Server
-- [ ] 工具发现
-- [ ] 工具授权
-- [ ] Sub-Agent 任务委派
-- [ ] Planner / Researcher / Evaluator
+- [x] MCP 工具协议概念对照
+- [x] Tool discovery / schema / metadata / invocation 对照
+- [x] Resource / Prompt / Audit / Permission 对照
+- [x] Sub-Agent spec
+- [x] Sub-Agent allowed tools 权限边界
+- [x] Sub-Agent plan-first / dry-run
+- [x] Sub-Agent execution trace
+- [x] Sub-Agent plan / execution comparator
+- [ ] 真实 MCP Client
+- [ ] 真实 MCP Server
+- [ ] Planner / Researcher / Evaluator 多角色协作
 - [ ] 多 Agent 共享上下文边界
 - [ ] 失败回收和预算控制
 
 ## 阶段 10：服务化与界面
 
-> 当前机器已经完成 FastAPI 服务化、Docker Compose、Prometheus 本地验证和 Docker 镜像 CI 构建；GHCR 镜像发布进入当前阶段。服务器长期运行、数据库、向量数据库、K8s 和私有化部署继续作为后续阶段。
+> 当前机器已经完成 FastAPI 服务化、Docker Compose、Prometheus 本地验证、Docker 镜像 CI 构建、GHCR 镜像发布、PostgreSQL runtime smoke 和 Qdrant 最小后端。Alertmanager、K8s、Web 前端、真实 MCP Server、Milvus / 向量数据库生产化治理和服务器长期运行继续作为后续阶段。
 
 - [x] FastAPI
 - [x] Pydantic 请求模型
@@ -293,9 +300,9 @@ updated: 2026-06-29
 - [ ] K8s 基础部署
 - [ ] 私有化配置和密钥管理
 
-## 当前阶段：本机学习版 Agent Harness 完整闭环
+## 当前阶段：本机学习版 Agent Harness + 交付基础闭环
 
-当前项目已经完成本机学习版 Agent Harness 的完整闭环：
+当前项目已经完成本机学习版 Agent Harness 和本机交付基础闭环：
 
 ```text
 RAG
@@ -309,6 +316,11 @@ RAG
 → Task State
 → Resumable Workflow
 → Markdown Export
+→ FastAPI / SSE / WebSocket
+→ Docker / Compose / GHCR
+→ Prometheus metrics / alert rules
+→ PostgreSQL optional runtime backend
+→ Qdrant minimal vector backend
 ```
 
 <!-- roadmap-update-2026-06-29-postgres-compose -->
@@ -756,8 +768,8 @@ PostgreSQL runtime smoke test。
 边界说明：
 
 - LangGraph 后续只做旁路迁移，不覆盖当前手写 Task State / Agent Harness 源码。
-- FastAPI、Dockerfile、docker-compose 和 Prometheus 本机验证已完成。
-- 数据库、向量数据库、K8s、私有化部署和服务器长期运行继续作为后续阶段。
+- FastAPI、Dockerfile、docker-compose、Prometheus、本机 PostgreSQL runtime smoke 和 Qdrant 最小后端已完成。
+- Alertmanager、K8s、Web 前端、真实 MCP Server、Milvus / 向量数据库生产化治理、私有化部署和服务器长期运行继续作为后续阶段。
 
 ## 下一步学习重点
 
@@ -1933,8 +1945,8 @@ Spec -> Permission -> Plan -> Dry-Run -> Execute -> Trace -> Comparison -> Quali
 
 ```text
 LangGraph 后续只做旁路迁移，不覆盖现有手写 Agent Harness。
-FastAPI、Dockerfile、docker-compose 和 Prometheus 本机验证已完成。
-数据库、向量数据库、K8s、私有化部署和服务器长期运行继续作为后续阶段。
+FastAPI、Dockerfile、docker-compose、Prometheus、本机 PostgreSQL runtime smoke 和 Qdrant 最小后端已完成。
+Alertmanager、K8s、Web 前端、真实 MCP Server、Milvus / 向量数据库生产化治理、私有化部署和服务器长期运行继续作为后续阶段。
 ```
 
 <!-- roadmap-update-2026-06-25-trace-replay-feedback -->
@@ -2468,13 +2480,13 @@ docs/17-本机学习版阶段总复盘.md
 服务器笔记本阶段建议顺序：
 
 ```text
-1. 服务器长期运行验证
-2. PostgreSQL 存储 task / session / trace
-3. Qdrant 生产化治理或 Milvus 替换本地 JSON 向量库
-4. Alertmanager / 通知渠道和日志集中采集
-5. K8s manifests
-8. MCP Server 实际接入
-9. 权限审批和 workspace 隔离
+1. Alertmanager / 通知渠道和日志集中采集
+2. K8s manifests
+3. Web 前端
+4. MCP Server 实际接入
+5. Qdrant 生产化治理或 Milvus 替换本地 JSON 向量库
+6. 服务器长期运行验证
+7. 权限审批和 workspace 隔离
 ```
 
 <!-- roadmap-update-2026-06-26-fastapi-docker-prometheus -->
@@ -2534,8 +2546,8 @@ docs/deployment/server.md
 当前边界：
 
 ```text
-尚未切换 PostgreSQL 存储。
-Qdrant 已有本地最小实现；尚未做生产化治理和 Milvus。
+PostgreSQL repository、runtime integration 和本机 smoke test 已完成；默认后端仍是 json。
+Qdrant 已有本地最小实现、benchmark 对比和 backup / restore SOP；尚未做生产化治理和 Milvus。
 Prometheus 告警规则已完成；日志保留与查询文档已完成；API request Correlation ID 已完成；request -> task -> tool call 全链路 Correlation ID 已完成。
 尚未提供 Alertmanager / 通知渠道。
 尚未提供 K8s manifests。
@@ -2544,9 +2556,10 @@ Prometheus 告警规则已完成；日志保留与查询文档已完成；API re
 下一阶段建议顺序：
 
 ```text
-1. 服务器拉取 GHCR 镜像运行
-2. PostgreSQL
-3. Qdrant 生产化治理 / Milvus
-4. Alertmanager / 通知渠道
-5. K8s manifests
+1. Alertmanager / 通知渠道
+2. K8s manifests
+3. Web 前端
+4. 真实 MCP Server
+5. Qdrant 生产化治理 / Milvus
+6. 服务器长期运行验证
 ```
