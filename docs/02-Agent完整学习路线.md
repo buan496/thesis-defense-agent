@@ -65,6 +65,7 @@ updated: 2026-06-29
 - [x] LLM 查询改写
 - [x] 多查询检索
 - [x] 检索策略组合对比
+- [x] 向量库 repository 抽象
 - [ ] Qdrant 或 Milvus
 
 基础知识：
@@ -273,6 +274,7 @@ updated: 2026-06-29
 - [x] Session runtime repository integration
 - [x] Trace runtime repository integration
 - [x] PostgreSQL runtime smoke test
+- [x] Vector store repository abstraction
 - [ ] Qdrant / Milvus
 - [ ] K8s 基础部署
 - [ ] 私有化配置和密钥管理
