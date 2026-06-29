@@ -788,6 +788,32 @@ Prometheus 会加载本地 alert rules。
 尚未接 Alertmanager、通知渠道、on-call routing 或生产 SLO。
 ```
 
+## 2026-06-29 Update: Logging Retention and Query Guide
+
+项目现在明确了本机 / Docker / 服务器风格运行时的日志查看和保留方式：
+
+```text
+docs/deployment/logging.md
+```
+
+当前已完成：
+
+```text
+API structured request logs
+Docker Compose json-file log rotation
+DOCKER_LOG_MAX_SIZE / DOCKER_LOG_MAX_FILE
+Docker logs query commands
+Agent trace analyze / replay commands
+```
+
+当前边界：
+
+```text
+尚未接 Loki / Elasticsearch。
+尚未做 log-based alerting。
+尚未实现 request -> task -> tool call correlation ID。
+```
+
 ## 2026-06-29 Update: Vector Store Repository Abstraction
 
 RAG 向量库现在开始从“直接读写 JSON 文件”过渡到 repository 抽象：

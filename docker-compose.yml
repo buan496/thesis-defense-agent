@@ -12,6 +12,11 @@ services:
         required: false
     volumes:
       - ./data:/app/data
+    logging:
+      driver: json-file
+      options:
+        max-size: "${DOCKER_LOG_MAX_SIZE:-10m}"
+        max-file: "${DOCKER_LOG_MAX_FILE:-5}"
     healthcheck:
       test:
         [
@@ -33,6 +38,11 @@ services:
     volumes:
       - ./observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ./observability/prometheus/alert_rules.yml:/etc/prometheus/alert_rules.yml:ro
+    logging:
+      driver: json-file
+      options:
+        max-size: "${DOCKER_LOG_MAX_SIZE:-10m}"
+        max-file: "${DOCKER_LOG_MAX_FILE:-5}"
     depends_on:
       - api
 
@@ -47,6 +57,11 @@ services:
       POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-thesis_agent_dev_password}"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    logging:
+      driver: json-file
+      options:
+        max-size: "${DOCKER_LOG_MAX_SIZE:-10m}"
+        max-file: "${DOCKER_LOG_MAX_FILE:-5}"
     healthcheck:
       test:
         [
@@ -69,6 +84,11 @@ services:
       QDRANT__SERVICE__GRPC_PORT: "6334"
     volumes:
       - qdrant_data:/qdrant/storage
+    logging:
+      driver: json-file
+      options:
+        max-size: "${DOCKER_LOG_MAX_SIZE:-10m}"
+        max-file: "${DOCKER_LOG_MAX_FILE:-5}"
 
 volumes:
   postgres_data:
