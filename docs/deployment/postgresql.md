@@ -95,6 +95,34 @@ Recommended order:
 5. Write one-time import scripts from JSON files to PostgreSQL.
 6. Switch API service to PostgreSQL in server/runtime mode only.
 
+## Local Docker Compose Service
+
+The local Docker Compose stack now includes a PostgreSQL service for integration
+testing and future repository implementation work.
+
+```powershell
+docker compose up -d postgres
+docker compose ps postgres
+docker compose exec postgres pg_isready -U thesis_agent -d thesis_defense_agent
+docker compose down
+```
+
+Default local environment variables:
+
+```env
+STORAGE_BACKEND=json
+DATABASE_URL=postgresql://thesis_agent:thesis_agent_dev_password@localhost:5432/thesis_defense_agent
+POSTGRES_DB=thesis_defense_agent
+POSTGRES_USER=thesis_agent
+POSTGRES_PASSWORD=thesis_agent_dev_password
+POSTGRES_PORT=5432
+```
+
+`STORAGE_BACKEND=json` remains the default. The application still uses JSON /
+JSONL storage unless future code explicitly selects PostgreSQL repositories.
+The Compose database is a preparation step for schema migrations and repository
+implementation, not a behavior change for the current API.
+
 ## Why Not Replace JSON Immediately
 
 Replacing storage directly would mix two changes:
@@ -106,10 +134,9 @@ The project should keep those concerns separate. The repository abstraction lets
 
 ## Next Steps
 
-- Add `DATABASE_URL` configuration.
 - Add PostgreSQL dependencies after selecting the client library.
-- Add migration tooling.
+- Add migration tooling and schema files.
 - Add `PostgresTaskRepository`.
 - Add `PostgresSessionRepository`.
 - Add `PostgresTraceRepository`.
-- Add Docker Compose PostgreSQL service for local integration testing.
+- Add JSON-to-PostgreSQL import scripts.

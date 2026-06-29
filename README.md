@@ -42,10 +42,36 @@ PDF / TXT 论文
 → PostgreSQL 存储抽象设计
 ```
 
+<!-- docs-update-2026-06-29-postgres-compose -->
+
+## 2026-06-29 Update: PostgreSQL Compose Service
+
+This project now includes a local PostgreSQL service in `docker-compose.yml`.
+The service is intended for integration testing and future repository
+implementation work.
+
+Current boundary:
+
+```text
+STORAGE_BACKEND=json remains the default.
+The API still uses JSON / JSONL storage by default.
+PostgreSQL is available as local infrastructure, but task/session/trace storage
+has not been switched to PostgreSQL yet.
+```
+
+Local PostgreSQL check:
+
+```powershell
+docker compose up -d postgres
+docker compose ps postgres
+docker compose exec postgres pg_isready -U thesis_agent -d thesis_defense_agent
+docker compose down
+```
+
 最新本地测试基线：
 
 ```text
-791 passed
+795 passed
 ```
 
 本机学习版阶段已完成，阶段总复盘见：
