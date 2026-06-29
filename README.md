@@ -105,10 +105,26 @@ rejects checksum drift. It prepares the database schema only; API storage still
 defaults to JSON / JSONL until PostgreSQL repositories are implemented and
 selected by configuration.
 
+<!-- docs-update-2026-06-29-postgres-task-repository -->
+
+## 2026-06-29 Update: PostgresTaskRepository
+
+`PostgresTaskRepository` is now implemented as a PostgreSQL-backed task storage
+adapter. It supports saving and loading `DefenseTask` records through the same
+repository interface used by the JSON implementation.
+
+Current boundary:
+
+```text
+The repository implementation exists and is covered by fake-connection tests.
+The API service still uses JSON task storage by default.
+Repository selection through STORAGE_BACKEND is a later step.
+```
+
 最新本地测试基线：
 
 ```text
-812 passed
+819 passed
 ```
 
 本机学习版阶段已完成，阶段总复盘见：

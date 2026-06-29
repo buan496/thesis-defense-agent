@@ -190,6 +190,29 @@ Current boundary: the runner prepares the database schema only. The API still
 uses JSON / JSONL repositories until PostgreSQL repository implementations are
 added and selected through configuration.
 
+## Task Repository
+
+`PostgresTaskRepository` lives in:
+
+```text
+app/postgres_task_repository.py
+```
+
+It implements the same `save(task)` and `load(task_id)` behavior as the
+`TaskRepository` protocol:
+
+- validates `task_id`
+- serializes the full `DefenseTask` payload to PostgreSQL `JSONB`
+- writes denormalized query fields: `task_id`, `topic`, `status`,
+  `current_step_id`, `created_at`, `updated_at`
+- uses `INSERT ... ON CONFLICT (task_id) DO UPDATE`
+- loads a `DefenseTask` back from the `payload` column
+- commits on success and rolls back on save failure
+
+Current boundary: `PostgresTaskRepository` is implemented and tested, but the
+API service still uses the existing JSON task store unless a future repository
+factory selects PostgreSQL through configuration.
+
 ## Why Not Replace JSON Immediately
 
 Replacing storage directly would mix two changes:
@@ -201,7 +224,7 @@ The project should keep those concerns separate. The repository abstraction lets
 
 ## Next Steps
 
-- Add `PostgresTaskRepository`.
 - Add `PostgresSessionRepository`.
 - Add `PostgresTraceRepository`.
+- Add repository factory / configuration selection for JSON vs PostgreSQL.
 - Add JSON-to-PostgreSQL import scripts.

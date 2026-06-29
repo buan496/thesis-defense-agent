@@ -264,6 +264,7 @@ updated: 2026-06-29
 - [x] PostgreSQL Docker Compose service
 - [x] PostgreSQL schema / migration files
 - [x] PostgreSQL migration runner
+- [x] PostgresTaskRepository
 - [ ] PostgreSQL
 - [ ] Qdrant / Milvus
 - [ ] K8s 基础部署
@@ -390,6 +391,41 @@ PostgreSQL migration runner。
 ```text
 PostgreSQL repository implementations。
 先实现 PostgresTaskRepository，对齐 JsonTaskRepository 行为，再逐步实现 Session / Trace。
+```
+
+<!-- roadmap-update-2026-06-29-postgres-task-repository -->
+
+## 2026-06-29 路线同步：PostgresTaskRepository 已完成
+
+本阶段完成的是 `DefenseTask` 的 PostgreSQL repository adapter，不切换默认业务存储。
+
+已完成：
+
+- [x] `app.postgres_task_repository.PostgresTaskRepository`
+- [x] `save(task)` 写入 `defense_tasks`
+- [x] `load(task_id)` 从 `payload` 还原 `DefenseTask`
+- [x] `INSERT ... ON CONFLICT (task_id) DO UPDATE`
+- [x] `JSONB` payload 保存完整任务对象
+- [x] denormalized columns：`topic`、`status`、`current_step_id`、`created_at`、`updated_at`
+- [x] `task_id` 校验复用现有规则
+- [x] commit / rollback / close 生命周期处理
+- [x] fake connection 单元测试，不依赖真实数据库
+
+当前边界：
+
+```text
+PostgresTaskRepository 已实现。
+API service 仍默认使用 JSON task store。
+尚未实现 PostgresSessionRepository。
+尚未实现 PostgresTraceRepository。
+尚未实现 STORAGE_BACKEND repository factory。
+```
+
+下一步学习：
+
+```text
+PostgresSessionRepository。
+对齐 JsonSessionRepository 行为，保存和加载 AgentSession payload。
 ```
 
 已经完成的 Task State 能力：
