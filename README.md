@@ -94,10 +94,21 @@ Inspect the migration plan without connecting to PostgreSQL:
 uv run python -m app.cli postgres-migrations
 ```
 
+Apply pending migrations against a configured PostgreSQL database:
+
+```powershell
+uv run python -m app.cli run-postgres-migrations
+```
+
+The migration runner records applied versions in `schema_migrations` and
+rejects checksum drift. It prepares the database schema only; API storage still
+defaults to JSON / JSONL until PostgreSQL repositories are implemented and
+selected by configuration.
+
 最新本地测试基线：
 
 ```text
-806 passed
+812 passed
 ```
 
 本机学习版阶段已完成，阶段总复盘见：

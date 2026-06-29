@@ -263,6 +263,7 @@ updated: 2026-06-29
 - [x] PostgreSQL 存储抽象设计
 - [x] PostgreSQL Docker Compose service
 - [x] PostgreSQL schema / migration files
+- [x] PostgreSQL migration runner
 - [ ] PostgreSQL
 - [ ] Qdrant / Milvus
 - [ ] K8s 基础部署
@@ -352,6 +353,43 @@ PostgreSQL schema / migration。
 ```text
 PostgreSQL migration runner。
 选择 PostgreSQL client 后，连接 DATABASE_URL，执行未应用 migration，并写入 schema_migrations。
+```
+
+<!-- roadmap-update-2026-06-29-postgres-migration-runner -->
+
+## 2026-06-29 路线同步：PostgreSQL Migration Runner 已完成
+
+本阶段完成的是真实 migration runner，不切换业务存储。
+
+已完成：
+
+- [x] 选择 `psycopg` 作为 PostgreSQL client
+- [x] `app.postgres_migration_runner`
+- [x] 自动 bootstrap `schema_migrations`
+- [x] 读取已应用 migration
+- [x] 跳过 checksum 匹配的已应用 migration
+- [x] 检测 checksum drift 并失败
+- [x] 执行 pending migration
+- [x] 写入 `schema_migrations`
+- [x] commit / rollback / close 生命周期处理
+- [x] `run-postgres-migrations` CLI
+- [x] CLI 不打印完整 `DATABASE_URL`
+- [x] fake connection 单元测试，不依赖真实数据库
+
+当前边界：
+
+```text
+数据库 schema 可以通过 runner 创建。
+业务存储仍默认使用 JSON / JSONL。
+尚未实现 PostgresTaskRepository / PostgresSessionRepository / PostgresTraceRepository。
+尚未实现 JSON -> PostgreSQL 导入脚本。
+```
+
+下一步学习：
+
+```text
+PostgreSQL repository implementations。
+先实现 PostgresTaskRepository，对齐 JsonTaskRepository 行为，再逐步实现 Session / Trace。
 ```
 
 已经完成的 Task State 能力：

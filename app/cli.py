@@ -30,6 +30,7 @@ from app.vector_store_builder import build_pdf_vector_store
 from app.config import (
     AGENT_ROUTING_BENCHMARK_PATH,
     AGENT_TRACE_PATH,
+    DATABASE_URL,
     DEEPSEEK_MODEL,
     FAITHFULNESS_BENCHMARK_PATH,
     FEEDBACK_STORE_PATH,
@@ -130,6 +131,7 @@ from app.local_quality_gate import (
     save_local_quality_gate_report,
 )
 from app.postgres_migrations import build_postgres_migration_plan
+from app.postgres_migration_runner import run_postgres_migrations
 from app.feedback_store import (
     create_feedback_record,
     load_feedback_records,
@@ -1942,6 +1944,24 @@ def main():
         help="Show PostgreSQL migration files without executing them",
     )
     postgres_migrations_parser.add_argument(
+        "--directory",
+        default=None,
+        help="Optional PostgreSQL migration directory",
+    )
+
+    run_postgres_migrations_parser = subparsers.add_parser(
+        "run-postgres-migrations",
+        help="Apply pending PostgreSQL migrations",
+    )
+    run_postgres_migrations_parser.add_argument(
+        "--database-url",
+        default=None,
+        help=(
+            "PostgreSQL connection URL. Defaults to DATABASE_URL from the "
+            "environment."
+        ),
+    )
+    run_postgres_migrations_parser.add_argument(
         "--directory",
         default=None,
         help="Optional PostgreSQL migration directory",
@@ -4313,6 +4333,46 @@ def main():
             print("NAME:", migration["name"])
             print("PATH:", migration["path"])
             print("CHECKSUM:", migration["checksum"])
+
+    elif args.command == "run-postgres-migrations":
+        database_url = args.database_url or DATABASE_URL
+
+        if not database_url:
+            print(
+                "POSTGRES MIGRATION ERROR: DATABASE_URL is required. "
+                "Set DATABASE_URL or pass --database-url."
+            )
+            raise SystemExit(1)
+
+        try:
+            if args.directory is None:
+                report = run_postgres_migrations(database_url)
+            else:
+                report = run_postgres_migrations(
+                    database_url,
+                    migrations_directory=args.directory,
+                )
+        except (FileNotFoundError, ValueError, RuntimeError) as error:
+            print(f"POSTGRES MIGRATION ERROR: {error}")
+            raise SystemExit(1) from error
+
+        print("POSTGRES MIGRATION RUN")
+        print("DATABASE URL: configured")
+        print("TOTAL:", report.total_count)
+        print("APPLIED:", report.applied_count)
+        print("SKIPPED:", report.skipped_count)
+
+        if report.applied:
+            print("APPLIED MIGRATIONS:", json.dumps(
+                report.applied,
+                ensure_ascii=False,
+            ))
+
+        if report.skipped:
+            print("SKIPPED MIGRATIONS:", json.dumps(
+                report.skipped,
+                ensure_ascii=False,
+            ))
 
     elif args.command == "show-task":
         task = get_defense_task(
