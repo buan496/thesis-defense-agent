@@ -164,6 +164,46 @@ def test_create_defense_task_can_use_task_repository(tmp_path):
     assert not (tmp_path / f"{task.task_id}.json").exists()
 
 
+def test_task_service_propagates_correlation_id_between_steps(tmp_path):
+    task, _ = create_defense_task(
+        topic="系统架构",
+        directory=tmp_path,
+        correlation_id="correlation-001",
+    )
+
+    assert task.metadata["correlation_id"] == "correlation-001"
+
+    _, retrieve_step, _ = start_next_task_step(
+        task_id=task.task_id,
+        directory=tmp_path,
+        input={
+            "topic": "系统架构",
+        },
+    )
+
+    assert retrieve_step is not None
+    assert retrieve_step.input["correlation_id"] == "correlation-001"
+
+    _, completed_step, _ = complete_task_step(
+        task_id=task.task_id,
+        directory=tmp_path,
+        output={
+            "context": "系统架构上下文",
+        },
+    )
+
+    assert completed_step.output["correlation_id"] == "correlation-001"
+
+    _, question_step, _ = start_next_task_step(
+        task_id=task.task_id,
+        directory=tmp_path,
+    )
+
+    assert question_step is not None
+    assert question_step.step_type == "generate_question"
+    assert question_step.input["correlation_id"] == "correlation-001"
+
+
 def test_start_next_task_step_loads_updates_and_saves_task(tmp_path):
     task, _ = create_defense_task(
         topic="系统架构",

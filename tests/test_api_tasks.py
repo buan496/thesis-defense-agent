@@ -32,6 +32,9 @@ def test_create_task_saves_task_in_configured_directory(tmp_path):
     assert task["topic"] == "系统架构"
     assert task["status"] == "created"
     assert task["task_id"]
+    assert task["metadata"]["correlation_id"] == response.headers[
+        "X-Correlation-ID"
+    ]
     assert body["path"].endswith(f"{task['task_id']}.json")
     assert (tmp_path / f"{task['task_id']}.json").exists()
 
@@ -125,9 +128,10 @@ def test_start_task_step_creates_next_step(tmp_path):
     assert body["task"]["task_id"] == task_id
     assert body["task"]["status"] == "running"
     assert body["step"]["step_type"] == "retrieve_context"
-    assert body["step"]["input"] == {
-        "topic": "系统架构",
-    }
+    assert body["step"]["input"]["topic"] == "系统架构"
+    assert body["step"]["input"]["correlation_id"] == response.headers[
+        "X-Correlation-ID"
+    ]
 
 
 def test_start_task_step_returns_404_when_task_missing(tmp_path):
@@ -162,9 +166,14 @@ def test_execute_task_step_returns_step_output(monkeypatch, tmp_path):
     fake_task.add_step(fake_step)
     fake_path = tmp_path / "task-1.json"
 
-    def fake_execute_task_step_service(task_id, directory):
+    def fake_execute_task_step_service(
+        task_id,
+        directory,
+        correlation_id=None,
+    ):
         assert task_id == "task-1"
         assert directory == tmp_path
+        assert correlation_id
         return fake_task, fake_step, fake_path
 
     monkeypatch.setattr(
@@ -190,7 +199,12 @@ def test_execute_task_step_returns_step_output(monkeypatch, tmp_path):
 
 
 def test_execute_task_step_maps_value_error_to_400(monkeypatch, tmp_path):
-    def fake_execute_task_step_service(task_id, directory):
+    def fake_execute_task_step_service(
+        task_id,
+        directory,
+        correlation_id=None,
+    ):
+        assert correlation_id
         raise ValueError("当前任务没有可执行步骤")
 
     monkeypatch.setattr(
@@ -223,10 +237,16 @@ def test_submit_answer_returns_completed_wait_step(monkeypatch, tmp_path):
     fake_task.add_step(fake_step)
     fake_path = tmp_path / "task-1.json"
 
-    def fake_submit_task_answer_service(task_id, answer, directory):
+    def fake_submit_task_answer_service(
+        task_id,
+        answer,
+        directory,
+        correlation_id=None,
+    ):
         assert task_id == "task-1"
         assert answer == "模块拆分便于定位问题"
         assert directory == tmp_path
+        assert correlation_id
         return fake_task, fake_step, fake_path
 
     monkeypatch.setattr(
@@ -274,10 +294,16 @@ def test_submit_follow_up_answer_returns_completed_wait_step(
     fake_task.add_step(fake_step)
     fake_path = tmp_path / "task-1.json"
 
-    def fake_submit_follow_up_answer_service(task_id, answer, directory):
+    def fake_submit_follow_up_answer_service(
+        task_id,
+        answer,
+        directory,
+        correlation_id=None,
+    ):
         assert task_id == "task-1"
         assert answer == "特征处理模块负责音频读取"
         assert directory == tmp_path
+        assert correlation_id
         return fake_task, fake_step, fake_path
 
     monkeypatch.setattr(
@@ -323,7 +349,13 @@ def test_submit_answer_rejects_blank_answer(tmp_path):
 
 
 def test_submit_answer_maps_invalid_state_to_400(monkeypatch, tmp_path):
-    def fake_submit_task_answer_service(task_id, answer, directory):
+    def fake_submit_task_answer_service(
+        task_id,
+        answer,
+        directory,
+        correlation_id=None,
+    ):
+        assert correlation_id
         raise ValueError("当前步骤不是 wait_for_answer")
 
     monkeypatch.setattr(

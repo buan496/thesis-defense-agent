@@ -47,6 +47,15 @@ the middleware generates one. The response always includes:
 X-Correlation-ID: <correlation_id>
 ```
 
+Task workflow requests propagate the same correlation ID into:
+
+```text
+DefenseTask.metadata.correlation_id
+TaskStep.input.correlation_id
+TaskStep.output.correlation_id
+TaskStep.tool_traces[].correlation_id
+```
+
 ### Agent Trace Logs
 
 Agent traces are JSONL records saved under:
@@ -188,6 +197,9 @@ Completed:
 structured API request logs
 X-Correlation-ID response header
 correlation ID in request logs
+correlation ID in DefenseTask metadata
+correlation ID in TaskStep input/output
+correlation ID in task tool traces
 Docker Compose log rotation
 basic Docker log query commands
 Agent trace JSONL files
@@ -202,20 +214,20 @@ Not completed:
 centralized log storage
 Loki / Elasticsearch
 log-based alerting
-full correlation across request -> task -> tool call
+Agent non-task trace correlation ID propagation
 PII redaction policy
 long-term archive retention
 ```
 
 ## Next Step
 
-After request-level correlation IDs are available, the next observability step is
-either:
+After request -> task -> tool trace correlation is available, the next
+observability step is either:
 
 ```text
-propagating correlation IDs into task/tool traces
-or centralized log collection
+propagating correlation IDs into non-task Agent trace records
+or adding centralized log collection
 ```
 
-Task/tool trace correlation is recommended first because it connects API request
-logs with Agent execution artifacts.
+Centralized collection is the larger operational step because it connects local
+JSON logs, Docker logs, API logs, and trace artifacts in one query surface.
