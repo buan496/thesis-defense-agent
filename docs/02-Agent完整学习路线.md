@@ -70,6 +70,7 @@ updated: 2026-06-29
 - [x] QdrantVectorStoreRepository minimal implementation
 - [x] JSON vs Qdrant benchmark comparison
 - [x] Qdrant collection delete CLI with explicit confirmation
+- [x] Qdrant snapshot backup/restore SOP
 - [ ] Qdrant 生产化治理 / Milvus
 
 基础知识：
@@ -283,6 +284,7 @@ updated: 2026-06-29
 - [x] QdrantVectorStoreRepository minimal implementation
 - [x] JSON vs Qdrant benchmark comparison
 - [x] Qdrant collection delete CLI with explicit confirmation
+- [x] Qdrant snapshot backup/restore SOP
 - [ ] Qdrant 生产化治理 / Milvus
 - [ ] K8s 基础部署
 - [ ] 私有化配置和密钥管理

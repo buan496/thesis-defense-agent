@@ -45,3 +45,23 @@ def test_app_config_documents_qdrant_defaults_without_secret():
     assert 'QDRANT_DISTANCE = os.getenv("QDRANT_DISTANCE", "Cosine")' in config_text
     assert 'QDRANT_API_KEY = os.getenv("QDRANT_API_KEY", "")' in config_text
     assert "qdrant_api_key_here" not in config_text
+
+
+def test_qdrant_docs_include_snapshot_backup_restore_sop():
+    docs_text = (
+        ROOT / "docs" / "deployment" / "qdrant.md"
+    ).read_text(encoding="utf-8")
+
+    assert "## Backup and Restore SOP" in docs_text
+    assert "https://qdrant.tech/documentation/snapshots/" in docs_text
+    assert "/collections/thesis_chunks/snapshots" in docs_text
+    assert "data/qdrant_backups" in docs_text
+    assert "snapshots/upload?priority=snapshot" in docs_text
+    assert "compare-vector-store-backends" in docs_text
+    assert "Rebuild from JSON Baseline" in docs_text
+
+
+def test_gitignore_excludes_qdrant_backup_artifacts():
+    gitignore_text = (ROOT / ".gitignore").read_text(encoding="utf-8")
+
+    assert "data/qdrant_backups/" in gitignore_text

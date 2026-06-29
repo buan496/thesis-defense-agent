@@ -13,6 +13,7 @@ data/reports/
 data/traces/
 data/task_reports/
 data/uploads/
+data/qdrant_backups/
 docs/.obsidian/
 docs/.trash/
 data/agent_sessions/

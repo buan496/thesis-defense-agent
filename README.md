@@ -834,6 +834,7 @@ JSON vector store items upsert into Qdrant
 Qdrant query_points search
 import-vector-store-to-qdrant CLI
 delete-qdrant-collection CLI with explicit confirmation
+Qdrant snapshot backup/restore SOP
 ```
 
 导入现有 JSON 向量库到 Qdrant：
@@ -879,6 +880,19 @@ uv run python -m app.cli delete-qdrant-collection `
   --vector-size 1024 `
   --distance Cosine `
   --confirm-collection thesis_chunks
+```
+
+Qdrant snapshot 备份与恢复流程已文档化：
+
+```text
+docs/deployment/qdrant.md
+```
+
+当前边界：
+
+```text
+已有手动 snapshot backup / restore SOP。
+尚未做定时备份、保留策略清理和自动恢复演练。
 ```
 
 ### LangGraph 旁路 Demo
