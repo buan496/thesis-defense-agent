@@ -121,10 +121,27 @@ The API service still uses JSON task storage by default.
 Repository selection through STORAGE_BACKEND is a later step.
 ```
 
+<!-- docs-update-2026-06-29-postgres-session-repository -->
+
+## 2026-06-29 Update: PostgresSessionRepository
+
+`PostgresSessionRepository` is now implemented as a PostgreSQL-backed Agent
+session storage adapter. It saves the complete `AgentSession` payload to JSONB
+and restores it through the same repository interface used by the JSON
+implementation.
+
+Current boundary:
+
+```text
+The repository implementation exists and is covered by fake-connection tests.
+The API service still uses JSON session storage by default.
+Repository selection through STORAGE_BACKEND is a later step.
+```
+
 最新本地测试基线：
 
 ```text
-819 passed
+827 passed
 ```
 
 本机学习版阶段已完成，阶段总复盘见：
