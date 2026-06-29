@@ -260,6 +260,7 @@ updated: 2026-06-23
 - [x] Docker build CI
 - [x] GHCR 镜像发布流程
 - [x] GHCR 镜像拉取与运行验证
+- [x] PostgreSQL 存储抽象设计
 - [ ] PostgreSQL
 - [ ] Qdrant / Milvus
 - [ ] K8s 基础部署

@@ -39,12 +39,13 @@ PDF / TXT 论文
 → SSE 流式输出基础接口
 → 真实 LLM SSE 流式输出接口
 → WebSocket 任务控制通道
+→ PostgreSQL 存储抽象设计
 ```
 
 最新本地测试基线：
 
 ```text
-786 passed
+791 passed
 ```
 
 本机学习版阶段已完成，阶段总复盘见：
@@ -173,6 +174,7 @@ retrieve_context
 - Docker Compose
 - GitHub Container Registry
 - Prometheus
+- PostgreSQL storage repository abstraction
 - Markdown / JSON 本地文件存储
 - GitHub Actions
 
@@ -190,6 +192,12 @@ retrieve_context
 LangGraph 已完成旁路迁移学习版闭环，并保留在 `app/langgraph_workflow/`。它只用于和当前 `app/agent.py`、`app/task_*` 对照学习，不覆盖当前手写实现。数据库级 checkpointer、服务器部署和跨进程恢复继续后移到服务器/数据库阶段。
 
 FastAPI、Dockerfile、docker-compose、Prometheus 抓取和 GitHub Actions Docker 镜像构建已完成本机/CI 验证；GHCR 发布流程进入当前阶段。服务器长期运行、数据库、向量数据库和 K8s 继续作为后续阶段。
+
+PostgreSQL 当前只完成存储接口抽象和表结构设计，现有运行路径仍默认使用 JSON / JSONL 文件存储。设计说明见：
+
+```text
+docs/deployment/postgresql.md
+```
 
 ## 安装
 
