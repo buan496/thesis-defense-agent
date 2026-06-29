@@ -99,12 +99,14 @@ local repository search smoke test
 compare-vector-store-backends CLI
 JSON vs Qdrant benchmark comparison path
 delete-qdrant-collection CLI with explicit confirmation
+Qdrant snapshot backup/restore SOP
 ```
 
 Not completed:
 
 ```text
-Qdrant operational backup/restore
+Automated scheduled Qdrant backup job
+Qdrant backup retention policy enforcement
 ```
 
 ## Import JSON Vector Store Into Qdrant
@@ -187,6 +189,124 @@ DELETED: False
 If the confirmation does not match, the command exits before contacting
 Qdrant.
 
+## Backup and Restore SOP
+
+Qdrant's native backup unit is a snapshot. For this project, snapshots are the
+preferred operational backup path because they preserve vectors, payloads, and
+the collection storage structures needed for efficient restore.
+
+Official reference:
+
+```text
+https://qdrant.tech/documentation/snapshots/
+```
+
+Important local Docker detail:
+
+```text
+Qdrant Docker snapshots path: /qdrant/snapshots
+Project Qdrant volume: qdrant_data -> /qdrant/storage
+```
+
+### Create a Collection Snapshot
+
+Start Qdrant first:
+
+```powershell
+docker compose up -d qdrant
+```
+
+Create a snapshot for the current thesis collection:
+
+```powershell
+Invoke-RestMethod `
+  -Method Post `
+  -Uri "http://127.0.0.1:6333/collections/thesis_chunks/snapshots"
+```
+
+The response contains the snapshot file name. Save that name before continuing.
+
+### List Collection Snapshots
+
+```powershell
+Invoke-RestMethod `
+  -Method Get `
+  -Uri "http://127.0.0.1:6333/collections/thesis_chunks/snapshots"
+```
+
+### Download a Snapshot
+
+Replace `<snapshot_name>` with the name returned by the create or list command:
+
+```powershell
+New-Item -ItemType Directory -Force data/qdrant_backups
+
+Invoke-WebRequest `
+  -Uri "http://127.0.0.1:6333/collections/thesis_chunks/snapshots/<snapshot_name>" `
+  -OutFile "data/qdrant_backups/<snapshot_name>"
+```
+
+The `data/qdrant_backups/` directory is a local operational backup target. Do
+not commit snapshot files to Git.
+
+### Restore from an Uploaded Snapshot
+
+Restoring can overwrite collection data. Use a disposable collection first when
+testing restore.
+
+```powershell
+curl.exe -X POST `
+  "http://127.0.0.1:6333/collections/thesis_chunks_restore/snapshots/upload?priority=snapshot" `
+  -H "Content-Type: multipart/form-data" `
+  -F "snapshot=@data/qdrant_backups/<snapshot_name>"
+```
+
+After restore, compare retrieval behavior before switching application traffic:
+
+```powershell
+uv run python -m app.cli compare-vector-store-backends `
+  --source data/vector_store.json `
+  --url http://127.0.0.1:6333 `
+  --collection thesis_chunks_restore `
+  --vector-size 1024 `
+  --distance Cosine
+```
+
+### Rebuild from JSON Baseline
+
+Because JSON remains the default source of truth in this learning project, a
+Qdrant collection can also be rebuilt from `data/vector_store.json`:
+
+```powershell
+uv run python -m app.cli delete-qdrant-collection `
+  --url http://127.0.0.1:6333 `
+  --collection thesis_chunks `
+  --vector-size 1024 `
+  --distance Cosine `
+  --confirm-collection thesis_chunks
+
+uv run python -m app.cli import-vector-store-to-qdrant `
+  --source data/vector_store.json `
+  --url http://127.0.0.1:6333 `
+  --collection thesis_chunks `
+  --vector-size 1024 `
+  --distance Cosine
+```
+
+Use snapshot restore when preserving the exact Qdrant collection state matters.
+Use JSON rebuild when the goal is to regenerate the collection from the current
+local vector store artifact.
+
+### Backup Safety Rules
+
+```text
+1. Do not commit snapshot files or Qdrant volumes to Git.
+2. Always restore into a disposable collection first.
+3. Run compare-vector-store-backends after restore.
+4. Keep JSON vector store as the local fallback until Qdrant is promoted as the primary backend.
+5. Use delete-qdrant-collection only with explicit --confirm-collection.
+```
+
 ## Current Runtime Boundary
 
 The default remains:
@@ -200,5 +320,5 @@ side-by-side.
 
 ## Next Step
 
-Define backup/restore guidance before using Qdrant as a long-running
-production dependency.
+Automate only after the SOP is stable: scheduled snapshot creation, retention
+cleanup, and restore smoke checks are future production-readiness work.
