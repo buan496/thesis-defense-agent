@@ -97,6 +97,38 @@ This separates failure types:
 - Registry push failure means authentication or permission issue.
 - Server pull failure means runtime or network issue.
 
+## Verify Published Image
+
+After the workflow succeeds on `main`, verify that the image can be pulled:
+
+```powershell
+docker pull ghcr.io/buan496/thesis-defense-agent:latest
+```
+
+Run the published image locally:
+
+```powershell
+docker run --rm `
+  -p 18000:8000 `
+  ghcr.io/buan496/thesis-defense-agent:latest
+```
+
+Check runtime endpoints:
+
+```powershell
+curl.exe -fsS http://127.0.0.1:18000/health
+curl.exe -fsS http://127.0.0.1:18000/version
+curl.exe -fsS http://127.0.0.1:18000/metrics/prometheus
+```
+
+Expected result:
+
+```text
+/health returns status ok.
+/version returns service name and version.
+/metrics/prometheus returns Prometheus text metrics.
+```
+
 ## Next Stage
 
 After this workflow is stable, update server deployment to pull:
