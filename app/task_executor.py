@@ -11,11 +11,12 @@ from app.task_models import TaskStep
 from app.training_summary import summarize_training
 from app.vector_store_repository import (
     VectorStoreRepository,
-    JsonVectorStoreRepository,
+    create_vector_store_repository,
 )
 from app.config import (
     RAG_TOP_K,
     RAG_VECTOR_STORE_PATH,
+    VECTOR_STORE_BACKEND,
 )
 
 
@@ -111,8 +112,9 @@ def execute_retrieve_context_step(
     step.mark_running()
 
     start_time = time.perf_counter()
-    repository = vector_store_repository or JsonVectorStoreRepository(
-        vector_store_path
+    repository = vector_store_repository or create_vector_store_repository(
+        backend=VECTOR_STORE_BACKEND,
+        vector_store_path=vector_store_path,
     )
     results = repository.search(
         query=query,

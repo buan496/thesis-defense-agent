@@ -25,6 +25,7 @@ from app.vector_store_metadata import (
     is_vector_store_metadata_match,
 )
 from app.vector_store_repository import (
+    JsonVectorStoreRepository,
     VectorStoreRepository,
     create_vector_store_repository,
 )
@@ -105,10 +106,15 @@ def build_pdf_vector_store(
     )
     store_path = Path(RAG_VECTOR_STORE_PATH)
 
-    if store_path.exists():
+    if store_path.exists() and isinstance(repository, JsonVectorStoreRepository):
         logger.info("发现已有向量库，尝试断点恢复: %s", RAG_VECTOR_STORE_PATH)
         store = repository.load()
     else:
+        if store_path.exists():
+            logger.info(
+                "当前向量库后端不支持本地 JSON 断点恢复，将从头构建: %s",
+                VECTOR_STORE_BACKEND,
+            )
         store = []
 
     existing_ids = {item["id"] for item in store}

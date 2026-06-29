@@ -812,14 +812,46 @@ Invoke-RestMethod http://127.0.0.1:6333
 ```text
 VECTOR_STORE_BACKEND=json 仍是默认值。
 Qdrant 服务和配置已准备。
-QdrantVectorStoreRepository 尚未实现。
-运行时检索仍走 JSON 向量库。
+QdrantVectorStoreRepository 已有最小实现。
+运行时默认检索仍走 JSON 向量库，只有显式设置 VECTOR_STORE_BACKEND=qdrant 时才使用 Qdrant。
 ```
 
 说明文档：
 
 ```text
 docs/deployment/qdrant.md
+```
+
+## 2026-06-29 Update: QdrantVectorStoreRepository
+
+项目已增加 Qdrant 向量库后端的最小实现：
+
+```text
+Qdrant collection ensure/create
+JSON vector store items upsert into Qdrant
+Qdrant query_points search
+import-vector-store-to-qdrant CLI
+```
+
+导入现有 JSON 向量库到 Qdrant：
+
+```powershell
+docker compose up -d qdrant
+
+uv run python -m app.cli import-vector-store-to-qdrant `
+  --source data/vector_store.json `
+  --url http://127.0.0.1:6333 `
+  --collection thesis_chunks `
+  --vector-size 1024 `
+  --distance Cosine
+```
+
+当前边界：
+
+```text
+VECTOR_STORE_BACKEND=json 仍是默认值。
+Task retrieve_context 已可通过 VECTOR_STORE_BACKEND=qdrant 使用 Qdrant。
+RAG benchmark 对比 Qdrant 与 JSON 后端仍是下一步。
 ```
 
 ### LangGraph 旁路 Demo
