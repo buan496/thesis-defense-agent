@@ -89,6 +89,26 @@ Current behavior:
 - rejects unsupported suffixes
 - rejects files larger than `DOCUMENT_UPLOAD_MAX_BYTES`
 
+### SSE Streaming
+
+```text
+GET /stream/echo
+```
+
+Example:
+
+```powershell
+curl.exe -N "http://127.0.0.1:8000/stream/echo?message=hello-agent&chunk_size=3"
+```
+
+Current behavior:
+
+- returns `text/event-stream`
+- emits `chunk` events for text chunks
+- emits a final `done` event
+- rejects blank messages
+- validates `chunk_size`
+
 ### RAG 状态与检索
 
 ```text

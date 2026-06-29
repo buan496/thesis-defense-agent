@@ -36,12 +36,13 @@ PDF / TXT 论文
 → Trace / benchmark / CI
 → FastAPI / Docker / Prometheus / GHCR 发布流程
 → 文件上传 API
+→ SSE 流式输出基础接口
 ```
 
 最新本地测试基线：
 
 ```text
-769 passed
+775 passed
 ```
 
 本机学习版阶段已完成，阶段总复盘见：
@@ -291,6 +292,12 @@ docs/deployment/local-fastapi.md
 
 ```powershell
 curl.exe -F "file=@data/thesis.pdf" http://127.0.0.1:8000/documents/upload
+```
+
+验证 SSE 流式输出：
+
+```powershell
+curl.exe -N "http://127.0.0.1:8000/stream/echo?message=hello-agent&chunk_size=3"
 ```
 
 构建本地 FastAPI Docker 镜像：
