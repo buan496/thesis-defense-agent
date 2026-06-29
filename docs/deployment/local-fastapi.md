@@ -68,6 +68,27 @@ Invoke-RestMethod http://127.0.0.1:8000/health
 Invoke-RestMethod http://127.0.0.1:8000/version
 ```
 
+### Document Upload
+
+```text
+POST /documents/upload
+```
+
+Example:
+
+```powershell
+curl.exe -F "file=@data/thesis.pdf" http://127.0.0.1:8000/documents/upload
+```
+
+Current behavior:
+
+- accepts `.pdf`, `.txt`, and `.md`
+- saves uploaded files under `data/uploads/`
+- returns document id, stored path, original filename, suffix, content type, and size
+- rejects empty files
+- rejects unsupported suffixes
+- rejects files larger than `DOCUMENT_UPLOAD_MAX_BYTES`
+
 ### RAG 状态与检索
 
 ```text

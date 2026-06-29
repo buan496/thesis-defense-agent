@@ -12,6 +12,7 @@ data/vector_store_meta.json
 data/reports/
 data/traces/
 data/task_reports/
+data/uploads/
 docs/.obsidian/
 docs/.trash/
 data/agent_sessions/
