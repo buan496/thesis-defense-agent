@@ -136,6 +136,18 @@ class QdrantVectorStoreRepository:
             ),
         )
 
+    def collection_exists(self) -> bool:
+        return self.client.collection_exists(self.collection_name)
+
+    def delete_collection(self) -> bool:
+        if not self.collection_exists():
+            return False
+
+        self.client.delete_collection(
+            collection_name=self.collection_name,
+        )
+        return True
+
     def _build_point(self, item: dict):
         embedding = item.get("embedding")
 

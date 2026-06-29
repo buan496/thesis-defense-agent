@@ -67,6 +67,7 @@ class FakeQdrantClient:
     def __init__(self, collection_exists=False):
         self._collection_exists = collection_exists
         self.created_collections = []
+        self.deleted_collections = []
         self.upserts = []
         self.queries = []
 
@@ -81,6 +82,11 @@ class FakeQdrantClient:
             }
         )
         self._collection_exists = True
+        return True
+
+    def delete_collection(self, collection_name):
+        self.deleted_collections.append(collection_name)
+        self._collection_exists = False
         return True
 
     def upsert(self, collection_name, points, wait=True):
@@ -207,6 +213,46 @@ def test_qdrant_vector_store_repository_search():
             "score": 0.91,
         }
     ]
+
+
+def test_qdrant_vector_store_repository_reports_collection_exists():
+    client = FakeQdrantClient(collection_exists=True)
+    repository = QdrantVectorStoreRepository(
+        collection_name="test_chunks",
+        vector_size=3,
+        client=client,
+    )
+
+    assert repository.collection_exists() is True
+
+
+def test_qdrant_vector_store_repository_delete_existing_collection():
+    client = FakeQdrantClient(collection_exists=True)
+    repository = QdrantVectorStoreRepository(
+        collection_name="test_chunks",
+        vector_size=3,
+        client=client,
+    )
+
+    deleted = repository.delete_collection()
+
+    assert deleted is True
+    assert client.deleted_collections == ["test_chunks"]
+    assert repository.collection_exists() is False
+
+
+def test_qdrant_vector_store_repository_delete_missing_collection():
+    client = FakeQdrantClient(collection_exists=False)
+    repository = QdrantVectorStoreRepository(
+        collection_name="test_chunks",
+        vector_size=3,
+        client=client,
+    )
+
+    deleted = repository.delete_collection()
+
+    assert deleted is False
+    assert client.deleted_collections == []
 
 
 def test_qdrant_vector_store_repository_load_is_not_supported():
@@ -357,6 +403,105 @@ def test_import_vector_store_to_qdrant_cli(
             ],
         }
     ]
+
+
+def test_delete_qdrant_collection_cli(
+    monkeypatch,
+    capsys,
+):
+    created_repositories = []
+
+    class FakeQdrantVectorStoreRepository:
+        def __init__(
+            self,
+            url,
+            collection_name,
+            vector_size,
+            distance,
+            api_key,
+        ):
+            created_repositories.append(
+                {
+                    "url": url,
+                    "collection_name": collection_name,
+                    "vector_size": vector_size,
+                    "distance": distance,
+                    "api_key": api_key,
+                    "deleted": False,
+                }
+            )
+
+        def delete_collection(self):
+            created_repositories[-1]["deleted"] = True
+            return True
+
+    monkeypatch.setattr(
+        cli,
+        "QdrantVectorStoreRepository",
+        FakeQdrantVectorStoreRepository,
+    )
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "app.cli",
+            "delete-qdrant-collection",
+            "--url",
+            "http://127.0.0.1:6333",
+            "--collection",
+            "test_chunks",
+            "--vector-size",
+            "3",
+            "--distance",
+            "Cosine",
+            "--api-key",
+            "secret",
+            "--confirm-collection",
+            "test_chunks",
+        ],
+    )
+
+    cli.main()
+    output = capsys.readouterr().out
+
+    assert "QDRANT COLLECTION DELETE" in output
+    assert "COLLECTION: test_chunks" in output
+    assert "DELETED: True" in output
+    assert created_repositories == [
+        {
+            "url": "http://127.0.0.1:6333",
+            "collection_name": "test_chunks",
+            "vector_size": 3,
+            "distance": "Cosine",
+            "api_key": "secret",
+            "deleted": True,
+        }
+    ]
+
+
+def test_delete_qdrant_collection_cli_requires_matching_confirmation(
+    monkeypatch,
+    capsys,
+):
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "app.cli",
+            "delete-qdrant-collection",
+            "--collection",
+            "test_chunks",
+            "--confirm-collection",
+            "wrong_chunks",
+        ],
+    )
+
+    with pytest.raises(SystemExit) as error:
+        cli.main()
+
+    output = capsys.readouterr().out
+
+    assert error.value.code == 1
+    assert "QDRANT DELETE ERROR" in output
+    assert "must exactly match" in output
 
 
 def test_create_vector_store_repository_rejects_unknown_backend(tmp_path):
