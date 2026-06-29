@@ -2,9 +2,10 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
+from app.api.middleware import CORRELATION_ID_HEADER
 from app.task_store import DEFAULT_TASK_DIRECTORY
 
 
@@ -47,15 +48,31 @@ def get_task_directory() -> Path:
     return DEFAULT_TASK_DIRECTORY
 
 
+def get_request_correlation_id(request: Request) -> str | None:
+    state_correlation_id = getattr(request.state, "correlation_id", None)
+
+    if state_correlation_id:
+        return state_correlation_id
+
+    header_value = request.headers.get(CORRELATION_ID_HEADER)
+
+    if header_value and header_value.strip():
+        return header_value.strip()
+
+    return None
+
+
 def create_task_service(
     topic: str,
     directory: Path,
+    correlation_id: str | None = None,
 ):
     from app.task_service import create_defense_task
 
     return create_defense_task(
         topic=topic,
         directory=directory,
+        correlation_id=correlation_id,
     )
 
 
@@ -75,6 +92,7 @@ def start_task_step_service(
     task_id: str,
     directory: Path,
     input: dict[str, Any],
+    correlation_id: str | None = None,
 ):
     from app.task_service import start_next_task_step
 
@@ -82,18 +100,21 @@ def start_task_step_service(
         task_id=task_id,
         directory=directory,
         input=input,
+        correlation_id=correlation_id,
     )
 
 
 def execute_task_step_service(
     task_id: str,
     directory: Path,
+    correlation_id: str | None = None,
 ):
     from app.task_service import execute_current_task_step
 
     return execute_current_task_step(
         task_id=task_id,
         directory=directory,
+        correlation_id=correlation_id,
     )
 
 
@@ -101,6 +122,7 @@ def submit_task_answer_service(
     task_id: str,
     answer: str,
     directory: Path,
+    correlation_id: str | None = None,
 ):
     from app.task_service import submit_task_answer
 
@@ -108,6 +130,7 @@ def submit_task_answer_service(
         task_id=task_id,
         answer=answer,
         directory=directory,
+        correlation_id=correlation_id,
     )
 
 
@@ -115,6 +138,7 @@ def submit_follow_up_answer_service(
     task_id: str,
     answer: str,
     directory: Path,
+    correlation_id: str | None = None,
 ):
     from app.task_service import submit_follow_up_answer
 
@@ -122,6 +146,7 @@ def submit_follow_up_answer_service(
         task_id=task_id,
         answer=answer,
         directory=directory,
+        correlation_id=correlation_id,
     )
 
 
@@ -158,6 +183,7 @@ def export_task_report_service(
 
 @router.post("")
 def create_task(
+    http_request: Request,
     request: CreateTaskRequest,
     directory: Path = Depends(get_task_directory),
 ) -> TaskResponse:
@@ -172,6 +198,7 @@ def create_task(
     task, task_path = create_task_service(
         topic=topic,
         directory=directory,
+        correlation_id=get_request_correlation_id(http_request),
     )
 
     return TaskResponse(
@@ -210,6 +237,7 @@ def get_task(
 @router.post("/{task_id}/steps/start")
 def start_task_step(
     task_id: str,
+    http_request: Request,
     request: StartTaskStepRequest,
     directory: Path = Depends(get_task_directory),
 ) -> TaskStepResponse:
@@ -218,6 +246,7 @@ def start_task_step(
             task_id=task_id,
             directory=directory,
             input=request.input,
+            correlation_id=get_request_correlation_id(http_request),
         )
     except FileNotFoundError as error:
         raise HTTPException(
@@ -240,12 +269,14 @@ def start_task_step(
 @router.post("/{task_id}/steps/execute")
 def execute_task_step(
     task_id: str,
+    http_request: Request,
     directory: Path = Depends(get_task_directory),
 ) -> TaskStepResponse:
     try:
         task, step, task_path = execute_task_step_service(
             task_id=task_id,
             directory=directory,
+            correlation_id=get_request_correlation_id(http_request),
         )
     except FileNotFoundError as error:
         raise HTTPException(
@@ -268,6 +299,7 @@ def execute_task_step(
 @router.post("/{task_id}/answer")
 def submit_answer(
     task_id: str,
+    http_request: Request,
     request: SubmitAnswerRequest,
     directory: Path = Depends(get_task_directory),
 ) -> TaskStepResponse:
@@ -284,6 +316,7 @@ def submit_answer(
             task_id=task_id,
             answer=answer,
             directory=directory,
+            correlation_id=get_request_correlation_id(http_request),
         )
     except FileNotFoundError as error:
         raise HTTPException(
@@ -357,6 +390,7 @@ def export_task_report(
 @router.post("/{task_id}/follow-up-answer")
 def submit_follow_up_answer(
     task_id: str,
+    http_request: Request,
     request: SubmitAnswerRequest,
     directory: Path = Depends(get_task_directory),
 ) -> TaskStepResponse:
@@ -373,6 +407,7 @@ def submit_follow_up_answer(
             task_id=task_id,
             answer=answer,
             directory=directory,
+            correlation_id=get_request_correlation_id(http_request),
         )
     except FileNotFoundError as error:
         raise HTTPException(

@@ -20,6 +20,60 @@ from app.config import (
 )
 
 
+CORRELATION_ID_FIELD = "correlation_id"
+
+
+def get_step_correlation_id(step: TaskStep) -> str | None:
+    input_correlation_id = step.input.get(CORRELATION_ID_FIELD)
+
+    if isinstance(input_correlation_id, str) and input_correlation_id:
+        return input_correlation_id
+
+    output_correlation_id = step.output.get(CORRELATION_ID_FIELD)
+
+    if isinstance(output_correlation_id, str) and output_correlation_id:
+        return output_correlation_id
+
+    return None
+
+
+def with_step_correlation_id(
+    step: TaskStep,
+    data: dict,
+) -> dict:
+    copied_data = dict(data)
+    correlation_id = get_step_correlation_id(step)
+
+    if correlation_id:
+        copied_data.setdefault(CORRELATION_ID_FIELD, correlation_id)
+
+    return copied_data
+
+
+def append_tool_trace(
+    step: TaskStep,
+    trace: dict,
+) -> None:
+    step.tool_traces.append(
+        with_step_correlation_id(
+            step=step,
+            data=trace,
+        )
+    )
+
+
+def mark_step_completed_with_correlation_id(
+    step: TaskStep,
+    output: dict,
+) -> None:
+    step.mark_completed(
+        output=with_step_correlation_id(
+            step=step,
+            data=output,
+        )
+    )
+
+
 def execute_task_step(
     step: TaskStep,
     vector_store_path: str = RAG_VECTOR_STORE_PATH,
@@ -135,7 +189,8 @@ def execute_retrieve_context_step(
     ]
 
     step.evidence = results
-    step.tool_traces.append(
+    append_tool_trace(
+        step,
         {
             "tool_name": "search_vector_store",
             "arguments": {
@@ -147,7 +202,8 @@ def execute_retrieve_context_step(
             "duration_ms": duration_ms,
         }
     )
-    step.mark_completed(
+    mark_step_completed_with_correlation_id(
+        step,
         output={
             "query": query,
             "context": context,
@@ -181,7 +237,8 @@ def execute_evaluate_answer_step(
     evaluation = answer_evaluator(question, answer)
     duration_ms = (time.perf_counter() - start_time) * 1000
 
-    step.tool_traces.append(
+    append_tool_trace(
+        step,
         {
             "tool_name": "evaluate_answer",
             "arguments": {
@@ -192,7 +249,8 @@ def execute_evaluate_answer_step(
             "duration_ms": duration_ms,
         }
     )
-    step.mark_completed(
+    mark_step_completed_with_correlation_id(
+        step,
         output={
             "question": question,
             "answer": answer,
@@ -234,7 +292,8 @@ def execute_rewrite_answer_step(
     )
     duration_ms = (time.perf_counter() - start_time) * 1000
 
-    step.tool_traces.append(
+    append_tool_trace(
+        step,
         {
             "tool_name": "rewrite_answer",
             "arguments": {
@@ -246,7 +305,8 @@ def execute_rewrite_answer_step(
             "duration_ms": duration_ms,
         }
     )
-    step.mark_completed(
+    mark_step_completed_with_correlation_id(
+        step,
         output={
             "question": question,
             "answer": answer,
@@ -291,7 +351,8 @@ def execute_generate_follow_up_step(
     )
     duration_ms = (time.perf_counter() - start_time) * 1000
 
-    step.tool_traces.append(
+    append_tool_trace(
+        step,
         {
             "tool_name": "generate_follow_up_question",
             "arguments": {
@@ -304,7 +365,8 @@ def execute_generate_follow_up_step(
             "duration_ms": duration_ms,
         }
     )
-    step.mark_completed(
+    mark_step_completed_with_correlation_id(
+        step,
         output={
             "question": question,
             "answer": answer,
@@ -343,7 +405,8 @@ def execute_evaluate_follow_up_answer_step(
     )
     duration_ms = (time.perf_counter() - start_time) * 1000
 
-    step.tool_traces.append(
+    append_tool_trace(
+        step,
         {
             "tool_name": "evaluate_follow_up_answer",
             "arguments": {
@@ -354,7 +417,8 @@ def execute_evaluate_follow_up_answer_step(
             "duration_ms": duration_ms,
         }
     )
-    step.mark_completed(
+    mark_step_completed_with_correlation_id(
+        step,
         output={
             "question": step.input.get("question"),
             "answer": step.input.get("answer"),
@@ -419,7 +483,8 @@ def execute_summarize_training_step(
     )
     duration_ms = (time.perf_counter() - start_time) * 1000
 
-    step.tool_traces.append(
+    append_tool_trace(
+        step,
         {
             "tool_name": "summarize_training",
             "arguments": {
@@ -435,7 +500,8 @@ def execute_summarize_training_step(
             "duration_ms": duration_ms,
         }
     )
-    step.mark_completed(
+    mark_step_completed_with_correlation_id(
+        step,
         output={
             "question": question,
             "answer": answer,
@@ -483,7 +549,8 @@ def execute_generate_question_step(
     if not questions:
         raise ValueError("生成的问题列表不能为空")
 
-    step.tool_traces.append(
+    append_tool_trace(
+        step,
         {
             "tool_name": "generate_questions_from_context",
             "arguments": {
@@ -494,7 +561,8 @@ def execute_generate_question_step(
             "duration_ms": duration_ms,
         }
     )
-    step.mark_completed(
+    mark_step_completed_with_correlation_id(
+        step,
         output={
             "question": questions[0],
             "questions": questions,

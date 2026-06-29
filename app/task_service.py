@@ -31,6 +31,7 @@ from app.storage_repositories import TaskRepository
 
 
 TaskSaveReference = str | Path
+CORRELATION_ID_FIELD = "correlation_id"
 
 
 def _load_task(
@@ -61,12 +62,53 @@ def _save_task(
     )
 
 
+def _resolve_task_correlation_id(
+    task: DefenseTask,
+    correlation_id: str | None = None,
+) -> str | None:
+    if correlation_id:
+        task.metadata[CORRELATION_ID_FIELD] = correlation_id
+        return correlation_id
+
+    stored_correlation_id = task.metadata.get(CORRELATION_ID_FIELD)
+
+    if isinstance(stored_correlation_id, str) and stored_correlation_id:
+        return stored_correlation_id
+
+    return None
+
+
+def _copy_with_correlation_id(
+    data: dict[str, Any] | None,
+    correlation_id: str | None,
+) -> dict[str, Any]:
+    copied_data = dict(data or {})
+
+    if correlation_id:
+        copied_data.setdefault(CORRELATION_ID_FIELD, correlation_id)
+
+    return copied_data
+
+
+def _attach_step_correlation_id(
+    step: TaskStep,
+    correlation_id: str | None,
+) -> None:
+    if correlation_id:
+        step.input.setdefault(CORRELATION_ID_FIELD, correlation_id)
+
+
 def create_defense_task(
     topic: str,
     directory: str | Path = DEFAULT_TASK_DIRECTORY,
     task_repository: TaskRepository | None = None,
+    correlation_id: str | None = None,
 ) -> tuple[DefenseTask, TaskSaveReference]:
     task = DefenseTask(topic=topic)
+    _resolve_task_correlation_id(
+        task=task,
+        correlation_id=correlation_id,
+    )
 
     task_path = _save_task(
         task,
@@ -82,12 +124,14 @@ def start_next_task_step(
     directory: str | Path = DEFAULT_TASK_DIRECTORY,
     input: dict[str, Any] | None = None,
     task_repository: TaskRepository | None = None,
+    correlation_id: str | None = None,
 ) -> tuple[DefenseTask, TaskStep | None, TaskSaveReference]:
     return _start_next_task_step_with_repository(
         task_id=task_id,
         directory=directory,
         input=input,
         task_repository=task_repository,
+        correlation_id=correlation_id,
     )
 
 
@@ -96,16 +140,24 @@ def _start_next_task_step_with_repository(
     directory: str | Path = DEFAULT_TASK_DIRECTORY,
     input: dict[str, Any] | None = None,
     task_repository: TaskRepository | None = None,
+    correlation_id: str | None = None,
 ) -> tuple[DefenseTask, TaskStep | None, TaskSaveReference]:
     task = _load_task(
         task_id=task_id,
         directory=directory,
         task_repository=task_repository,
     )
+    resolved_correlation_id = _resolve_task_correlation_id(
+        task=task,
+        correlation_id=correlation_id,
+    )
 
     step = create_next_step(
         task,
-        input=input,
+        input=_copy_with_correlation_id(
+            data=input,
+            correlation_id=resolved_correlation_id,
+        ),
     )
 
     task_path = _save_task(
@@ -122,16 +174,24 @@ def complete_task_step(
     directory: str | Path = DEFAULT_TASK_DIRECTORY,
     output: dict[str, Any] | None = None,
     task_repository: TaskRepository | None = None,
+    correlation_id: str | None = None,
 ) -> tuple[DefenseTask, TaskStep, TaskSaveReference]:
     task = _load_task(
         task_id=task_id,
         directory=directory,
         task_repository=task_repository,
     )
+    resolved_correlation_id = _resolve_task_correlation_id(
+        task=task,
+        correlation_id=correlation_id,
+    )
 
     step = complete_current_step(
         task,
-        output=output,
+        output=_copy_with_correlation_id(
+            data=output,
+            correlation_id=resolved_correlation_id,
+        ),
     )
 
     task_path = _save_task(
@@ -169,11 +229,16 @@ def execute_current_task_step(
     ] = summarize_training,
     long_term_memory_path: str | Path | None = None,
     task_repository: TaskRepository | None = None,
+    correlation_id: str | None = None,
 ) -> tuple[DefenseTask, TaskStep, TaskSaveReference]:
     task = _load_task(
         task_id=task_id,
         directory=directory,
         task_repository=task_repository,
+    )
+    resolved_correlation_id = _resolve_task_correlation_id(
+        task=task,
+        correlation_id=correlation_id,
     )
 
     step = task.get_current_step()
@@ -183,6 +248,11 @@ def execute_current_task_step(
 
     if step.status == "completed":
         raise ValueError("当前步骤已经完成，不能重复执行")
+
+    _attach_step_correlation_id(
+        step=step,
+        correlation_id=resolved_correlation_id,
+    )
 
     try:
         executed_step = execute_task_step(
@@ -269,6 +339,7 @@ def submit_task_answer(
     answer: str,
     directory: str | Path = DEFAULT_TASK_DIRECTORY,
     task_repository: TaskRepository | None = None,
+    correlation_id: str | None = None,
 ) -> tuple[DefenseTask, TaskStep, TaskSaveReference]:
     if not answer.strip():
         raise ValueError("学生回答不能为空")
@@ -277,6 +348,10 @@ def submit_task_answer(
         task_id=task_id,
         directory=directory,
         task_repository=task_repository,
+    )
+    resolved_correlation_id = _resolve_task_correlation_id(
+        task=task,
+        correlation_id=correlation_id,
     )
 
     step = task.get_current_step()
@@ -295,11 +370,20 @@ def submit_task_answer(
     output: dict[str, Any] = {
         "answer": answer,
     }
+    _attach_step_correlation_id(
+        step=step,
+        correlation_id=resolved_correlation_id,
+    )
 
     if "question" in step.input:
         output["question"] = step.input["question"]
 
-    step.mark_completed(output=output)
+    step.mark_completed(
+        output=_copy_with_correlation_id(
+            data=output,
+            correlation_id=resolved_correlation_id,
+        )
+    )
 
     task_path = _save_task(
         task,
@@ -315,6 +399,7 @@ def submit_follow_up_answer(
     answer: str,
     directory: str | Path = DEFAULT_TASK_DIRECTORY,
     task_repository: TaskRepository | None = None,
+    correlation_id: str | None = None,
 ) -> tuple[DefenseTask, TaskStep, TaskSaveReference]:
     if not answer.strip():
         raise ValueError("追问回答不能为空")
@@ -323,6 +408,10 @@ def submit_follow_up_answer(
         task_id=task_id,
         directory=directory,
         task_repository=task_repository,
+    )
+    resolved_correlation_id = _resolve_task_correlation_id(
+        task=task,
+        correlation_id=correlation_id,
     )
 
     step = task.get_current_step()
@@ -341,6 +430,10 @@ def submit_follow_up_answer(
     output: dict[str, Any] = {
         "follow_up_answer": answer,
     }
+    _attach_step_correlation_id(
+        step=step,
+        correlation_id=resolved_correlation_id,
+    )
 
     if "follow_up_question" in step.input:
         output["follow_up_question"] = step.input["follow_up_question"]
@@ -354,7 +447,12 @@ def submit_follow_up_answer(
         if field in step.input:
             output[field] = step.input[field]
 
-    step.mark_completed(output=output)
+    step.mark_completed(
+        output=_copy_with_correlation_id(
+            data=output,
+            correlation_id=resolved_correlation_id,
+        )
+    )
 
     task_path = _save_task(
         task,

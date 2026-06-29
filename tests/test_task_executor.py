@@ -263,6 +263,29 @@ def test_execute_retrieve_context_step_can_use_vector_store_repository():
     ]
 
 
+def test_execute_retrieve_context_step_records_correlation_id():
+    repository = FakeVectorStoreRepository()
+    step = TaskStep(
+        step_type="retrieve_context",
+        input={
+            "query": "系统架构",
+            "correlation_id": "correlation-001",
+        },
+    )
+
+    result_step = execute_retrieve_context_step(
+        step,
+        top_k=1,
+        embedding_fn=fake_embedding,
+        vector_store_repository=repository,
+    )
+
+    assert result_step.output["correlation_id"] == "correlation-001"
+    assert result_step.tool_traces[0]["correlation_id"] == (
+        "correlation-001"
+    )
+
+
 def test_execute_retrieve_context_step_requires_query_or_topic():
     step = TaskStep(
         step_type="retrieve_context",

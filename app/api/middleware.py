@@ -29,6 +29,7 @@ async def log_request_middleware(
     start_time = time.perf_counter()
     status_code = 500
     correlation_id = get_or_create_correlation_id(request)
+    request.state.correlation_id = correlation_id
 
     try:
         response = await call_next(request)
