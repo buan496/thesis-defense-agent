@@ -3,7 +3,7 @@ tags:
   - roadmap
   - agent-engineering
 status: active
-updated: 2026-06-23
+updated: 2026-06-29
 ---
 
 # Agent 完整学习路线
@@ -261,6 +261,7 @@ updated: 2026-06-23
 - [x] GHCR 镜像发布流程
 - [x] GHCR 镜像拉取与运行验证
 - [x] PostgreSQL 存储抽象设计
+- [x] PostgreSQL Docker Compose service
 - [ ] PostgreSQL
 - [ ] Qdrant / Milvus
 - [ ] K8s 基础部署
@@ -282,6 +283,37 @@ RAG
 → Task State
 → Resumable Workflow
 → Markdown Export
+```
+
+<!-- roadmap-update-2026-06-29-postgres-compose -->
+
+## 2026-06-29 路线同步：PostgreSQL Compose Service 已完成
+
+本阶段完成的是数据库基础设施准备，不是业务存储切换。
+
+已完成：
+
+- [x] `docker-compose.yml` 增加 `postgres` service
+- [x] `postgres_data` volume 持久化数据库数据
+- [x] `pg_isready` healthcheck
+- [x] `.env.example` 增加 `STORAGE_BACKEND`、`DATABASE_URL` 和 PostgreSQL 本地参数
+- [x] `app.config` 增加 `STORAGE_BACKEND` 和 `DATABASE_URL`
+- [x] `docs/deployment/postgresql.md` 记录本地启动和边界
+- [x] 测试锁定 Compose 与 env 模板关键配置
+
+当前边界：
+
+```text
+STORAGE_BACKEND=json 仍是默认值。
+API 当前仍使用 JSON / JSONL 文件存储。
+PostgreSQL 只作为本地集成测试和后续 repository 实现的基础设施。
+```
+
+下一步学习：
+
+```text
+PostgreSQL schema / migration。
+先定义表结构和迁移脚本，再实现 PostgresTaskRepository / PostgresSessionRepository / PostgresTraceRepository。
 ```
 
 已经完成的 Task State 能力：
@@ -2087,7 +2119,7 @@ docs/deployment/server.md
 当前边界：
 
 ```text
-尚未接 PostgreSQL。
+尚未切换 PostgreSQL 存储。
 尚未接 Qdrant / Milvus。
 尚未提供 Prometheus 告警规则。
 尚未提供 K8s manifests。

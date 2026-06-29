@@ -20,6 +20,8 @@ TOOL_RESULT_MAX_CHARACTERS = int(
 )
 TOOL_MAX_RETRIES = int(os.getenv("TOOL_MAX_RETRIES", "2"))
 TOOL_TIMEOUT_SECONDS = float(os.getenv("TOOL_TIMEOUT_SECONDS", "30"))
+STORAGE_BACKEND = os.getenv("STORAGE_BACKEND", "json")
+DATABASE_URL = os.getenv("DATABASE_URL", "")
 EMBEDDING_API_KEY = os.getenv("EMBEDDING_API_KEY")
 EMBEDDING_BASE_URL = os.getenv("EMBEDDING_BASE_URL", "https://api.siliconflow.cn/v1")
 EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "BAAI/bge-m3")
