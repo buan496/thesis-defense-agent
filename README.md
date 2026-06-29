@@ -39,24 +39,23 @@ PDF / TXT 论文
 → SSE 流式输出基础接口
 → 真实 LLM SSE 流式输出接口
 → WebSocket 任务控制通道
-→ PostgreSQL 存储抽象设计
+→ PostgreSQL / Qdrant 可替换存储后端
 ```
 
 <!-- docs-update-2026-06-29-postgres-compose -->
 
 ## 2026-06-29 Update: PostgreSQL Compose Service
 
-This project now includes a local PostgreSQL service in `docker-compose.yml`.
-The service is intended for integration testing and future repository
-implementation work.
+This project includes a local PostgreSQL service in `docker-compose.yml`.
+PostgreSQL is available for local integration testing and optional runtime
+storage through `STORAGE_BACKEND=postgres`.
 
 Current boundary:
 
 ```text
 STORAGE_BACKEND=json remains the default.
-The API still uses JSON / JSONL storage by default.
-PostgreSQL is available as local infrastructure, but task/session/trace storage
-has not been switched to PostgreSQL yet.
+Task, session, and trace runtime can use PostgreSQL when STORAGE_BACKEND=postgres
+and DATABASE_URL are explicitly configured.
 ```
 
 Local PostgreSQL check:
@@ -85,8 +84,9 @@ Current migration:
 ```
 
 It defines durable storage tables for task, session, trace, feedback, and
-benchmark candidate records. The migration is still an infrastructure asset:
-the application default remains JSON / JSONL storage.
+benchmark candidate records. The application default remains JSON / JSONL
+storage, but PostgreSQL repositories can use this schema when explicitly
+selected.
 
 Inspect the migration plan without connecting to PostgreSQL:
 
@@ -101,9 +101,8 @@ uv run python -m app.cli run-postgres-migrations
 ```
 
 The migration runner records applied versions in `schema_migrations` and
-rejects checksum drift. It prepares the database schema only; API storage still
-defaults to JSON / JSONL until PostgreSQL repositories are implemented and
-selected by configuration.
+rejects checksum drift. It prepares the database schema for the PostgreSQL task,
+session, and trace repositories.
 
 <!-- docs-update-2026-06-29-postgres-task-repository -->
 
@@ -117,8 +116,8 @@ Current boundary:
 
 ```text
 The repository implementation exists and is covered by fake-connection tests.
-The API service still uses JSON task storage by default.
-Repository selection through STORAGE_BACKEND is a later step.
+Task runtime can use it when STORAGE_BACKEND=postgres.
+JSON remains the default backend.
 ```
 
 <!-- docs-update-2026-06-29-repository-factory -->
@@ -143,8 +142,8 @@ Current boundary:
 
 ```text
 json remains the default backend.
-The factory can create PostgreSQL repositories, but runtime service integration
-is intentionally left for a later step after import and rollback strategy are defined.
+The factory can create PostgreSQL repositories for task, session, and trace runtime
+paths when STORAGE_BACKEND=postgres.
 ```
 
 <!-- docs-update-2026-06-29-postgres-json-import -->
@@ -166,8 +165,8 @@ Current boundary:
 
 ```text
 Import is an explicit operational command.
-Runtime storage still defaults to JSON / JSONL.
-Service-level repository injection is a later step.
+Runtime storage still defaults to JSON / JSONL unless STORAGE_BACKEND=postgres
+is explicitly configured.
 ```
 
 <!-- docs-update-2026-06-29-task-runtime-repository-pilot -->
@@ -199,7 +198,7 @@ Current boundary:
 ```text
 STORAGE_BACKEND=json remains the default.
 Task runtime can use the selected task repository.
-Session and trace runtime integration are later steps.
+Session and trace runtime can also use selected repositories.
 ```
 
 <!-- docs-update-2026-06-29-session-runtime-repository-integration -->
@@ -225,7 +224,7 @@ Current boundary:
 ```text
 STORAGE_BACKEND=json remains the default.
 Task and session runtime can use selected repositories.
-Trace runtime integration is a later step.
+Trace runtime can use selected repositories.
 ```
 
 <!-- docs-update-2026-06-29-trace-runtime-repository-integration -->
@@ -267,8 +266,8 @@ Current boundary:
 
 ```text
 The repository implementation exists and is covered by fake-connection tests.
-The application still writes JSONL traces by default.
-Repository selection through STORAGE_BACKEND is a later step.
+Trace runtime can use it when STORAGE_BACKEND=postgres.
+JSONL remains the default trace backend.
 ```
 
 <!-- docs-update-2026-06-29-postgres-session-repository -->
@@ -284,14 +283,14 @@ Current boundary:
 
 ```text
 The repository implementation exists and is covered by fake-connection tests.
-The API service still uses JSON session storage by default.
-Repository selection through STORAGE_BACKEND is a later step.
+Session runtime can use it when STORAGE_BACKEND=postgres.
+JSON remains the default session backend.
 ```
 
 最新本地测试基线：
 
 ```text
-868 passed
+915 passed
 ```
 
 本机学习版阶段已完成，阶段总复盘见：
@@ -428,18 +427,18 @@ retrieve_context
 
 ## 暂缓范围
 
-当前已经开始在本机推进 FastAPI 服务化、Docker Compose、Prometheus 本地验证和 GHCR 镜像发布流程。以下内容暂缓到后续服务器长期运行或数据库阶段：
+当前已经完成本机 FastAPI 服务化、Docker Compose、Prometheus 本地验证、GHCR 镜像发布流程、PostgreSQL runtime smoke 和 Qdrant 最小后端。以下内容暂缓到后续阶段：
 
 - Web 前端
-- PostgreSQL
 - Qdrant 生产化治理 / Milvus
+- Alertmanager / 通知渠道
 - K8s
 - 私有化部署
 - 服务器环境变量和密钥管理
 
 LangGraph 已完成旁路迁移学习版闭环，并保留在 `app/langgraph_workflow/`。它只用于和当前 `app/agent.py`、`app/task_*` 对照学习，不覆盖当前手写实现。数据库级 checkpointer、服务器部署和跨进程恢复继续后移到服务器/数据库阶段。
 
-FastAPI、Dockerfile、docker-compose、Prometheus 抓取和 GitHub Actions Docker 镜像构建已完成本机/CI 验证；GHCR 发布流程已完成。服务器长期运行、向量数据库和 K8s 继续作为后续阶段。
+FastAPI、Dockerfile、docker-compose、Prometheus 抓取和 GitHub Actions Docker 镜像构建已完成本机/CI 验证；GHCR 发布流程已完成。服务器长期运行、Alertmanager、K8s 和更完整的向量数据库生产治理继续作为后续阶段。
 
 PostgreSQL 当前已完成 Compose 服务、schema migration、JSON-to-PostgreSQL import、task/session/trace repository 实现，以及 task/session/trace runtime repository integration。默认后端仍是 `STORAGE_BACKEND=json`，本机或服务器运行时可以通过 `STORAGE_BACKEND=postgres` 和 `DATABASE_URL` 显式切换。设计说明见：
 
