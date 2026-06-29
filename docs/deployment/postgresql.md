@@ -213,6 +213,29 @@ Current boundary: `PostgresTaskRepository` is implemented and tested, but the
 API service still uses the existing JSON task store unless a future repository
 factory selects PostgreSQL through configuration.
 
+## Session Repository
+
+`PostgresSessionRepository` lives in:
+
+```text
+app/postgres_session_repository.py
+```
+
+It implements the same `save(session)` and `load(session_id)` behavior as the
+`SessionRepository` protocol:
+
+- validates `session_id`
+- serializes the full `AgentSession` payload to PostgreSQL `JSONB`
+- writes `session_id`, `payload`, and `created_at`
+- uses `INSERT ... ON CONFLICT (session_id) DO UPDATE`
+- updates `updated_at` with `now()` on conflict
+- loads an `AgentSession` back from the `payload` column
+- commits on success and rolls back on save failure
+
+Current boundary: `PostgresSessionRepository` is implemented and tested, but the
+API service still uses the existing JSON session store unless a future
+repository factory selects PostgreSQL through configuration.
+
 ## Why Not Replace JSON Immediately
 
 Replacing storage directly would mix two changes:
@@ -224,7 +247,6 @@ The project should keep those concerns separate. The repository abstraction lets
 
 ## Next Steps
 
-- Add `PostgresSessionRepository`.
 - Add `PostgresTraceRepository`.
 - Add repository factory / configuration selection for JSON vs PostgreSQL.
 - Add JSON-to-PostgreSQL import scripts.
