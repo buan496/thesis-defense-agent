@@ -237,7 +237,7 @@ updated: 2026-06-23
 - [x] FastAPI
 - [x] Pydantic 请求模型
 - [x] SSE 基础流式输出
-- [ ] 真实 LLM SSE 流式输出
+- [x] 真实 LLM SSE 流式输出
 - [ ] WebSocket 双向交互
 - [ ] 前端答辩界面
 - [x] 文件上传
@@ -2021,12 +2021,11 @@ docs/17-本机学习版阶段总复盘.md
 
 ```text
 1. 服务器长期运行验证
-2. 真实 LLM SSE 流式输出
-3. WebSocket 双向交互
-4. PostgreSQL 存储 task / session / trace
-5. Qdrant 或 Milvus 替换本地 JSON 向量库
-6. Prometheus 告警规则和日志集中采集
-7. K8s manifests
+2. WebSocket 双向交互
+3. PostgreSQL 存储 task / session / trace
+4. Qdrant 或 Milvus 替换本地 JSON 向量库
+5. Prometheus 告警规则和日志集中采集
+6. K8s manifests
 8. MCP Server 实际接入
 9. 权限审批和 workspace 隔离
 ```
@@ -2088,8 +2087,7 @@ docs/deployment/server.md
 当前边界：
 
 ```text
-尚未实现文件上传 API。
-尚未实现真实 LLM SSE 流式输出和 WebSocket 双向交互。
+尚未实现 WebSocket 双向交互。
 尚未接 PostgreSQL。
 尚未接 Qdrant / Milvus。
 尚未提供 Prometheus 告警规则。
@@ -2100,10 +2098,9 @@ docs/deployment/server.md
 
 ```text
 1. 服务器拉取 GHCR 镜像运行
-2. 真实 LLM SSE 流式输出
-3. WebSocket 双向交互
-4. PostgreSQL
-5. Qdrant / Milvus
-6. Prometheus 告警规则
-7. K8s manifests
+2. WebSocket 双向交互
+3. PostgreSQL
+4. Qdrant / Milvus
+5. Prometheus 告警规则
+6. K8s manifests
 ```

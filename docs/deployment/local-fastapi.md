@@ -93,19 +93,28 @@ Current behavior:
 
 ```text
 GET /stream/echo
+GET /stream/chat
 ```
 
-Example:
+Echo example:
 
 ```powershell
 curl.exe -N "http://127.0.0.1:8000/stream/echo?message=hello-agent&chunk_size=3"
 ```
 
+LLM streaming example:
+
+```powershell
+curl.exe -N "http://127.0.0.1:8000/stream/chat?message=请简要说明你的系统架构"
+```
+
 Current behavior:
 
 - returns `text/event-stream`
-- emits `chunk` events for text chunks
+- `/stream/echo` emits `chunk` events for local text chunks
+- `/stream/chat` emits `chunk` events from the LLM streaming response
 - emits a final `done` event
+- emits an `error` event if the LLM stream fails after streaming starts
 - rejects blank messages
 - validates `chunk_size`
 

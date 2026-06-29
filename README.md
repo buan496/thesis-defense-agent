@@ -37,12 +37,13 @@ PDF / TXT 论文
 → FastAPI / Docker / Prometheus / GHCR 发布流程
 → 文件上传 API
 → SSE 流式输出基础接口
+→ 真实 LLM SSE 流式输出接口
 ```
 
 最新本地测试基线：
 
 ```text
-775 passed
+779 passed
 ```
 
 本机学习版阶段已完成，阶段总复盘见：
@@ -298,6 +299,12 @@ curl.exe -F "file=@data/thesis.pdf" http://127.0.0.1:8000/documents/upload
 
 ```powershell
 curl.exe -N "http://127.0.0.1:8000/stream/echo?message=hello-agent&chunk_size=3"
+```
+
+验证真实 LLM SSE 流式输出：
+
+```powershell
+curl.exe -N "http://127.0.0.1:8000/stream/chat?message=请简要说明你的系统架构"
 ```
 
 构建本地 FastAPI Docker 镜像：
