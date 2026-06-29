@@ -9,9 +9,27 @@ from app.task_service import (
     submit_task_answer,
 )
 from app.long_term_memory import load_long_term_memory
-from app.task_models import TaskStep
+from app.task_models import DefenseTask, TaskStep
 from app.vector_store import build_vector_store
 from app.vector_store_io import save_vector_store
+
+
+class InMemoryTaskRepository:
+    def __init__(self):
+        self.tasks = {}
+        self.saved_identifiers = []
+
+    def save(self, task: DefenseTask) -> str:
+        self.tasks[task.task_id] = task
+        saved_identifier = f"repository:{task.task_id}"
+        self.saved_identifiers.append(saved_identifier)
+        return saved_identifier
+
+    def load(self, task_id: str) -> DefenseTask:
+        if task_id not in self.tasks:
+            raise FileNotFoundError(task_id)
+
+        return self.tasks[task_id]
 
 
 def fake_embedding(text: str) -> list[float]:
@@ -132,6 +150,20 @@ def test_create_defense_task_saves_task(tmp_path):
     assert loaded_task == task
 
 
+def test_create_defense_task_can_use_task_repository(tmp_path):
+    repository = InMemoryTaskRepository()
+
+    task, saved_identifier = create_defense_task(
+        topic="系统架构",
+        directory=tmp_path,
+        task_repository=repository,
+    )
+
+    assert saved_identifier == f"repository:{task.task_id}"
+    assert repository.tasks[task.task_id] == task
+    assert not (tmp_path / f"{task.task_id}.json").exists()
+
+
 def test_start_next_task_step_loads_updates_and_saves_task(tmp_path):
     task, _ = create_defense_task(
         topic="系统架构",
@@ -158,6 +190,31 @@ def test_start_next_task_step_loads_updates_and_saves_task(tmp_path):
     )
 
     assert loaded_task == updated_task
+
+
+def test_start_next_task_step_can_use_task_repository(tmp_path):
+    repository = InMemoryTaskRepository()
+    task, _ = create_defense_task(
+        topic="系统架构",
+        directory=tmp_path,
+        task_repository=repository,
+    )
+
+    updated_task, step, saved_identifier = start_next_task_step(
+        task_id=task.task_id,
+        directory=tmp_path,
+        input={
+            "topic": "系统架构",
+        },
+        task_repository=repository,
+    )
+
+    assert step is not None
+    assert step.step_type == "retrieve_context"
+    assert step.input["topic"] == "系统架构"
+    assert saved_identifier == f"repository:{task.task_id}"
+    assert repository.tasks[task.task_id] == updated_task
+    assert not (tmp_path / f"{task.task_id}.json").exists()
 
 
 def test_start_next_task_step_returns_none_when_current_step_not_completed(
@@ -380,6 +437,37 @@ def test_submit_task_answer_completes_wait_for_answer_step(tmp_path):
     )
 
     assert loaded_task == updated_task
+
+
+def test_submit_task_answer_can_use_task_repository(tmp_path):
+    repository = InMemoryTaskRepository()
+    task = DefenseTask(
+        topic="系统架构",
+        task_id="task-001",
+    )
+    task.add_step(
+        TaskStep(
+            step_type="wait_for_answer",
+            input={
+                "question": "系统架构为什么要拆分模块？",
+            },
+        )
+    )
+    repository.save(task)
+
+    updated_task, step, saved_identifier = submit_task_answer(
+        task_id="task-001",
+        answer="为了降低耦合。",
+        directory=tmp_path,
+        task_repository=repository,
+    )
+
+    assert step.status == "completed"
+    assert step.output["question"] == "系统架构为什么要拆分模块？"
+    assert step.output["answer"] == "为了降低耦合。"
+    assert saved_identifier == "repository:task-001"
+    assert repository.tasks["task-001"] == updated_task
+    assert not (tmp_path / "task-001.json").exists()
 
 
 def test_submit_task_answer_rejects_empty_answer(tmp_path):

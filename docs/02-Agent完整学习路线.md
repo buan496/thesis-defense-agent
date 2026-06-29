@@ -269,6 +269,7 @@ updated: 2026-06-29
 - [x] PostgresTraceRepository
 - [x] Repository factory / STORAGE_BACKEND selection
 - [x] JSON-to-PostgreSQL import scripts
+- [x] Task runtime repository pilot
 - [ ] PostgreSQL
 - [ ] Qdrant / Milvus
 - [ ] K8s 基础部署
@@ -597,6 +598,47 @@ docs/storage/runtime-repository-integration.md
 Task runtime repository pilot。
 先把 task workflow 的 create/start/execute/submit/resume/analyze/export 接到 task_repository 依赖。
 保持 STORAGE_BACKEND=json 为默认值，不在同一 PR 内迁移 session 和 trace。
+```
+
+<!-- roadmap-update-2026-06-29-task-runtime-repository-pilot -->
+
+## 2026-06-29 路线同步：Task Runtime Repository Pilot 已完成
+
+本阶段只迁移 task workflow 的运行时存储入口，不迁移 session 和 trace。
+
+已完成：
+
+- [x] `task_service` 支持注入 `task_repository`
+- [x] 不传 `task_repository` 时保持原 JSON directory 行为
+- [x] Task CLI 通过 `RepositoryBundle` 创建 task repository
+- [x] `create-task`
+- [x] `start-task-step`
+- [x] `complete-task-step`
+- [x] `execute-task-step`
+- [x] `submit-task-answer`
+- [x] `submit-follow-up-answer`
+- [x] `resume-task`
+- [x] `analyze-task`
+- [x] `export-task-markdown`
+- [x] `export-task-memory`
+- [x] `show-task`
+- [x] fake repository 测试覆盖 service 注入边界
+- [x] CLI 测试覆盖 repository factory 接入
+
+当前边界：
+
+```text
+Task runtime repository pilot 已完成。
+默认 STORAGE_BACKEND 仍是 json。
+Session runtime 尚未接 session_repository。
+Trace runtime 尚未接 trace_repository。
+```
+
+下一步学习：
+
+```text
+Session runtime repository integration。
+把 chat/session resume/session metadata 相关路径接入 session_repository，仍保持 JSON 默认后端。
 ```
 
 已经完成的 Task State 能力：

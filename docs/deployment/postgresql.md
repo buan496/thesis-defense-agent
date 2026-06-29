@@ -359,6 +359,45 @@ uv run python -m app.cli import-json-to-postgres
 Current boundary: import scripts are explicit operational tools. They do not
 change runtime storage behavior; `STORAGE_BACKEND=json` remains the default.
 
+## Task Runtime Repository Pilot
+
+Task workflow commands now create a task repository through the repository
+factory and inject it into the task service layer.
+
+Covered commands:
+
+```text
+create-task
+start-task-step
+complete-task-step
+execute-task-step
+submit-task-answer
+submit-follow-up-answer
+resume-task
+analyze-task
+export-task-markdown
+export-task-memory
+show-task
+```
+
+Default local behavior still uses JSON:
+
+```env
+STORAGE_BACKEND=json
+```
+
+PostgreSQL task runtime can be selected only after migrations and import have
+been handled explicitly:
+
+```powershell
+uv run python -m app.cli run-postgres-migrations
+uv run python -m app.cli import-json-to-postgres --dry-run
+uv run python -m app.cli import-json-to-postgres
+```
+
+Current boundary: task runtime is the first repository-backed runtime pilot.
+Session runtime and trace runtime still have separate migration steps.
+
 ## Why Not Replace JSON Immediately
 
 Replacing storage directly would mix two changes:
