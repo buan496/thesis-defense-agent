@@ -238,7 +238,7 @@ updated: 2026-06-23
 - [x] Pydantic 请求模型
 - [ ] SSE 或 WebSocket
 - [ ] 前端答辩界面
-- [ ] 文件上传
+- [x] 文件上传
 - [ ] 会话列表
 - [ ] Trace 查看器
 - [ ] 用户认证
@@ -2098,10 +2098,9 @@ docs/deployment/server.md
 
 ```text
 1. 服务器拉取 GHCR 镜像运行
-2. 文件上传 API
-3. SSE / WebSocket 流式输出
-4. PostgreSQL
-5. Qdrant / Milvus
-6. Prometheus 告警规则
-7. K8s manifests
+2. SSE / WebSocket 流式输出
+3. PostgreSQL
+4. Qdrant / Milvus
+5. Prometheus 告警规则
+6. K8s manifests
 ```

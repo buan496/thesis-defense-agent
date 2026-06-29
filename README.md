@@ -35,12 +35,13 @@ PDF / TXT 论文
 → 评价 / 改写 / 追问 / 总结
 → Trace / benchmark / CI
 → FastAPI / Docker / Prometheus / GHCR 发布流程
+→ 文件上传 API
 ```
 
 最新本地测试基线：
 
 ```text
-764 passed
+769 passed
 ```
 
 本机学习版阶段已完成，阶段总复盘见：
@@ -62,6 +63,7 @@ docs/17-本机学习版阶段总复盘.md
 ### RAG
 
 - 支持读取本地 TXT 和 PDF 论文
+- 支持通过 FastAPI 上传 `.pdf`、`.txt`、`.md` 文档并安全落盘
 - 支持 PDF 文本清洗、目录过滤、无效 Unicode 清理和换行归一化
 - 支持按段落和字符窗口切分 chunk
 - 支持 chunk metadata：`id`、`text`、`source`、`length`
@@ -283,6 +285,12 @@ uv run uvicorn app.api.main:app --reload
 ```text
 http://127.0.0.1:8000/docs
 docs/deployment/local-fastapi.md
+```
+
+上传论文文档：
+
+```powershell
+curl.exe -F "file=@data/thesis.pdf" http://127.0.0.1:8000/documents/upload
 ```
 
 构建本地 FastAPI Docker 镜像：
