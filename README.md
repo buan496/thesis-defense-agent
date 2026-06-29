@@ -121,6 +121,32 @@ The API service still uses JSON task storage by default.
 Repository selection through STORAGE_BACKEND is a later step.
 ```
 
+<!-- docs-update-2026-06-29-repository-factory -->
+
+## 2026-06-29 Update: Repository Factory
+
+The project now includes a repository factory that can construct storage
+repositories from configuration:
+
+```text
+STORAGE_BACKEND=json      -> JsonTaskRepository / JsonSessionRepository / JsonlTraceRepository
+STORAGE_BACKEND=postgres  -> PostgresTaskRepository / PostgresSessionRepository / PostgresTraceRepository
+```
+
+Inspect the selected repository classes:
+
+```powershell
+uv run python -m app.cli show-repositories
+```
+
+Current boundary:
+
+```text
+json remains the default backend.
+The factory can create PostgreSQL repositories, but runtime service integration
+is intentionally left for a later step after import and rollback strategy are defined.
+```
+
 <!-- docs-update-2026-06-29-postgres-trace-repository -->
 
 ## 2026-06-29 Update: PostgresTraceRepository
@@ -158,7 +184,7 @@ Repository selection through STORAGE_BACKEND is a later step.
 最新本地测试基线：
 
 ```text
-835 passed
+844 passed
 ```
 
 本机学习版阶段已完成，阶段总复盘见：
