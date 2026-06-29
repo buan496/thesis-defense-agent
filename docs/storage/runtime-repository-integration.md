@@ -31,7 +31,8 @@ Repository path
 The repository path can construct both JSON and PostgreSQL adapters, and the
 JSON-to-PostgreSQL import command can copy existing local records into
 PostgreSQL. Task workflow runtime now uses the task repository abstraction.
-Session and trace runtime integration remain later steps.
+Chat session runtime now uses the session repository abstraction. Trace runtime
+integration remains a later step.
 
 ## Target Direction
 
@@ -165,6 +166,15 @@ session creation
 session resume
 session metadata updates
 memory-related session reads
+```
+
+Status:
+
+```text
+Implemented for chat runtime.
+run_agent_session accepts session_repository.
+The chat CLI creates the session repository through RepositoryBundle.
+Default JSON behavior is preserved through JsonSessionRepository.
 ```
 
 Rollback:

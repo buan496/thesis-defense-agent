@@ -270,6 +270,7 @@ updated: 2026-06-29
 - [x] Repository factory / STORAGE_BACKEND selection
 - [x] JSON-to-PostgreSQL import scripts
 - [x] Task runtime repository pilot
+- [x] Session runtime repository integration
 - [ ] PostgreSQL
 - [ ] Qdrant / Milvus
 - [ ] K8s 基础部署
@@ -639,6 +640,40 @@ Trace runtime 尚未接 trace_repository。
 ```text
 Session runtime repository integration。
 把 chat/session resume/session metadata 相关路径接入 session_repository，仍保持 JSON 默认后端。
+```
+
+<!-- roadmap-update-2026-06-29-session-runtime-repository-integration -->
+
+## 2026-06-29 路线同步：Session Runtime Repository Integration 已完成
+
+本阶段只迁移 chat/session runtime，不迁移 trace。
+
+已完成：
+
+- [x] `run_agent_session` 支持注入 `session_repository`
+- [x] 不传 `session_repository` 时保持原 JSON directory 行为
+- [x] 新 session 创建走 repository save
+- [x] 已有 session resume 走 repository load
+- [x] session token/cost metadata 通过 repository 持久化
+- [x] session compaction 结果通过 repository 持久化
+- [x] chat CLI 通过 `RepositoryBundle` 创建 session repository
+- [x] fake repository 测试覆盖 service 注入边界
+- [x] CLI 测试覆盖 repository factory 接入
+
+当前边界：
+
+```text
+Task runtime repository pilot 已完成。
+Session runtime repository integration 已完成。
+默认 STORAGE_BACKEND 仍是 json。
+Trace runtime 尚未接 trace_repository。
+```
+
+下一步学习：
+
+```text
+Trace runtime repository integration。
+把 Agent trace / Sub-Agent trace / trace analysis 相关写入读取路径接入 trace_repository，仍保持 JSON 默认后端。
 ```
 
 已经完成的 Task State 能力：

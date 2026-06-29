@@ -398,6 +398,30 @@ uv run python -m app.cli import-json-to-postgres
 Current boundary: task runtime is the first repository-backed runtime pilot.
 Session runtime and trace runtime still have separate migration steps.
 
+## Session Runtime Repository Integration
+
+Chat session runtime now creates a session repository through the repository
+factory and injects it into `run_agent_session`.
+
+Covered behavior:
+
+```text
+chat session creation
+chat session resume
+session metadata persistence
+session compaction persistence
+```
+
+Default local behavior still uses JSON:
+
+```env
+STORAGE_BACKEND=json
+```
+
+Current boundary: task runtime and chat session runtime are repository-backed.
+Trace runtime still writes through the existing JSONL path until its dedicated
+migration step is implemented.
+
 ## Why Not Replace JSON Immediately
 
 Replacing storage directly would mix two changes:

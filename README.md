@@ -202,6 +202,32 @@ Task runtime can use the selected task repository.
 Session and trace runtime integration are later steps.
 ```
 
+<!-- docs-update-2026-06-29-session-runtime-repository-integration -->
+
+## 2026-06-29 Update: Session Runtime Repository Integration
+
+Chat session runtime now uses the repository abstraction. The CLI creates a
+session repository from `STORAGE_BACKEND` through the repository factory and
+injects it into `run_agent_session`.
+
+Covered session path:
+
+```text
+chat
+session creation
+session resume
+session metadata updates
+session compaction persistence
+```
+
+Current boundary:
+
+```text
+STORAGE_BACKEND=json remains the default.
+Task and session runtime can use selected repositories.
+Trace runtime integration is a later step.
+```
+
 <!-- docs-update-2026-06-29-postgres-trace-repository -->
 
 ## 2026-06-29 Update: PostgresTraceRepository
@@ -239,7 +265,7 @@ Repository selection through STORAGE_BACKEND is a later step.
 最新本地测试基线：
 
 ```text
-859 passed
+862 passed
 ```
 
 本机学习版阶段已完成，阶段总复盘见：

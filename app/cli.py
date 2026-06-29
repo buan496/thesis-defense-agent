@@ -244,6 +244,16 @@ def create_task_repository_for_cli(directory: str):
 
     return repositories.task_repository
 
+
+def create_session_repository_for_cli(directory: str):
+    repositories = create_repositories(
+        storage_backend=STORAGE_BACKEND,
+        database_url=DATABASE_URL,
+        session_directory=directory,
+    )
+
+    return repositories.session_repository
+
 def main():
     parser = argparse.ArgumentParser(
         description="Thesis Defense Agent CLI"
@@ -3169,6 +3179,9 @@ def main():
             raise SystemExit(2)
         
         try:
+            session_repository = create_session_repository_for_cli(
+                str(DEFAULT_SESSION_DIRECTORY),
+            )
             result, session, session_path = run_agent_session(
                 user_message=user_message,
                 session_id=args.session_id,
@@ -3183,6 +3196,7 @@ def main():
                 compact_summary_max_characters=(
                     args.compact_summary_max_characters
                 ),
+                session_repository=session_repository,
             )
         except FileNotFoundError as error:
             print(f"SESSION ERROR: {error}")
