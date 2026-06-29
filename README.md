@@ -762,7 +762,31 @@ retrieve_context
 
 1. 服务器长期运行验证：在服务器拉取 main，用 docker compose 运行 API 和 Prometheus。
 2. 对 README 和学习路线做周期性同步，避免文档落后于代码。
-3. 后续继续推进 Qdrant 生产化治理 / Milvus、真实 MCP Server、Prometheus 告警和 K8s 样例。
+3. 后续继续推进 Qdrant 生产化治理 / Milvus、真实 MCP Server、Alertmanager 和 K8s 样例。
+
+## 2026-06-29 Update: Prometheus Alert Rules
+
+项目现在从“能暴露指标”推进到“能发现常见异常”：
+
+```text
+observability/prometheus/alert_rules.yml
+docs/deployment/prometheus.md
+```
+
+已定义告警：
+
+```text
+ThesisDefenseAgentApiDown
+ThesisDefenseAgentHigh5xxRate
+ThesisDefenseAgentHighAverageLatency
+```
+
+当前边界：
+
+```text
+Prometheus 会加载本地 alert rules。
+尚未接 Alertmanager、通知渠道、on-call routing 或生产 SLO。
+```
 
 ## 2026-06-29 Update: Vector Store Repository Abstraction
 
