@@ -6,6 +6,7 @@ from app.api.routes.health import router as health_router
 from app.api.routes.rag import router as rag_router
 from app.api.routes.stream import router as stream_router
 from app.api.routes.tasks import router as tasks_router
+from app.api.routes.websocket_tasks import router as websocket_tasks_router
 
 
 app = FastAPI(
@@ -20,3 +21,4 @@ app.include_router(health_router)
 app.include_router(rag_router)
 app.include_router(stream_router)
 app.include_router(tasks_router)
+app.include_router(websocket_tasks_router)

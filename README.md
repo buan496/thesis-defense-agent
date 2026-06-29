@@ -38,12 +38,13 @@ PDF / TXT 论文
 → 文件上传 API
 → SSE 流式输出基础接口
 → 真实 LLM SSE 流式输出接口
+→ WebSocket 任务控制通道
 ```
 
 最新本地测试基线：
 
 ```text
-779 passed
+786 passed
 ```
 
 本机学习版阶段已完成，阶段总复盘见：
@@ -305,6 +306,12 @@ curl.exe -N "http://127.0.0.1:8000/stream/echo?message=hello-agent&chunk_size=3"
 
 ```powershell
 curl.exe -N "http://127.0.0.1:8000/stream/chat?message=请简要说明你的系统架构"
+```
+
+WebSocket 任务控制通道：
+
+```text
+ws://127.0.0.1:8000/ws/tasks/<TASK_ID>
 ```
 
 构建本地 FastAPI Docker 镜像：

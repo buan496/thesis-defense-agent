@@ -238,7 +238,7 @@ updated: 2026-06-23
 - [x] Pydantic 请求模型
 - [x] SSE 基础流式输出
 - [x] 真实 LLM SSE 流式输出
-- [ ] WebSocket 双向交互
+- [x] WebSocket 双向交互
 - [ ] 前端答辩界面
 - [x] 文件上传
 - [ ] 会话列表
@@ -2021,11 +2021,10 @@ docs/17-本机学习版阶段总复盘.md
 
 ```text
 1. 服务器长期运行验证
-2. WebSocket 双向交互
-3. PostgreSQL 存储 task / session / trace
-4. Qdrant 或 Milvus 替换本地 JSON 向量库
-5. Prometheus 告警规则和日志集中采集
-6. K8s manifests
+2. PostgreSQL 存储 task / session / trace
+3. Qdrant 或 Milvus 替换本地 JSON 向量库
+4. Prometheus 告警规则和日志集中采集
+5. K8s manifests
 8. MCP Server 实际接入
 9. 权限审批和 workspace 隔离
 ```
@@ -2087,7 +2086,6 @@ docs/deployment/server.md
 当前边界：
 
 ```text
-尚未实现 WebSocket 双向交互。
 尚未接 PostgreSQL。
 尚未接 Qdrant / Milvus。
 尚未提供 Prometheus 告警规则。
@@ -2098,9 +2096,8 @@ docs/deployment/server.md
 
 ```text
 1. 服务器拉取 GHCR 镜像运行
-2. WebSocket 双向交互
-3. PostgreSQL
-4. Qdrant / Milvus
-5. Prometheus 告警规则
-6. K8s manifests
+2. PostgreSQL
+3. Qdrant / Milvus
+4. Prometheus 告警规则
+5. K8s manifests
 ```
