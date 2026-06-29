@@ -3,10 +3,25 @@ import json
 from pathlib import Path
 from typing import Any
 
+from app.storage_repositories import TraceRepository
+
 
 def load_agent_trace_records(
     file_path: str,
+    trace_repository: TraceRepository | None = None,
 ) -> list[dict[str, Any]]:
+    if trace_repository is not None:
+        return [
+            {
+                "line_number": index,
+                "trace": trace,
+            }
+            for index, trace in enumerate(
+                trace_repository.load_all(),
+                start=1,
+            )
+        ]
+
     path = Path(file_path)
 
     if not path.exists():
@@ -41,8 +56,12 @@ def load_agent_trace_records(
 def replay_agent_trace(
     file_path: str,
     line_number: int | None = None,
+    trace_repository: TraceRepository | None = None,
 ) -> dict[str, Any]:
-    records = load_agent_trace_records(file_path)
+    records = load_agent_trace_records(
+        file_path,
+        trace_repository=trace_repository,
+    )
 
     if not records:
         raise ValueError("Agent trace file contains no replayable records")
@@ -168,14 +187,18 @@ def compare_agent_trace_records(
     current_file_path: str,
     baseline_line_number: int | None = None,
     current_line_number: int | None = None,
+    baseline_trace_repository: TraceRepository | None = None,
+    current_trace_repository: TraceRepository | None = None,
 ) -> dict[str, Any]:
     baseline = replay_agent_trace(
         baseline_file_path,
         line_number=baseline_line_number,
+        trace_repository=baseline_trace_repository,
     )
     current = replay_agent_trace(
         current_file_path,
         line_number=current_line_number,
+        trace_repository=current_trace_repository,
     )
 
     return compare_agent_trace_replays(

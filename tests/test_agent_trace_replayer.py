@@ -20,6 +20,18 @@ def write_trace_file(path, traces):
     )
 
 
+class InMemoryTraceRepository:
+    def __init__(self, records):
+        self.records = records
+
+    def append(self, record):
+        self.records.append(record)
+        return f"repository:{len(self.records)}"
+
+    def load_all(self):
+        return list(self.records)
+
+
 def test_load_agent_trace_records(tmp_path):
     trace_path = tmp_path / "agent_trace.jsonl"
     write_trace_file(
@@ -40,6 +52,31 @@ def test_load_agent_trace_records(tmp_path):
         {
             "line_number": 2,
             "trace": {"created_at": "2026-06-23T10:01:00"},
+        },
+    ]
+
+
+def test_load_agent_trace_records_can_use_trace_repository(tmp_path):
+    repository = InMemoryTraceRepository(
+        [
+            {"created_at": "2026-06-29T10:00:00"},
+            {"created_at": "2026-06-29T10:01:00"},
+        ]
+    )
+
+    records = load_agent_trace_records(
+        str(tmp_path / "missing.jsonl"),
+        trace_repository=repository,
+    )
+
+    assert records == [
+        {
+            "line_number": 1,
+            "trace": {"created_at": "2026-06-29T10:00:00"},
+        },
+        {
+            "line_number": 2,
+            "trace": {"created_at": "2026-06-29T10:01:00"},
         },
     ]
 

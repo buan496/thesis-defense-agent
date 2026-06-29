@@ -228,6 +228,32 @@ Task and session runtime can use selected repositories.
 Trace runtime integration is a later step.
 ```
 
+<!-- docs-update-2026-06-29-trace-runtime-repository-integration -->
+
+## 2026-06-29 Update: Trace Runtime Repository Integration
+
+Trace runtime now uses the repository abstraction for Agent trace replay and
+analysis, generic trace replay, and Sub-Agent plan / execution trace save and
+analysis paths.
+
+Covered trace paths:
+
+```text
+Agent trace save / load / analyze / replay
+generic trace replay
+Sub-Agent plan trace save / load / analyze
+Sub-Agent execution trace save / load / analyze
+```
+
+Current boundary:
+
+```text
+STORAGE_BACKEND=json remains the default.
+Task, session, and trace runtime can use selected repositories.
+Compare commands that intentionally compare two explicit files still keep
+file-path semantics.
+```
+
 <!-- docs-update-2026-06-29-postgres-trace-repository -->
 
 ## 2026-06-29 Update: PostgresTraceRepository
@@ -265,7 +291,7 @@ Repository selection through STORAGE_BACKEND is a later step.
 最新本地测试基线：
 
 ```text
-862 passed
+868 passed
 ```
 
 本机学习版阶段已完成，阶段总复盘见：

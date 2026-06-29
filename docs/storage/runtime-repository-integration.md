@@ -32,7 +32,7 @@ The repository path can construct both JSON and PostgreSQL adapters, and the
 JSON-to-PostgreSQL import command can copy existing local records into
 PostgreSQL. Task workflow runtime now uses the task repository abstraction.
 Chat session runtime now uses the session repository abstraction. Trace runtime
-integration remains a later step.
+now uses the trace repository abstraction for save/load/analyze/replay paths.
 
 ## Target Direction
 
@@ -199,6 +199,15 @@ trace replay
 tool audit
 ```
 
+Status:
+
+```text
+Implemented for Agent trace, generic trace replay, and Sub-Agent trace runtime.
+Trace save/load/analyze/replay functions accept trace_repository.
+CLI commands create trace repositories through RepositoryBundle.
+Default JSONL behavior is preserved through JsonlTraceRepository.
+```
+
 Rollback:
 
 ```text
@@ -309,13 +318,26 @@ Full test suite passes without a real PostgreSQL server.
 Docs clearly state rollback and backend selection behavior.
 ```
 
-## Next Implementation Step
+## Current Implementation Status
 
-Start with Task runtime pilot:
+Completed:
 
 ```text
-Refactor task service entry points to accept a task_repository dependency.
-Keep JSON behavior as default.
-Use fake repositories in tests.
-Do not migrate session or trace runtime in the same PR.
+Task runtime repository pilot.
+Session runtime repository integration.
+Trace runtime repository integration.
+JSON remains the default backend.
+Normal unit tests do not require a real PostgreSQL server.
+```
+
+## Next Implementation Step
+
+Run an explicit local PostgreSQL smoke test:
+
+```text
+Start PostgreSQL with docker compose.
+Run migrations.
+Import existing JSON / JSONL records.
+Run a small task/chat/trace workflow with STORAGE_BACKEND=postgres.
+Keep rollback path as STORAGE_BACKEND=json.
 ```
