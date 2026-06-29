@@ -159,6 +159,37 @@ uv run python -m app.cli postgres-migrations
 This command prints version, name, path, and checksum. It does not connect to
 PostgreSQL and does not modify the database.
 
+## Running Migrations
+
+The migration runner uses `psycopg` and applies only pending migrations. It
+checks `schema_migrations` first:
+
+- matching version and checksum: skip
+- matching version with different checksum: fail
+- missing version: execute SQL and record version / name / checksum
+
+Run against the local Compose database:
+
+```powershell
+docker compose up -d postgres
+
+uv run python -m app.cli run-postgres-migrations `
+  --database-url "postgresql://thesis_agent:thesis_agent_dev_password@localhost:5432/thesis_defense_agent"
+```
+
+Or use `.env`:
+
+```powershell
+uv run python -m app.cli run-postgres-migrations
+```
+
+The CLI intentionally prints only `DATABASE URL: configured`; it does not echo
+the full connection string.
+
+Current boundary: the runner prepares the database schema only. The API still
+uses JSON / JSONL repositories until PostgreSQL repository implementations are
+added and selected through configuration.
+
 ## Why Not Replace JSON Immediately
 
 Replacing storage directly would mix two changes:
@@ -170,9 +201,6 @@ The project should keep those concerns separate. The repository abstraction lets
 
 ## Next Steps
 
-- Add PostgreSQL dependencies after selecting the client library.
-- Add a migration runner that records applied migration versions in
-  `schema_migrations`.
 - Add `PostgresTaskRepository`.
 - Add `PostgresSessionRepository`.
 - Add `PostgresTraceRepository`.
