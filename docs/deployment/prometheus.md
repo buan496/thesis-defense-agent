@@ -166,6 +166,6 @@ production SLOs
 
 ## Next Step
 
-After alert rules are stable, the next operations step is log retention and log
-query documentation. Alertmanager and external notification channels should wait
-until the service is running in a persistent server environment.
+After alert rules are stable, the next operations step is correlation IDs.
+Alertmanager and external notification channels should wait until the service is
+running in a persistent server environment.
