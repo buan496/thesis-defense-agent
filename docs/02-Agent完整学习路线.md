@@ -68,7 +68,8 @@ updated: 2026-06-29
 - [x] 向量库 repository 抽象
 - [x] Qdrant Compose service / config skeleton
 - [x] QdrantVectorStoreRepository minimal implementation
-- [ ] Qdrant 或 Milvus
+- [x] JSON vs Qdrant benchmark comparison
+- [ ] Qdrant 生产化治理 / Milvus
 
 基础知识：
 
@@ -279,7 +280,8 @@ updated: 2026-06-29
 - [x] Vector store repository abstraction
 - [x] Qdrant Compose service / config skeleton
 - [x] QdrantVectorStoreRepository minimal implementation
-- [ ] Qdrant / Milvus
+- [x] JSON vs Qdrant benchmark comparison
+- [ ] Qdrant 生产化治理 / Milvus
 - [ ] K8s 基础部署
 - [ ] 私有化配置和密钥管理
 
@@ -2460,7 +2462,7 @@ docs/17-本机学习版阶段总复盘.md
 ```text
 1. 服务器长期运行验证
 2. PostgreSQL 存储 task / session / trace
-3. Qdrant 或 Milvus 替换本地 JSON 向量库
+3. Qdrant 生产化治理或 Milvus 替换本地 JSON 向量库
 4. Prometheus 告警规则和日志集中采集
 5. K8s manifests
 8. MCP Server 实际接入
@@ -2525,7 +2527,7 @@ docs/deployment/server.md
 
 ```text
 尚未切换 PostgreSQL 存储。
-尚未接 Qdrant / Milvus。
+Qdrant 已有本地最小实现；尚未做生产化治理和 Milvus。
 尚未提供 Prometheus 告警规则。
 尚未提供 K8s manifests。
 ```
@@ -2535,7 +2537,7 @@ docs/deployment/server.md
 ```text
 1. 服务器拉取 GHCR 镜像运行
 2. PostgreSQL
-3. Qdrant / Milvus
+3. Qdrant 生产化治理 / Milvus
 4. Prometheus 告警规则
 5. K8s manifests
 ```

@@ -1,8 +1,18 @@
 import json
+import time
 from collections.abc import Callable
 from pathlib import Path
 
-from app.config import QUERY_EMBEDDING_CACHE_PATH, RAG_VECTOR_STORE_META_PATH,EMBEDDING_MODEL
+from app.config import (
+    EMBEDDING_MODEL,
+    QDRANT_API_KEY,
+    QDRANT_COLLECTION,
+    QDRANT_DISTANCE,
+    QDRANT_URL,
+    QDRANT_VECTOR_SIZE,
+    QUERY_EMBEDDING_CACHE_PATH,
+    RAG_VECTOR_STORE_META_PATH,
+)
 from app.vector_store_metadata import load_vector_store_metadata
 from app.bm25_retriever import search_bm25
 from app.embeddings import create_embedding
@@ -14,8 +24,9 @@ from app.query_rewriter import rewrite_query
 from app.reranker import rerank_results
 from app.vector_store import search_vector_store
 from app.vector_store_repository import (
-    VectorStoreRepository,
     JsonVectorStoreRepository,
+    QdrantVectorStoreRepository,
+    VectorStoreRepository,
 )
 from app.embedding_cache import (
     get_cached_embedding,
@@ -526,6 +537,180 @@ def compare_retrieval_strategies(
     }
 
 
+def evaluate_vector_store_repository(
+    benchmark_path: str,
+    repository: VectorStoreRepository,
+    repository_name: str,
+    top_k: int,
+    embedding_fn: Callable[[str], list[float]] = create_embedding,
+    embedding_cache_path: str = QUERY_EMBEDDING_CACHE_PATH,
+    embedding_model: str = EMBEDDING_MODEL,
+) -> dict:
+    embedding_cache = load_embedding_cache(
+        embedding_cache_path,
+        embedding_model,
+    )
+    cache_stats = {
+        "hits": 0,
+        "misses": 0,
+    }
+
+    def cached_embedding_fn(text: str) -> list[float]:
+        cached_embedding = get_cached_embedding(text, embedding_cache)
+
+        if cached_embedding is not None:
+            cache_stats["hits"] += 1
+            return cached_embedding
+
+        cache_stats["misses"] += 1
+        embedding = embedding_fn(text)
+        embedding_cache["items"][text] = embedding
+        save_embedding_cache(embedding_cache_path, embedding_cache)
+
+        return embedding
+
+    with open(benchmark_path, encoding="utf-8") as file:
+        benchmark = json.loads(file.read())
+
+    results = []
+    scores = []
+    durations = []
+
+    for item in benchmark:
+        query = item["query"]
+        expected_keywords = item["expected_keywords"]
+        started_at = time.perf_counter()
+        search_results = repository.search(
+            query=query,
+            top_k=top_k,
+            embedding_fn=cached_embedding_fn,
+        )
+        duration_ms = (time.perf_counter() - started_at) * 1000
+        durations.append(duration_ms)
+        score_report = score_retrieved_keywords(
+            retrieved_text="\n".join(
+                result["text"] for result in search_results
+            ),
+            expected_keywords=expected_keywords,
+        )
+        scores.append(score_report["score"])
+
+        results.append(
+            {
+                "query": query,
+                "hit_count": score_report["hit_count"],
+                "total": score_report["total"],
+                "missing": score_report["missing"],
+                "score": score_report["score"],
+                "duration_ms": duration_ms,
+                "result_count": len(search_results),
+            }
+        )
+
+    total_duration_ms = sum(durations)
+    average_duration_ms = (
+        total_duration_ms / len(durations)
+        if durations
+        else 0.0
+    )
+
+    return {
+        "benchmark_path": benchmark_path,
+        "repository": repository_name,
+        "top_k": top_k,
+        "average_score": sum(scores) / len(scores) if scores else 0.0,
+        "average_duration_ms": average_duration_ms,
+        "total_duration_ms": total_duration_ms,
+        "embedding_cache": {
+            "model": embedding_model,
+            "hits": cache_stats["hits"],
+            "misses": cache_stats["misses"],
+        },
+        "results": results,
+    }
+
+
+def compare_vector_store_repositories(
+    benchmark_path: str,
+    vector_store_path: str,
+    top_k: int,
+    embedding_fn: Callable[[str], list[float]] = create_embedding,
+    embedding_cache_path: str = QUERY_EMBEDDING_CACHE_PATH,
+    embedding_model: str = EMBEDDING_MODEL,
+    repositories: dict[str, VectorStoreRepository] | None = None,
+    qdrant_url: str = QDRANT_URL,
+    qdrant_collection: str = QDRANT_COLLECTION,
+    qdrant_vector_size: int = QDRANT_VECTOR_SIZE,
+    qdrant_distance: str = QDRANT_DISTANCE,
+    qdrant_api_key: str = QDRANT_API_KEY,
+) -> dict:
+    selected_repositories = repositories or {
+        "json": JsonVectorStoreRepository(vector_store_path),
+        "qdrant": QdrantVectorStoreRepository(
+            url=qdrant_url,
+            collection_name=qdrant_collection,
+            vector_size=qdrant_vector_size,
+            distance=qdrant_distance,
+            api_key=qdrant_api_key,
+        ),
+    }
+    reports = []
+
+    for repository_name, repository in selected_repositories.items():
+        reports.append(
+            evaluate_vector_store_repository(
+                benchmark_path=benchmark_path,
+                repository=repository,
+                repository_name=repository_name,
+                top_k=top_k,
+                embedding_fn=embedding_fn,
+                embedding_cache_path=embedding_cache_path,
+                embedding_model=embedding_model,
+            )
+        )
+
+    best_report = max(
+        reports,
+        key=lambda report: (
+            report["average_score"],
+            -report["average_duration_ms"],
+        ),
+    ) if reports else None
+    report_by_name = {
+        report["repository"]: report
+        for report in reports
+    }
+    json_report = report_by_name.get("json")
+    qdrant_report = report_by_name.get("qdrant")
+
+    score_delta = None
+    duration_delta_ms = None
+
+    if json_report is not None and qdrant_report is not None:
+        score_delta = (
+            qdrant_report["average_score"]
+            - json_report["average_score"]
+        )
+        duration_delta_ms = (
+            qdrant_report["average_duration_ms"]
+            - json_report["average_duration_ms"]
+        )
+
+    return {
+        "benchmark_path": benchmark_path,
+        "vector_store_path": vector_store_path,
+        "top_k": top_k,
+        "best_repository": (
+            best_report["repository"]
+            if best_report is not None
+            else None
+        ),
+        "score_delta_qdrant_minus_json": score_delta,
+        "duration_delta_ms_qdrant_minus_json": duration_delta_ms,
+        "reports": reports,
+    }
+
+
 def search_retrieval_store(
     query: str,
     store: list[dict],
@@ -561,6 +746,36 @@ def search_retrieval_store(
         )
 
     raise ValueError("retriever must be vector, bm25, or hybrid")
+
+
+def score_retrieved_keywords(
+    retrieved_text: str,
+    expected_keywords: list,
+) -> dict:
+    hit_count = 0
+    missing_keywords = []
+
+    for keyword in expected_keywords:
+        if isinstance(keyword, list):
+            hit = any(option in retrieved_text for option in keyword)
+            label = "/".join(keyword)
+        else:
+            hit = keyword in retrieved_text
+            label = keyword
+
+        if hit:
+            hit_count += 1
+        else:
+            missing_keywords.append(label)
+
+    total = len(expected_keywords)
+
+    return {
+        "hit_count": hit_count,
+        "total": total,
+        "missing": missing_keywords,
+        "score": hit_count / total if total else 0.0,
+    }
 
 
 def search_multi_query_store(

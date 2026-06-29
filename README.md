@@ -323,6 +323,7 @@ docs/17-本机学习版阶段总复盘.md
 - 支持向量库 metadata、参数一致性检查、断点恢复和增量跳过
 - 支持 query embedding cache，减少重复评估时的 API 调用
 - 支持 RAG benchmark，统计 Top-K 召回关键字覆盖率
+- 支持 JSON 与 Qdrant 向量库后端 benchmark 对比，记录质量和延迟差异
 - 支持 BM25 关键词检索、Vector 语义检索和 Hybrid 融合检索
 - 支持检索器对比和 Hybrid 权重扫描，用 benchmark 自动选择检索参数
 - 支持规则版 reranker，并可用 benchmark 对比 rerank 前后效果
@@ -431,7 +432,7 @@ retrieve_context
 
 - Web 前端
 - PostgreSQL
-- Qdrant / Milvus
+- Qdrant 生产化治理 / Milvus
 - K8s
 - 私有化部署
 - 服务器环境变量和密钥管理
@@ -761,7 +762,7 @@ retrieve_context
 
 1. 服务器长期运行验证：在服务器拉取 main，用 docker compose 运行 API 和 Prometheus。
 2. 对 README 和学习路线做周期性同步，避免文档落后于代码。
-3. 后续继续推进 Qdrant / Milvus、真实 MCP Server、Prometheus 告警和 K8s 样例。
+3. 后续继续推进 Qdrant 生产化治理 / Milvus、真实 MCP Server、Prometheus 告警和 K8s 样例。
 
 ## 2026-06-29 Update: Vector Store Repository Abstraction
 
@@ -769,7 +770,8 @@ RAG 向量库现在开始从“直接读写 JSON 文件”过渡到 repository �
 
 ```text
 VECTOR_STORE_BACKEND=json -> JsonVectorStoreRepository
-VECTOR_STORE_BACKEND=qdrant / milvus -> reserved backend names, not implemented yet
+VECTOR_STORE_BACKEND=qdrant -> QdrantVectorStoreRepository
+VECTOR_STORE_BACKEND=milvus -> reserved backend name, not implemented yet
 ```
 
 已接入路径：
@@ -784,8 +786,8 @@ Retrieval evaluator load path
 
 ```text
 JSON 仍是默认向量库后端。
-Qdrant / Milvus 只预留 backend 名称，尚未接真实服务。
-这一步的目的，是把后续外部向量数据库替换点固定下来。
+Qdrant 已有最小 repository 实现和 benchmark 对比入口。
+Milvus 只预留 backend 名称，尚未接真实服务。
 ```
 
 ## 2026-06-29 Update: Qdrant Compose Service
@@ -851,7 +853,20 @@ uv run python -m app.cli import-vector-store-to-qdrant `
 ```text
 VECTOR_STORE_BACKEND=json 仍是默认值。
 Task retrieve_context 已可通过 VECTOR_STORE_BACKEND=qdrant 使用 Qdrant。
-RAG benchmark 对比 Qdrant 与 JSON 后端仍是下一步。
+RAG benchmark 已支持对比 Qdrant 与 JSON 后端。
+```
+
+对比 JSON 与 Qdrant 后端：
+
+```powershell
+docker compose up -d qdrant
+
+uv run python -m app.cli compare-vector-store-backends `
+  --source data/vector_store.json `
+  --url http://127.0.0.1:6333 `
+  --collection thesis_chunks `
+  --vector-size 1024 `
+  --distance Cosine
 ```
 
 ### LangGraph 旁路 Demo

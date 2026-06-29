@@ -23,6 +23,7 @@ from app.evaluation_report_comparator import (
 from app.retrieval_evaluator import (
     compare_retrieval_strategies,
     compare_retrievers,
+    compare_vector_store_repositories,
     evaluate_retrieval,
     scan_hybrid_weights,
 )
@@ -2061,6 +2062,54 @@ def main():
         "--api-key",
         default=None,
         help="Optional Qdrant API key. Defaults to QDRANT_API_KEY.",
+    )
+
+    compare_vector_store_backends_parser = subparsers.add_parser(
+        "compare-vector-store-backends",
+        help="Compare local JSON vector store search with Qdrant search",
+    )
+    compare_vector_store_backends_parser.add_argument(
+        "--top-k",
+        type=int,
+        default=None,
+        help="Number of chunks to retrieve",
+    )
+    compare_vector_store_backends_parser.add_argument(
+        "--source",
+        default=RAG_VECTOR_STORE_PATH,
+        help="Local JSON vector store path",
+    )
+    compare_vector_store_backends_parser.add_argument(
+        "--url",
+        default=QDRANT_URL,
+        help="Qdrant URL",
+    )
+    compare_vector_store_backends_parser.add_argument(
+        "--collection",
+        default=QDRANT_COLLECTION,
+        help="Qdrant collection name",
+    )
+    compare_vector_store_backends_parser.add_argument(
+        "--vector-size",
+        type=int,
+        default=QDRANT_VECTOR_SIZE,
+        help="Qdrant vector size",
+    )
+    compare_vector_store_backends_parser.add_argument(
+        "--distance",
+        default=QDRANT_DISTANCE,
+        help="Qdrant distance metric",
+    )
+    compare_vector_store_backends_parser.add_argument(
+        "--api-key",
+        default=None,
+        help="Optional Qdrant API key. Defaults to QDRANT_API_KEY.",
+    )
+    compare_vector_store_backends_parser.add_argument(
+        "--output",
+        type=str,
+        default=None,
+        help="Path to save backend comparison report as JSON",
     )
 
     import_json_to_postgres_parser = subparsers.add_parser(
@@ -4631,6 +4680,78 @@ def main():
         print("VECTOR SIZE:", args.vector_size)
         print("DISTANCE:", args.distance)
         print("IMPORTED COUNT:", len(store))
+
+    elif args.command == "compare-vector-store-backends":
+        top_k = args.top_k if args.top_k is not None else RAG_TOP_K
+
+        try:
+            report = compare_vector_store_repositories(
+                benchmark_path=RAG_BENCHMARK_PATH,
+                vector_store_path=args.source,
+                top_k=top_k,
+                qdrant_url=args.url,
+                qdrant_collection=args.collection,
+                qdrant_vector_size=args.vector_size,
+                qdrant_distance=args.distance,
+                qdrant_api_key=(
+                    args.api_key
+                    if args.api_key is not None
+                    else QDRANT_API_KEY
+                ),
+            )
+        except (FileNotFoundError, ValueError, RuntimeError) as error:
+            print(f"VECTOR STORE BACKEND COMPARISON ERROR: {error}")
+            raise SystemExit(1) from error
+
+        print("VECTOR STORE BACKEND COMPARISON")
+        print("TOP_K:", report["top_k"])
+        print("BEST REPOSITORY:", report["best_repository"])
+        print(
+            "SCORE DELTA QDRANT-JSON:",
+            report["score_delta_qdrant_minus_json"],
+        )
+        print(
+            "DURATION DELTA MS QDRANT-JSON:",
+            report["duration_delta_ms_qdrant_minus_json"],
+        )
+
+        for repository_report in report["reports"]:
+            print("-" * 40)
+            print("REPOSITORY:", repository_report["repository"])
+            print("AVERAGE SCORE:", repository_report["average_score"])
+            print(
+                "AVERAGE DURATION MS:",
+                repository_report["average_duration_ms"],
+            )
+            print(
+                "CACHE HITS:",
+                repository_report["embedding_cache"]["hits"],
+            )
+            print(
+                "CACHE MISSES:",
+                repository_report["embedding_cache"]["misses"],
+            )
+
+            for item in repository_report["results"]:
+                print(
+                    f"QUERY: {item['query']} | "
+                    f"SCORE: {item['score']} | "
+                    f"DURATION_MS: {item['duration_ms']} | "
+                    f"MISSING: {item['missing']}"
+                )
+
+        if args.output is not None:
+            output_path = Path(args.output)
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            output_path.write_text(
+                json.dumps(
+                    report,
+                    ensure_ascii=False,
+                    indent=2,
+                ),
+                encoding="utf-8",
+            )
+            print("REPORT SAVED:", output_path)
 
     elif args.command == "import-json-to-postgres":
         database_url = (
