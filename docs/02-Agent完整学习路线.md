@@ -266,6 +266,7 @@ updated: 2026-06-29
 - [x] PostgreSQL migration runner
 - [x] PostgresTaskRepository
 - [x] PostgresSessionRepository
+- [x] PostgresTraceRepository
 - [ ] PostgreSQL
 - [ ] Qdrant / Milvus
 - [ ] K8s 基础部署
@@ -462,6 +463,41 @@ API service 仍默认使用 JSON task/session store。
 ```text
 PostgresTraceRepository。
 对齐 JsonlTraceRepository 行为，实现 append-only trace 写入和读取。
+```
+
+<!-- roadmap-update-2026-06-29-postgres-trace-repository -->
+
+## 2026-06-29 路线同步：PostgresTraceRepository 已完成
+
+本阶段完成的是 append-only trace 的 PostgreSQL repository adapter，不切换默认业务存储。
+
+已完成：
+
+- [x] `app.postgres_trace_repository.PostgresTraceRepository`
+- [x] `append(record)` 写入 `trace_records`
+- [x] `load_all()` 按插入顺序读取 payload
+- [x] `JSONB` payload 保存完整 trace record
+- [x] `source_type`、`source_id`、`event_type`、`success` 查询列填充
+- [x] Agent trace / Sub-Agent trace 常见字段推断
+- [x] commit / rollback / close 生命周期处理
+- [x] fake connection 单元测试，不依赖真实数据库
+
+当前边界：
+
+```text
+PostgresTaskRepository 已实现。
+PostgresSessionRepository 已实现。
+PostgresTraceRepository 已实现。
+API service 仍默认使用 JSON / JSONL storage。
+尚未实现 STORAGE_BACKEND repository factory。
+尚未实现 JSON -> PostgreSQL 导入脚本。
+```
+
+下一步学习：
+
+```text
+Repository factory / configuration selection。
+根据 STORAGE_BACKEND=json|postgres 创建 Task / Session / Trace repositories。
 ```
 
 已经完成的 Task State 能力：

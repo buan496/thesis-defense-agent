@@ -121,6 +121,23 @@ The API service still uses JSON task storage by default.
 Repository selection through STORAGE_BACKEND is a later step.
 ```
 
+<!-- docs-update-2026-06-29-postgres-trace-repository -->
+
+## 2026-06-29 Update: PostgresTraceRepository
+
+`PostgresTraceRepository` is now implemented as a PostgreSQL-backed append-only
+trace storage adapter. It stores the original trace record as JSONB while also
+filling query columns such as `source_type`, `source_id`, `event_type`, and
+`success`.
+
+Current boundary:
+
+```text
+The repository implementation exists and is covered by fake-connection tests.
+The application still writes JSONL traces by default.
+Repository selection through STORAGE_BACKEND is a later step.
+```
+
 <!-- docs-update-2026-06-29-postgres-session-repository -->
 
 ## 2026-06-29 Update: PostgresSessionRepository
@@ -141,7 +158,7 @@ Repository selection through STORAGE_BACKEND is a later step.
 最新本地测试基线：
 
 ```text
-827 passed
+835 passed
 ```
 
 本机学习版阶段已完成，阶段总复盘见：

@@ -236,6 +236,30 @@ Current boundary: `PostgresSessionRepository` is implemented and tested, but the
 API service still uses the existing JSON session store unless a future
 repository factory selects PostgreSQL through configuration.
 
+## Trace Repository
+
+`PostgresTraceRepository` lives in:
+
+```text
+app/postgres_trace_repository.py
+```
+
+It implements the same `append(record)` and `load_all()` behavior as the
+`TraceRepository` protocol:
+
+- appends trace records to `trace_records`
+- stores the full original trace as PostgreSQL `JSONB`
+- fills query columns: `source_type`, `source_id`, `event_type`, `success`
+- infers common Agent and Sub-Agent trace fields when explicit metadata is not
+  present
+- returns `postgres:trace_records:<id>` for appended records
+- loads payloads back in insertion order
+- commits on success and rolls back on append failure
+
+Current boundary: `PostgresTraceRepository` is implemented and tested, but the
+application still writes JSONL traces unless a future repository factory selects
+PostgreSQL through configuration.
+
 ## Why Not Replace JSON Immediately
 
 Replacing storage directly would mix two changes:
@@ -247,6 +271,5 @@ The project should keep those concerns separate. The repository abstraction lets
 
 ## Next Steps
 
-- Add `PostgresTraceRepository`.
 - Add repository factory / configuration selection for JSON vs PostgreSQL.
 - Add JSON-to-PostgreSQL import scripts.
