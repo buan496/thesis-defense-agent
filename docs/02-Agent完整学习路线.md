@@ -262,6 +262,7 @@ updated: 2026-06-29
 - [x] GHCR 镜像拉取与运行验证
 - [x] PostgreSQL 存储抽象设计
 - [x] PostgreSQL Docker Compose service
+- [x] PostgreSQL schema / migration files
 - [ ] PostgreSQL
 - [ ] Qdrant / Milvus
 - [ ] K8s 基础部署
@@ -314,6 +315,43 @@ PostgreSQL 只作为本地集成测试和后续 repository 实现的基础设施
 ```text
 PostgreSQL schema / migration。
 先定义表结构和迁移脚本，再实现 PostgresTaskRepository / PostgresSessionRepository / PostgresTraceRepository。
+```
+
+<!-- roadmap-update-2026-06-29-postgres-migrations -->
+
+## 2026-06-29 路线同步：PostgreSQL Schema / Migration 已完成
+
+本阶段完成的是迁移资产和只读迁移计划查看，不执行数据库写入。
+
+已完成：
+
+- [x] `db/migrations/postgres/001_initial_schema.sql`
+- [x] `schema_migrations` 表设计
+- [x] `defense_tasks` 表设计
+- [x] `agent_sessions` 表设计
+- [x] `trace_records` 表设计
+- [x] `feedback_records` 表设计
+- [x] `benchmark_candidates` 表设计
+- [x] 关键索引设计
+- [x] `app.postgres_migrations` 迁移文件读取、版本解析、checksum 计算
+- [x] `postgres-migrations` CLI 只读查看迁移计划
+- [x] 离线测试覆盖 migration SQL 与 CLI
+
+当前边界：
+
+```text
+尚未引入 PostgreSQL Python client。
+尚未执行 SQL。
+尚未记录已应用 migration。
+尚未实现 PostgresTaskRepository / PostgresSessionRepository / PostgresTraceRepository。
+业务存储仍默认使用 JSON / JSONL。
+```
+
+下一步学习：
+
+```text
+PostgreSQL migration runner。
+选择 PostgreSQL client 后，连接 DATABASE_URL，执行未应用 migration，并写入 schema_migrations。
 ```
 
 已经完成的 Task State 能力：
