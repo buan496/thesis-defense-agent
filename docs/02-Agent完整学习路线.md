@@ -264,7 +264,8 @@ updated: 2026-06-29
 - [x] Prometheus 告警规则
 - [x] 日志保留与查询文档
 - [ ] Alertmanager / 通知渠道
-- [ ] Correlation ID
+- [x] API request Correlation ID
+- [ ] request -> task -> tool call 全链路 Correlation ID
 - [x] Docker
 - [x] Docker build CI
 - [x] GHCR 镜像发布流程
@@ -2535,8 +2536,8 @@ docs/deployment/server.md
 ```text
 尚未切换 PostgreSQL 存储。
 Qdrant 已有本地最小实现；尚未做生产化治理和 Milvus。
-Prometheus 告警规则已完成；日志保留与查询文档已完成。
-尚未提供 Alertmanager / 通知渠道和 Correlation ID。
+Prometheus 告警规则已完成；日志保留与查询文档已完成；API request Correlation ID 已完成。
+尚未提供 Alertmanager / 通知渠道和 request -> task -> tool call 全链路 Correlation ID。
 尚未提供 K8s manifests。
 ```
 
