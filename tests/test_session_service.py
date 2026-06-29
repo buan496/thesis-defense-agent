@@ -48,6 +48,25 @@ class FakeResponse:
             },
         )()
 
+
+class InMemorySessionRepository:
+    def __init__(self):
+        self.sessions = {}
+        self.saved_identifiers = []
+
+    def save(self, session: AgentSession) -> str:
+        self.sessions[session.session_id] = session
+        saved_identifier = f"repository:{session.session_id}"
+        self.saved_identifiers.append(saved_identifier)
+        return saved_identifier
+
+    def load(self, session_id: str) -> AgentSession:
+        if session_id not in self.sessions:
+            raise FileNotFoundError(session_id)
+
+        return self.sessions[session_id]
+
+
 def test_run_agent_session_creates_and_saves_new_session(
     tmp_path,
 ):
@@ -77,6 +96,28 @@ def test_run_agent_session_creates_and_saves_new_session(
     )
 
     assert loaded_session == session
+
+
+def test_run_agent_session_can_use_session_repository(tmp_path):
+    repository = InMemorySessionRepository()
+
+    def fake_llm_call(messages):
+        return FakeMessage(
+            content="session repository saved",
+            tool_calls=None,
+        )
+
+    result, session, saved_identifier = run_agent_session(
+        user_message="hello",
+        directory=tmp_path,
+        llm_call=fake_llm_call,
+        session_repository=repository,
+    )
+
+    assert result.final_output == "session repository saved"
+    assert saved_identifier == f"repository:{session.session_id}"
+    assert repository.sessions[session.session_id] == session
+    assert not (tmp_path / f"{session.session_id}.json").exists()
 
 
 def test_run_agent_session_injects_long_term_memory_context(
@@ -329,6 +370,52 @@ def test_run_agent_session_resumes_existing_session(
         "role": "assistant",
         "content": "你的论文研究方向是语音识别。",
     }
+
+
+def test_run_agent_session_can_resume_from_session_repository(tmp_path):
+    repository = InMemorySessionRepository()
+    original_session = AgentSession(
+        session_id="resume-session",
+    )
+    original_session.add_message(
+        role="user",
+        content="我的论文研究语音识别。",
+    )
+    repository.save(original_session)
+
+    received_messages = []
+
+    def fake_llm_call(messages):
+        received_messages.extend(messages)
+
+        return FakeMessage(
+            content="你的论文研究方向是语音识别。",
+            tool_calls=None,
+        )
+
+    result, session, saved_identifier = run_agent_session(
+        user_message="我的论文研究方向是什么？",
+        session_id="resume-session",
+        directory=tmp_path,
+        llm_call=fake_llm_call,
+        session_repository=repository,
+    )
+
+    assert result.final_output == "你的论文研究方向是语音识别。"
+    assert session.session_id == "resume-session"
+    assert saved_identifier == "repository:resume-session"
+    assert received_messages[1:] == [
+        {
+            "role": "user",
+            "content": "我的论文研究语音识别。",
+        },
+        {
+            "role": "user",
+            "content": "我的论文研究方向是什么？",
+        },
+    ]
+    assert repository.sessions["resume-session"] == session
+    assert not (tmp_path / "resume-session.json").exists()
 
 
 def test_run_agent_session_rejects_missing_session(

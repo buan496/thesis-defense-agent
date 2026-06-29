@@ -38,6 +38,7 @@ def test_chat_command_creates_new_session(monkeypatch, capsys, tmp_path):
         max_memory_summaries=3,
         compact_session=True,
         compact_summary_max_characters=4000,
+        session_repository=None,
     ):
         received_arguments.update(
             {
@@ -53,6 +54,9 @@ def test_chat_command_creates_new_session(monkeypatch, capsys, tmp_path):
                 "compact_session": compact_session,
                 "compact_summary_max_characters": (
                     compact_summary_max_characters
+                ),
+                "session_repository_present": (
+                    session_repository is not None
                 ),
             }
         )
@@ -85,6 +89,7 @@ def test_chat_command_creates_new_session(monkeypatch, capsys, tmp_path):
         "max_memory_summaries": 3,
         "compact_session": True,
         "compact_summary_max_characters": 4000,
+        "session_repository_present": True,
     }
     assert "saved thesis direction" in output
     assert "TOKEN USAGE" in output
@@ -98,6 +103,72 @@ def test_chat_command_creates_new_session(monkeypatch, capsys, tmp_path):
     assert "CURRENCY: CNY" in output
     assert "new-session-001" in output
     assert "new-session-001.json" in output
+
+
+def test_chat_command_uses_repository_factory(monkeypatch, capsys):
+    factory_calls = []
+    repository = object()
+
+    def fake_create_repositories(
+        storage_backend,
+        database_url,
+        session_directory,
+    ):
+        factory_calls.append(
+            {
+                "storage_backend": storage_backend,
+                "database_url": database_url,
+                "session_directory": session_directory,
+            }
+        )
+
+        return SimpleNamespace(session_repository=repository)
+
+    def fake_run_agent_session(
+        user_message,
+        session_id=None,
+        max_history_turns=6,
+        max_history_characters=12000,
+        max_run_cost=None,
+        preflight_max_run_cost=None,
+        use_long_term_memory=True,
+        max_memory_weaknesses=5,
+        max_memory_summaries=3,
+        compact_session=True,
+        compact_summary_max_characters=4000,
+        session_repository=None,
+    ):
+        assert session_repository is repository
+
+        return (
+            build_fake_agent_result("repository backed session"),
+            SimpleNamespace(session_id="repository-session"),
+            "repository:repository-session",
+        )
+
+    monkeypatch.setattr(
+        cli,
+        "create_repositories",
+        fake_create_repositories,
+    )
+    monkeypatch.setattr(cli, "run_agent_session", fake_run_agent_session)
+    monkeypatch.setattr(
+        "sys.argv",
+        ["app.cli", "chat", "--message", "remember this"],
+    )
+
+    cli.main()
+    output = capsys.readouterr().out
+
+    assert "repository backed session" in output
+    assert "repository:repository-session" in output
+    assert factory_calls == [
+        {
+            "storage_backend": cli.STORAGE_BACKEND,
+            "database_url": cli.DATABASE_URL,
+            "session_directory": str(cli.DEFAULT_SESSION_DIRECTORY),
+        }
+    ]
 
 
 def test_chat_command_resumes_existing_session(monkeypatch, capsys, tmp_path):
@@ -115,6 +186,7 @@ def test_chat_command_resumes_existing_session(monkeypatch, capsys, tmp_path):
         max_memory_summaries=3,
         compact_session=True,
         compact_summary_max_characters=4000,
+        session_repository=None,
     ):
         received_arguments.update(
             {
@@ -187,6 +259,7 @@ def test_chat_command_reads_interactive_input(monkeypatch, capsys, tmp_path):
         max_memory_summaries=3,
         compact_session=True,
         compact_summary_max_characters=4000,
+        session_repository=None,
     ):
         assert user_message == "interactive question"
         assert session_id is None
@@ -222,6 +295,7 @@ def test_chat_command_handles_missing_session(monkeypatch, capsys):
         max_memory_summaries=3,
         compact_session=True,
         compact_summary_max_characters=4000,
+        session_repository=None,
     ):
         raise FileNotFoundError("missing-session.json")
 
@@ -262,6 +336,7 @@ def test_chat_command_passes_max_history_turns(monkeypatch, capsys, tmp_path):
         max_memory_summaries=3,
         compact_session=True,
         compact_summary_max_characters=4000,
+        session_repository=None,
     ):
         received_arguments["max_history_turns"] = max_history_turns
 
@@ -332,6 +407,7 @@ def test_chat_command_passes_max_history_characters(monkeypatch, capsys, tmp_pat
         max_memory_summaries=3,
         compact_session=True,
         compact_summary_max_characters=4000,
+        session_repository=None,
     ):
         received_arguments["max_history_characters"] = max_history_characters
 
@@ -402,6 +478,7 @@ def test_chat_command_passes_max_run_cost(monkeypatch, capsys, tmp_path):
         max_memory_summaries=3,
         compact_session=True,
         compact_summary_max_characters=4000,
+        session_repository=None,
     ):
         received_arguments["max_run_cost"] = max_run_cost
 
@@ -470,6 +547,7 @@ def test_chat_command_handles_budget_exceeded(monkeypatch, capsys):
         max_memory_summaries=3,
         compact_session=True,
         compact_summary_max_characters=4000,
+        session_repository=None,
     ):
         raise BudgetExceededError(
             actual_cost=0.06,
@@ -515,6 +593,7 @@ def test_chat_command_passes_preflight_max_run_cost(monkeypatch, capsys, tmp_pat
         max_memory_summaries=3,
         compact_session=True,
         compact_summary_max_characters=4000,
+        session_repository=None,
     ):
         received_arguments["preflight_max_run_cost"] = preflight_max_run_cost
 
@@ -583,6 +662,7 @@ def test_chat_command_handles_preflight_budget_exceeded(monkeypatch, capsys):
         max_memory_summaries=3,
         compact_session=True,
         compact_summary_max_characters=4000,
+        session_repository=None,
     ):
         raise PreflightBudgetExceededError(
             estimated_cost=0.06,
@@ -629,6 +709,7 @@ def test_chat_command_passes_memory_controls(monkeypatch, capsys, tmp_path):
         max_memory_summaries=3,
         compact_session=True,
         compact_summary_max_characters=4000,
+        session_repository=None,
     ):
         received_arguments["user_message"] = user_message
         received_arguments["use_long_term_memory"] = use_long_term_memory
@@ -740,6 +821,7 @@ def test_chat_command_passes_session_compaction_controls(
         max_memory_summaries=3,
         compact_session=True,
         compact_summary_max_characters=4000,
+        session_repository=None,
     ):
         received_arguments["compact_session"] = compact_session
         received_arguments["compact_summary_max_characters"] = (

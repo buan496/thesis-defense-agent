@@ -11,6 +11,7 @@ from app.session_store import (
     load_agent_session,
     save_agent_session,
 )
+from app.storage_repositories import SessionRepository
 from app.tool_executor import execute_tool_call
 from app.budget_guard import (
     PreflightBudgetExceededError,
@@ -29,6 +30,37 @@ from app.long_term_memory import (
 )
 from app.preflight_budget import estimate_preflight_budget
 
+SessionSaveReference = str | Path
+
+
+def _load_session(
+    session_id: str,
+    directory: str | Path,
+    session_repository: SessionRepository | None,
+) -> AgentSession:
+    if session_repository is not None:
+        return session_repository.load(session_id)
+
+    return load_agent_session(
+        session_id=session_id,
+        directory=directory,
+    )
+
+
+def _save_session(
+    session: AgentSession,
+    directory: str | Path,
+    session_repository: SessionRepository | None,
+) -> SessionSaveReference:
+    if session_repository is not None:
+        return session_repository.save(session)
+
+    return save_agent_session(
+        session=session,
+        directory=directory,
+    )
+
+
 def run_agent_session(
     user_message: str,
     session_id: str | None = None,
@@ -46,13 +78,15 @@ def run_agent_session(
     compact_summary_max_characters: int = 4000,
     llm_call: Callable[[list[dict]], Any] | None = None,
     tool_executor: Callable[[Any], str] = execute_tool_call,
-) -> tuple[AgentResult, AgentSession, Path]:
+    session_repository: SessionRepository | None = None,
+) -> tuple[AgentResult, AgentSession, SessionSaveReference]:
     if session_id is None:
         session = AgentSession()
     else:
-        session = load_agent_session(
+        session = _load_session(
             session_id=session_id,
             directory=directory,
+            session_repository=session_repository,
         )
     
     session.add_message(
@@ -142,9 +176,10 @@ def run_agent_session(
             max_summary_characters=compact_summary_max_characters,
         )
 
-    session_path = save_agent_session(
+    session_path = _save_session(
         session=session,
         directory=directory,
+        session_repository=session_repository,
     )
 
     return result, session, session_path
