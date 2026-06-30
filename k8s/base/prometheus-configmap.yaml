@@ -1,0 +1,66 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: thesis-defense-agent-prometheus-config
+  namespace: thesis-defense-agent
+  labels:
+    app.kubernetes.io/name: thesis-defense-agent-prometheus
+    app.kubernetes.io/part-of: thesis-defense-agent
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+
+    alerting:
+      alertmanagers:
+        - static_configs:
+            - targets:
+                - "alertmanager:9093"
+
+    rule_files:
+      - /etc/prometheus/alert_rules.yml
+
+    scrape_configs:
+      - job_name: "thesis-defense-agent-api"
+        metrics_path: "/metrics/prometheus"
+        static_configs:
+          - targets:
+              - "api:8000"
+  alert_rules.yml: |
+    groups:
+      - name: thesis-defense-agent-api
+        rules:
+          - alert: ThesisDefenseAgentApiDown
+            expr: up{job="thesis-defense-agent-api"} == 0
+            for: 1m
+            labels:
+              severity: critical
+              service: thesis-defense-agent-api
+            annotations:
+              summary: "Thesis Defense Agent API is down"
+              description: "Prometheus cannot scrape thesis-defense-agent-api for more than 1 minute."
+
+          - alert: ThesisDefenseAgentHigh5xxRate
+            expr: |
+              (
+                sum(rate(thesis_defense_api_request_status_total{status_code=~"5.."}[5m]))
+                /
+                clamp_min(sum(rate(thesis_defense_api_requests_total[5m])), 1)
+              ) > 0.05
+            for: 5m
+            labels:
+              severity: warning
+              service: thesis-defense-agent-api
+            annotations:
+              summary: "Thesis Defense Agent API 5xx rate is high"
+              description: "More than 5% of API requests returned 5xx responses during the last 5 minutes."
+
+          - alert: ThesisDefenseAgentHighAverageLatency
+            expr: thesis_defense_api_request_duration_ms_average > 2000
+            for: 5m
+            labels:
+              severity: warning
+              service: thesis-defense-agent-api
+            annotations:
+              summary: "Thesis Defense Agent API average latency is high"
+              description: "Average API request latency is above 2000 ms for more than 5 minutes."
