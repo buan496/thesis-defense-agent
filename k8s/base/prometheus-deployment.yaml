@@ -8,15 +8,30 @@ metadata:
     app.kubernetes.io/part-of: thesis-defense-agent
 spec:
   replicas: 1
+  revisionHistoryLimit: 3
+  progressDeadlineSeconds: 180
   selector:
     matchLabels:
       app.kubernetes.io/name: thesis-defense-agent-prometheus
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
   template:
     metadata:
       labels:
         app.kubernetes.io/name: thesis-defense-agent-prometheus
         app.kubernetes.io/part-of: thesis-defense-agent
     spec:
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        runAsGroup: 65534
+        fsGroup: 65534
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: prometheus
           image: prom/prometheus:v3.8.0
@@ -52,6 +67,11 @@ spec:
             limits:
               cpu: "1000m"
               memory: "1Gi"
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
       volumes:
         - name: config
           configMap:

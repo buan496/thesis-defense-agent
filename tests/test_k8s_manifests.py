@@ -11,12 +11,15 @@ EXPECTED_MANIFESTS = [
     "api-configmap.yaml",
     "api-secret.example.yaml",
     "api-deployment.yaml",
+    "api-pod-disruption-budget.yaml",
     "api-service.yaml",
     "prometheus-configmap.yaml",
     "prometheus-deployment.yaml",
+    "prometheus-pod-disruption-budget.yaml",
     "prometheus-service.yaml",
     "alertmanager-configmap.yaml",
     "alertmanager-deployment.yaml",
+    "alertmanager-pod-disruption-budget.yaml",
     "alertmanager-service.yaml",
 ]
 
@@ -64,7 +67,32 @@ def test_k8s_api_deployment_maps_compose_api_service():
     assert "readinessProbe:" in text
     assert "livenessProbe:" in text
     assert "path: /health" in text
+    assert "revisionHistoryLimit: 3" in text
+    assert "progressDeadlineSeconds: 180" in text
+    assert "type: RollingUpdate" in text
+    assert "maxUnavailable: 0" in text
+    assert "maxSurge: 1" in text
+    assert "terminationGracePeriodSeconds: 30" in text
+    assert "runAsNonRoot: true" in text
+    assert "runAsUser: 10001" in text
+    assert "seccompProfile:" in text
+    assert "type: RuntimeDefault" in text
+    assert "allowPrivilegeEscalation: false" in text
+    assert "drop:" in text
+    assert "- ALL" in text
+    assert "requests:" in text
+    assert "limits:" in text
     assert "emptyDir: {}" in text
+
+
+def test_k8s_api_pod_disruption_budget_targets_api_pods():
+    text = read_manifest("api-pod-disruption-budget.yaml")
+
+    assert "kind: PodDisruptionBudget" in text
+    assert "name: thesis-defense-agent-api-pdb" in text
+    assert "namespace: thesis-defense-agent" in text
+    assert "minAvailable: 1" in text
+    assert "app.kubernetes.io/name: thesis-defense-agent-api" in text
 
 
 def test_k8s_api_service_uses_compose_dns_name():
@@ -121,9 +149,33 @@ def test_k8s_prometheus_deployment_and_service_are_cluster_internal():
     assert "subPath: alert_rules.yml" in deployment_text
     assert "readinessProbe:" in deployment_text
     assert "livenessProbe:" in deployment_text
+    assert "revisionHistoryLimit: 3" in deployment_text
+    assert "progressDeadlineSeconds: 180" in deployment_text
+    assert "type: RollingUpdate" in deployment_text
+    assert "maxUnavailable: 0" in deployment_text
+    assert "maxSurge: 1" in deployment_text
+    assert "terminationGracePeriodSeconds: 30" in deployment_text
+    assert "runAsNonRoot: true" in deployment_text
+    assert "runAsUser: 65534" in deployment_text
+    assert "seccompProfile:" in deployment_text
+    assert "allowPrivilegeEscalation: false" in deployment_text
+    assert "drop:" in deployment_text
+    assert "- ALL" in deployment_text
+    assert "requests:" in deployment_text
+    assert "limits:" in deployment_text
     assert "name: prometheus" in service_text
     assert "type: ClusterIP" in service_text
     assert "port: 9090" in service_text
+
+
+def test_k8s_prometheus_pod_disruption_budget_targets_prometheus_pods():
+    text = read_manifest("prometheus-pod-disruption-budget.yaml")
+
+    assert "kind: PodDisruptionBudget" in text
+    assert "name: thesis-defense-agent-prometheus-pdb" in text
+    assert "namespace: thesis-defense-agent" in text
+    assert "minAvailable: 1" in text
+    assert "app.kubernetes.io/name: thesis-defense-agent-prometheus" in text
 
 
 def test_k8s_alertmanager_config_routes_to_api_webhook():
@@ -147,6 +199,30 @@ def test_k8s_alertmanager_deployment_and_service_are_cluster_internal():
     assert "subPath: alertmanager.yml" in deployment_text
     assert "readinessProbe:" in deployment_text
     assert "livenessProbe:" in deployment_text
+    assert "revisionHistoryLimit: 3" in deployment_text
+    assert "progressDeadlineSeconds: 180" in deployment_text
+    assert "type: RollingUpdate" in deployment_text
+    assert "maxUnavailable: 0" in deployment_text
+    assert "maxSurge: 1" in deployment_text
+    assert "terminationGracePeriodSeconds: 30" in deployment_text
+    assert "runAsNonRoot: true" in deployment_text
+    assert "runAsUser: 65534" in deployment_text
+    assert "seccompProfile:" in deployment_text
+    assert "allowPrivilegeEscalation: false" in deployment_text
+    assert "drop:" in deployment_text
+    assert "- ALL" in deployment_text
+    assert "requests:" in deployment_text
+    assert "limits:" in deployment_text
     assert "name: alertmanager" in service_text
     assert "type: ClusterIP" in service_text
     assert "port: 9093" in service_text
+
+
+def test_k8s_alertmanager_pod_disruption_budget_targets_alertmanager_pods():
+    text = read_manifest("alertmanager-pod-disruption-budget.yaml")
+
+    assert "kind: PodDisruptionBudget" in text
+    assert "name: thesis-defense-agent-alertmanager-pdb" in text
+    assert "namespace: thesis-defense-agent" in text
+    assert "minAvailable: 1" in text
+    assert "app.kubernetes.io/name: thesis-defense-agent-alertmanager" in text

@@ -1,0 +1,13 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: thesis-defense-agent-alertmanager-pdb
+  namespace: thesis-defense-agent
+  labels:
+    app.kubernetes.io/name: thesis-defense-agent-alertmanager
+    app.kubernetes.io/part-of: thesis-defense-agent
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: thesis-defense-agent-alertmanager
