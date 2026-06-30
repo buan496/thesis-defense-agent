@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Thesis Defense Agent</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <header class="app-header">
+      <div>
+        <h1>论文答辩训练</h1>
+        <p>创建任务、推进步骤、提交回答并导出训练报告。</p>
+      </div>
+      <div class="status-pill" id="connectionStatus">Ready</div>
+    </header>
+
+    <main class="layout">
+      <section class="panel control-panel" aria-labelledby="taskControlsTitle">
+        <h2 id="taskControlsTitle">任务控制</h2>
+
+        <label for="topicInput">训练方向</label>
+        <div class="input-row">
+          <input
+            id="topicInput"
+            type="text"
+            value="系统架构"
+            autocomplete="off"
+          />
+          <button id="createTaskButton" type="button">创建任务</button>
+        </div>
+
+        <label for="taskIdInput">任务 ID</label>
+        <div class="input-row">
+          <input id="taskIdInput" type="text" autocomplete="off" />
+          <button id="loadTaskButton" type="button">加载</button>
+        </div>
+
+        <div class="button-grid">
+          <button id="startStepButton" type="button">开始下一步</button>
+          <button id="executeStepButton" type="button">执行当前步骤</button>
+          <button id="analysisButton" type="button">Trace 汇总</button>
+          <button id="reportButton" type="button">导出报告</button>
+        </div>
+
+        <label for="answerInput">学生回答</label>
+        <textarea
+          id="answerInput"
+          rows="4"
+          placeholder="输入对答辩问题的回答"
+        ></textarea>
+        <button id="submitAnswerButton" type="button">提交回答</button>
+
+        <label for="followUpAnswerInput">追问回答</label>
+        <textarea
+          id="followUpAnswerInput"
+          rows="4"
+          placeholder="输入对追问的回答"
+        ></textarea>
+        <button id="submitFollowUpAnswerButton" type="button">
+          提交追问回答
+        </button>
+      </section>
+
+      <section class="panel" aria-labelledby="taskStateTitle">
+        <div class="panel-heading">
+          <h2 id="taskStateTitle">任务状态</h2>
+          <span id="taskSummary">未创建任务</span>
+        </div>
+        <div class="state-grid">
+          <div>
+            <span>状态</span>
+            <strong id="taskStatus">-</strong>
+          </div>
+          <div>
+            <span>当前步骤</span>
+            <strong id="currentStepType">-</strong>
+          </div>
+          <div>
+            <span>步骤数量</span>
+            <strong id="stepCount">0</strong>
+          </div>
+          <div>
+            <span>更新时间</span>
+            <strong id="updatedAt">-</strong>
+          </div>
+        </div>
+
+        <h3>步骤</h3>
+        <ol id="stepList" class="step-list"></ol>
+
+        <h3>当前输出</h3>
+        <pre id="currentOutput" class="output-box">{}</pre>
+      </section>
+
+      <section class="panel report-panel" aria-labelledby="reportTitle">
+        <div class="panel-heading">
+          <h2 id="reportTitle">报告 / 调试输出</h2>
+          <span id="lastAction">等待操作</span>
+        </div>
+        <pre id="logOutput" class="output-box">Ready.</pre>
+      </section>
+    </main>
+
+    <script src="/static/app.js"></script>
+  </body>
+</html>
