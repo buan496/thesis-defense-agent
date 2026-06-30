@@ -34,6 +34,10 @@ def test_alertmanager_webhook_returns_received_summary():
     assert body["alerts_received"] == 1
     assert body["alert_names"] == ["ThesisDefenseAgentApiDown"]
     assert body["group_key"] == "{}:{alertname=\"ThesisDefenseAgentApiDown\"}"
+    assert body["notifications_created"] == 1
+    assert len(body["notification_deliveries"]) == 1
+    assert body["notification_deliveries"][0]["target"] == "primary-on-call"
+    assert body["notification_deliveries"][0]["success"] is True
 
 
 def test_alertmanager_webhook_tolerates_missing_alerts():
@@ -53,3 +57,5 @@ def test_alertmanager_webhook_tolerates_missing_alerts():
     assert body["alert_status"] == "resolved"
     assert body["alerts_received"] == 0
     assert body["alert_names"] == []
+    assert body["notifications_created"] == 0
+    assert body["notification_deliveries"] == []

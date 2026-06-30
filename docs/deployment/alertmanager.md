@@ -24,6 +24,9 @@ observability/prometheus/alert_rules.yml
 observability/alertmanager/alertmanager.yml
 docker-compose.yml
 app/api/routes/alerts.py
+app/alert_notification_adapter.py
+app/notification_router.py
+app/notification_channels.py
 ```
 
 ## Local Services
@@ -105,13 +108,21 @@ The API returns a summary:
   "alert_status": "firing",
   "alerts_received": 1,
   "alert_names": ["ThesisDefenseAgentApiDown"],
-  "group_key": "..."
+  "group_key": "...",
+  "notifications_created": 1,
+  "notification_deliveries": [
+    {
+      "channel": "jsonl",
+      "target": "primary-on-call",
+      "success": true
+    }
+  ]
 }
 ```
 
-This receiver is intentionally simple. It is enough for local routing
-validation and keeps production notification providers out of the learning
-environment.
+The receiver also converts Alertmanager alerts into local notification events
+and writes delivery audit records through the JSONL notification channel.
+Production notification providers remain outside this local learning stage.
 
 ## Trigger ApiDown Locally
 
@@ -174,6 +185,9 @@ Alertmanager Docker Compose service
 Prometheus -> Alertmanager routing
 Alertmanager local webhook receiver
 FastAPI alert intake endpoint
+Alertmanager payload -> NotificationEvent adapter
+severity-based NotificationRouter
+local JSONL notification audit channel
 offline config tests
 API webhook tests
 ```
@@ -181,7 +195,7 @@ API webhook tests
 Not completed:
 
 ```text
-email / Feishu / WeCom notification
+email / Feishu / WeCom notification provider
 Alertmanager silence management SOP
 production on-call schedule
 K8s Alertmanager deployment
