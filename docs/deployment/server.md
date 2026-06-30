@@ -84,6 +84,7 @@ trace
 ```text
 API: 8000
 Prometheus: 9090
+Alertmanager: 9093
 ```
 
 启动：
@@ -97,6 +98,7 @@ docker compose up -d --build
 ```powershell
 $env:API_PORT = "8001"
 $env:PROMETHEUS_PORT = "9091"
+$env:ALERTMANAGER_PORT = "9094"
 docker compose up -d --build
 ```
 
@@ -122,11 +124,18 @@ curl.exe -sS http://127.0.0.1:8000/metrics/prometheus
 curl.exe -sS http://127.0.0.1:9090/-/ready
 ```
 
+验证 Alertmanager：
+
+```powershell
+curl.exe -sS http://127.0.0.1:9093/-/ready
+```
+
 浏览器访问：
 
 ```text
 http://127.0.0.1:8000/docs
 http://127.0.0.1:9090/targets
+http://127.0.0.1:9093
 ```
 
 ## 更新版本
@@ -159,6 +168,12 @@ Prometheus 日志：
 docker compose logs -f prometheus
 ```
 
+Alertmanager 日志：
+
+```powershell
+docker compose logs -f alertmanager
+```
+
 最近日志：
 
 ```powershell
@@ -180,11 +195,12 @@ docker compose down
 当前服务器运行方案仍是学习版：
 
 ```text
-未接 PostgreSQL
-未接 Qdrant / Milvus
+PostgreSQL 本机 Compose 和 runtime smoke 已完成
+Qdrant 本机最小后端已完成
 未做用户鉴权
 未做 HTTPS / 反向代理
-未做 Prometheus 告警规则
+Prometheus 告警规则和 Alertmanager 本机路由已完成
+未接外部通知渠道 / on-call routing
 未做日志集中采集
 未做 K8s
 ```
@@ -194,8 +210,7 @@ docker compose down
 ```text
 服务器长期运行验证
 -> 反向代理 / HTTPS
--> PostgreSQL
--> Qdrant / Milvus
--> Prometheus 告警
+-> 外部通知渠道
+-> Qdrant 生产化治理 / Milvus
 -> K8s manifests
 ```

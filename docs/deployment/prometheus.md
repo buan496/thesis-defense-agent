@@ -17,6 +17,7 @@ from "metrics can be viewed" to "common failures can be detected".
 ```text
 observability/prometheus/prometheus.yml
 observability/prometheus/alert_rules.yml
+observability/alertmanager/alertmanager.yml
 docker-compose.yml
 ```
 
@@ -28,6 +29,16 @@ rule_files:
 ```
 
 `docker-compose.yml` mounts both files into the Prometheus container.
+
+Prometheus also routes firing alerts to Alertmanager:
+
+```yaml
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - "alertmanager:9093"
+```
 
 ## Alerts
 
@@ -97,16 +108,22 @@ warning
 
 ## Local Validation
 
-Start the API and Prometheus:
+Start the API, Alertmanager, and Prometheus:
 
 ```powershell
-docker compose up -d api prometheus
+docker compose up -d api alertmanager prometheus
 ```
 
 Open Prometheus:
 
 ```text
 http://127.0.0.1:9090
+```
+
+Open Alertmanager:
+
+```text
+http://127.0.0.1:9093
 ```
 
 Check loaded targets:
@@ -150,14 +167,15 @@ API down alert
 5xx rate alert
 average latency alert
 Compose rule file mount
+Prometheus to Alertmanager routing
+local Alertmanager webhook receiver
 offline config tests
 ```
 
 Not completed:
 
 ```text
-Alertmanager
-notification channels
+external notification channels
 on-call routing
 log-based alerts
 distributed tracing alerts
@@ -166,6 +184,5 @@ production SLOs
 
 ## Next Step
 
-After alert rules are stable, the next operations step is correlation IDs.
-Alertmanager and external notification channels should wait until the service is
-running in a persistent server environment.
+After local Alertmanager routing is stable, the next operations step is K8s
+manifest preparation or external notification provider integration.

@@ -4,7 +4,7 @@
 
 当前 Dockerfile 和 docker-compose.yml 用于本地验证 FastAPI 服务容器化启动。
 
-本阶段只构建单容器 API 服务，不包含 PostgreSQL、Qdrant、Prometheus 或 K8s。
+本阶段包含单容器 API 镜像，以及本机 Docker Compose 中的 Prometheus、Alertmanager、PostgreSQL 和 Qdrant 服务。K8s manifests 仍在后续阶段。
 
 ## 构建镜像
 
@@ -77,6 +77,19 @@ Prometheus targets 页面：
 http://127.0.0.1:9091/targets
 ```
 
+Alertmanager 默认暴露在 `9093`：
+
+```text
+http://127.0.0.1:9093
+```
+
+如果本机 `9093` 端口已被占用：
+
+```powershell
+$env:ALERTMANAGER_PORT = "9094"
+docker compose up -d --build
+```
+
 查看状态：
 
 ```powershell
@@ -108,6 +121,10 @@ FastAPI API 服务
 Prometheus 服务
 9090:9090 端口映射
 Prometheus 抓取 api:8000/metrics/prometheus
+Alertmanager 服务
+9093:9093 端口映射
+Prometheus 将告警发送到 alertmanager:9093
+Alertmanager 将 webhook 发送到 api:8000/alerts/alertmanager
 ```
 
 注意：
@@ -144,17 +161,17 @@ docker run --rm `
 
 ## 当前边界
 
-- 暂未拆分数据库、向量库和 API 服务。
+- 本机 Compose 已拆分 API、Prometheus、Alertmanager、PostgreSQL 和 Qdrant 服务。
 - 暂未提供生产级密钥管理。
-- Prometheus 当前只用于本地学习版指标抓取，暂未提供告警规则和持久化存储。
+- Prometheus 当前用于本地学习版指标抓取和告警规则；Alertmanager 当前用于本机 webhook 路由，不包含外部通知渠道。
 - 暂未提供 K8s manifests。
 
 下一阶段再补：
 
 ```text
-服务器长期运行说明
--> Prometheus 告警规则
--> PostgreSQL / Qdrant 服务拆分
+K8s manifests
+-> 外部通知渠道
+-> PostgreSQL / Qdrant 生产化治理
 -> K8s manifests
 ```
 
