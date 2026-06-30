@@ -438,7 +438,7 @@ retrieve_context
 
 LangGraph 已完成旁路迁移学习版闭环，并保留在 `app/langgraph_workflow/`。它只用于和当前 `app/agent.py`、`app/task_*` 对照学习，不覆盖当前手写实现。数据库级 checkpointer、服务器部署和跨进程恢复继续后移到服务器/数据库阶段。
 
-FastAPI、静态 Web 前端、stdio MCP Server、stdio MCP Client、Dockerfile、docker-compose、Prometheus 抓取、Alertmanager 本机路由、外部通知路由本地可审计版本、K8s 基础 manifests 和 GitHub Actions Docker 镜像构建已完成本机/CI 验证；GHCR 发布流程已完成。服务器长期运行、真实 Feishu / WeCom / email 通知提供方、Web 前端增强、K8s 生产化部署和更完整的向量数据库生产治理继续作为后续阶段。
+FastAPI、静态 Web 前端、stdio MCP Server、stdio MCP Client、MCP resource / prompt 能力、Dockerfile、docker-compose、Prometheus 抓取、Alertmanager 本机路由、外部通知路由本地可审计版本、K8s 基础 manifests 和 GitHub Actions Docker 镜像构建已完成本机/CI 验证；GHCR 发布流程已完成。服务器长期运行、真实 Feishu / WeCom / email 通知提供方、Web 前端增强、K8s 生产化部署和更完整的向量数据库生产治理继续作为后续阶段。
 
 PostgreSQL 当前已完成 Compose 服务、schema migration、JSON-to-PostgreSQL import、task/session/trace repository 实现，以及 task/session/trace runtime repository integration。默认后端仍是 `STORAGE_BACKEND=json`，本机或服务器运行时可以通过 `STORAGE_BACKEND=postgres` 和 `DATABASE_URL` 显式切换。设计说明见：
 
@@ -761,7 +761,7 @@ retrieve_context
 
 1. 服务器长期运行验证：在服务器拉取 main，用 docker compose 运行 API 和 Prometheus。
 2. 对 README 和学习路线做周期性同步，避免文档落后于代码。
-3. 后续继续推进 MCP resource / prompt 能力、Web 前端增强、K8s 生产化部署、真实通知提供方和 Qdrant 生产化治理 / Milvus。
+3. 后续继续推进 Web 前端增强、K8s 生产化部署、真实通知提供方和 Qdrant 生产化治理 / Milvus。
 
 ## 2026-06-30 Update: External Notification Routing
 
@@ -988,7 +988,44 @@ client-side MCP error handling
 当前边界：
 
 ```text
-尚未支持 resource/list、prompt/list、多 MCP Server 管理、远程 HTTP transport、认证或将外部 MCP 工具自动注册进 Agent Tool Registry。
+尚未支持多 MCP Server 管理、远程 HTTP transport、认证或将外部 MCP 工具自动注册进 Agent Tool Registry。
+```
+
+## 2026-06-30 Update: MCP Resources and Prompts
+
+项目新增 MCP resource / prompt 本地学习版能力：
+
+```text
+app/mcp_resources.py
+app/mcp_prompts.py
+docs/deployment/mcp-resources-prompts.md
+```
+
+新增 MCP Server 方法：
+
+```text
+resources/list
+resources/read
+prompts/list
+prompts/get
+```
+
+新增 MCP Client 方法：
+
+```text
+list_resources()
+read_resource(uri)
+list_prompts()
+get_prompt(name, arguments=None)
+```
+
+当前边界：
+
+```text
+Resource 只提供上下文。
+Prompt 只提供模板。
+Tool 才执行动作。
+尚未做远程 MCP transport、多 Server 聚合、resource subscription 或 prompt marketplace。
 ```
 
 ## 2026-06-29 Update: Logging Retention and Query Guide

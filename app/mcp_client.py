@@ -28,6 +28,47 @@ class McpTool:
 
 
 @dataclass
+class McpResource:
+    uri: str
+    name: str
+    description: str
+    mime_type: str
+
+
+@dataclass
+class McpResourceContent:
+    uri: str
+    mime_type: str
+    text: str
+
+
+@dataclass
+class McpPromptArgument:
+    name: str
+    description: str
+    required: bool = False
+
+
+@dataclass
+class McpPrompt:
+    name: str
+    description: str
+    arguments: list[McpPromptArgument]
+
+
+@dataclass
+class McpPromptMessage:
+    role: str
+    text: str
+
+
+@dataclass
+class McpPromptResult:
+    description: str
+    messages: list[McpPromptMessage]
+
+
+@dataclass
 class McpClientResult:
     content: list[dict[str, Any]]
     is_error: bool = False
@@ -128,6 +169,153 @@ def parse_tool_call_result(result: dict[str, Any]) -> McpClientResult:
             if isinstance(item, dict)
         ],
         is_error=bool(is_error),
+    )
+
+
+def parse_mcp_resources(result: dict[str, Any]) -> list[McpResource]:
+    raw_resources = result.get("resources", [])
+    if not isinstance(raw_resources, list):
+        raise McpClientError("resources/list result.resources must be a list")
+
+    resources = []
+    for raw_resource in raw_resources:
+        if not isinstance(raw_resource, dict):
+            continue
+
+        uri = raw_resource.get("uri")
+        name = raw_resource.get("name")
+        if not isinstance(uri, str) or not uri:
+            continue
+
+        resources.append(
+            McpResource(
+                uri=uri,
+                name=name if isinstance(name, str) else uri,
+                description=(
+                    raw_resource.get("description")
+                    if isinstance(raw_resource.get("description"), str)
+                    else ""
+                ),
+                mime_type=(
+                    raw_resource.get("mimeType")
+                    if isinstance(raw_resource.get("mimeType"), str)
+                    else "text/plain"
+                ),
+            )
+        )
+
+    return resources
+
+
+def parse_resource_read_result(result: dict[str, Any]) -> list[McpResourceContent]:
+    raw_contents = result.get("contents", [])
+    if not isinstance(raw_contents, list):
+        raise McpClientError("resources/read result.contents must be a list")
+
+    contents = []
+    for raw_content in raw_contents:
+        if not isinstance(raw_content, dict):
+            continue
+
+        uri = raw_content.get("uri")
+        text = raw_content.get("text")
+        if not isinstance(uri, str) or not isinstance(text, str):
+            continue
+
+        mime_type = raw_content.get("mimeType", "text/plain")
+        contents.append(
+            McpResourceContent(
+                uri=uri,
+                mime_type=mime_type if isinstance(mime_type, str) else "text/plain",
+                text=text,
+            )
+        )
+
+    return contents
+
+
+def parse_mcp_prompts(result: dict[str, Any]) -> list[McpPrompt]:
+    raw_prompts = result.get("prompts", [])
+    if not isinstance(raw_prompts, list):
+        raise McpClientError("prompts/list result.prompts must be a list")
+
+    prompts = []
+    for raw_prompt in raw_prompts:
+        if not isinstance(raw_prompt, dict):
+            continue
+
+        name = raw_prompt.get("name")
+        if not isinstance(name, str) or not name:
+            continue
+
+        arguments = []
+        raw_arguments = raw_prompt.get("arguments", [])
+        if isinstance(raw_arguments, list):
+            for raw_argument in raw_arguments:
+                if not isinstance(raw_argument, dict):
+                    continue
+
+                argument_name = raw_argument.get("name")
+                if not isinstance(argument_name, str) or not argument_name:
+                    continue
+
+                arguments.append(
+                    McpPromptArgument(
+                        name=argument_name,
+                        description=(
+                            raw_argument.get("description")
+                            if isinstance(raw_argument.get("description"), str)
+                            else ""
+                        ),
+                        required=bool(raw_argument.get("required", False)),
+                    )
+                )
+
+        prompts.append(
+            McpPrompt(
+                name=name,
+                description=(
+                    raw_prompt.get("description")
+                    if isinstance(raw_prompt.get("description"), str)
+                    else ""
+                ),
+                arguments=arguments,
+            )
+        )
+
+    return prompts
+
+
+def parse_prompt_get_result(result: dict[str, Any]) -> McpPromptResult:
+    description = result.get("description", "")
+    raw_messages = result.get("messages", [])
+    if not isinstance(raw_messages, list):
+        raise McpClientError("prompts/get result.messages must be a list")
+
+    messages = []
+    for raw_message in raw_messages:
+        if not isinstance(raw_message, dict):
+            continue
+
+        content = raw_message.get("content", {})
+        if not isinstance(content, dict):
+            continue
+
+        text = content.get("text")
+        if not isinstance(text, str):
+            continue
+
+        role = raw_message.get("role", "user")
+        messages.append(
+            McpPromptMessage(
+                role=role if isinstance(role, str) else "user",
+                text=text,
+            )
+        )
+
+    return McpPromptResult(
+        description=description if isinstance(description, str) else "",
+        messages=messages,
     )
 
 
@@ -256,6 +444,47 @@ class McpStdioClient:
             },
         )
         return parse_tool_call_result(result)
+
+    def list_resources(self) -> list[McpResource]:
+        return parse_mcp_resources(
+            self.send_request("resources/list", {})
+        )
+
+    def read_resource(self, uri: str) -> list[McpResourceContent]:
+        if not uri.strip():
+            raise ValueError("resource uri must not be empty")
+
+        return parse_resource_read_result(
+            self.send_request(
+                "resources/read",
+                {
+                    "uri": uri,
+                },
+            )
+        )
+
+    def list_prompts(self) -> list[McpPrompt]:
+        return parse_mcp_prompts(
+            self.send_request("prompts/list", {})
+        )
+
+    def get_prompt(
+        self,
+        name: str,
+        arguments: dict[str, Any] | None = None,
+    ) -> McpPromptResult:
+        if not name.strip():
+            raise ValueError("prompt name must not be empty")
+
+        return parse_prompt_get_result(
+            self.send_request(
+                "prompts/get",
+                {
+                    "name": name,
+                    "arguments": arguments or {},
+                },
+            )
+        )
 
     def _write_json_line(self, payload: dict[str, Any]) -> None:
         if self.output_stream is None:

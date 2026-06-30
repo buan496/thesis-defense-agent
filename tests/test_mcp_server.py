@@ -30,9 +30,9 @@ def test_build_initialize_result_exposes_tool_capability():
     result = build_initialize_result()
 
     assert result["serverInfo"]["name"] == SERVER_NAME
-    assert result["capabilities"] == {
-        "tools": {},
-    }
+    assert result["capabilities"]["tools"] == {}
+    assert result["capabilities"]["resources"] == {}
+    assert result["capabilities"]["prompts"] == {}
     assert result["protocolVersion"]
 
 
@@ -115,6 +115,105 @@ def test_handle_tools_call_rejects_missing_tool_name():
             "params": {
                 "arguments": {},
             },
+        }
+    )
+
+    assert response["error"]["code"] == INVALID_PARAMS
+    assert "params.name" in response["error"]["message"]
+
+
+def test_handle_resources_list_request():
+    response = handle_mcp_request(
+        {
+            "jsonrpc": "2.0",
+            "id": "resources",
+            "method": "resources/list",
+            "params": {},
+        }
+    )
+
+    assert response["id"] == "resources"
+    assert any(
+        resource["uri"] == "thesis://summary"
+        for resource in response["result"]["resources"]
+    )
+
+
+def test_handle_resources_read_request():
+    response = handle_mcp_request(
+        {
+            "jsonrpc": "2.0",
+            "id": "read",
+            "method": "resources/read",
+            "params": {
+                "uri": "thesis://summary",
+            },
+        }
+    )
+
+    assert response["id"] == "read"
+    assert response["result"]["contents"][0]["uri"] == "thesis://summary"
+    assert "Thesis Defense Agent" in response["result"]["contents"][0]["text"]
+
+
+def test_handle_resources_read_rejects_missing_uri():
+    response = handle_mcp_request(
+        {
+            "jsonrpc": "2.0",
+            "id": "read-error",
+            "method": "resources/read",
+            "params": {},
+        }
+    )
+
+    assert response["error"]["code"] == INVALID_PARAMS
+    assert "params.uri" in response["error"]["message"]
+
+
+def test_handle_prompts_list_request():
+    response = handle_mcp_request(
+        {
+            "jsonrpc": "2.0",
+            "id": "prompts",
+            "method": "prompts/list",
+            "params": {},
+        }
+    )
+
+    assert response["id"] == "prompts"
+    assert any(
+        prompt["name"] == "defense_question_prompt"
+        for prompt in response["result"]["prompts"]
+    )
+
+
+def test_handle_prompts_get_request():
+    response = handle_mcp_request(
+        {
+            "jsonrpc": "2.0",
+            "id": "prompt-get",
+            "method": "prompts/get",
+            "params": {
+                "name": "defense_question_prompt",
+                "arguments": {
+                    "thesis_context": "系统架构包括模型训练。",
+                },
+            },
+        }
+    )
+
+    assert response["id"] == "prompt-get"
+    text = response["result"]["messages"][0]["content"]["text"]
+    assert "系统架构包括模型训练" in text
+
+
+def test_handle_prompts_get_rejects_missing_name():
+    response = handle_mcp_request(
+        {
+            "jsonrpc": "2.0",
+            "id": "prompt-error",
+            "method": "prompts/get",
+            "params": {},
         }
     )
 
