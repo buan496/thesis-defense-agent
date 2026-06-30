@@ -41,6 +41,7 @@ PDF / TXT 论文
 → WebSocket 任务控制通道
 → 静态 Web 前端增强
 → PostgreSQL / Qdrant 可替换存储后端
+→ K8s manifests / smoke plan / report template
 ```
 
 <!-- docs-update-2026-06-29-postgres-compose -->
@@ -291,7 +292,7 @@ JSON remains the default session backend.
 最新本地测试基线：
 
 ```text
-994 passed, 1 warning
+1006 passed, 1 warning
 ```
 
 本机学习版阶段已完成，阶段总复盘见：
@@ -936,6 +937,45 @@ tests/test_dockerfile.py
 ```text
 这是静态 manifest 生产化基础学习，不等于真实集群生产运行。
 API 仍保持 replicas=1，因为默认 JSON / emptyDir 后端不适合多副本共享状态。
+```
+
+## 2026-06-30 Update: Kubernetes Smoke Test Plan
+
+项目新增 K8s smoke test 计划生成器和执行报告模板：
+
+```text
+app/k8s_smoke_plan.py
+tests/test_k8s_smoke_plan.py
+tests/test_k8s_smoke_cli.py
+```
+
+生成 smoke test SOP：
+
+```powershell
+uv run python -m app.cli k8s-smoke-plan
+```
+
+保存为 Markdown：
+
+```powershell
+uv run python -m app.cli k8s-smoke-plan `
+  --output data/reports/k8s_smoke_plan.md
+```
+
+生成真实集群执行记录模板：
+
+```powershell
+uv run python -m app.cli k8s-smoke-report-template `
+  --environment kind-local `
+  --operator "<your-name>" `
+  --output data/reports/k8s_smoke_report.md
+```
+
+当前边界：
+
+```text
+该命令只生成可审计执行计划和执行记录模板，不会自动 kubectl apply。
+真实集群 apply / rollout / port-forward / rollback 验证仍需在有集群时手动执行。
 ```
 
 ## 2026-06-30 Update: Static Web Frontend

@@ -189,14 +189,13 @@ kubectl kustomize k8s/base
 If a cluster is configured, run client-side validation:
 
 ```powershell
-kubectl apply --dry-run=client -f k8s/base
+kubectl apply --dry-run=client -k k8s/base
 ```
 
 Apply to a local cluster:
 
 ```powershell
-kubectl apply -f k8s/base/namespace.yaml
-kubectl apply -f k8s/base
+kubectl apply -k k8s/base
 ```
 
 Check pods and services:
@@ -225,6 +224,32 @@ kubectl port-forward service/alertmanager 9093:9093 -n thesis-defense-agent
 ```
 
 ## Rollout / Rollback SOP
+
+Generate the smoke-test plan from code:
+
+```powershell
+uv run python -m app.cli k8s-smoke-plan
+```
+
+Save the plan as Markdown:
+
+```powershell
+uv run python -m app.cli k8s-smoke-plan `
+  --output data/reports/k8s_smoke_plan.md
+```
+
+Generate an execution report template before running against a real cluster:
+
+```powershell
+uv run python -m app.cli k8s-smoke-report-template `
+  --environment kind-local `
+  --operator "<your-name>" `
+  --output data/reports/k8s_smoke_report.md
+```
+
+The report template is intentionally separate from the plan. The plan describes
+what to run; the report records sanitized evidence, PASS / FAIL status, skipped
+steps, and notes after running the commands.
 
 Render manifests before applying:
 
@@ -306,6 +331,8 @@ rolling update strategy
 revision history and progress deadline
 restricted container securityContext
 PodDisruptionBudget resources
+k8s-smoke-plan CLI
+k8s-smoke-report-template CLI
 offline manifest tests
 ```
 
@@ -322,4 +349,5 @@ Qdrant StatefulSet
 production Secret management
 Helm chart / Kustomize overlays
 real cluster smoke test
+automated cluster smoke runner
 ```
