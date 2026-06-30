@@ -43,6 +43,7 @@ PDF / TXT 论文
 → PostgreSQL / Qdrant 可替换存储后端
 → Vector DB governance report
 → Qdrant backup retention policy
+→ Qdrant snapshot smoke plan / report template
 → K8s manifests / smoke plan / report template
 ```
 
@@ -294,7 +295,7 @@ JSON remains the default session backend.
 最新本地测试基线：
 
 ```text
-1024 passed, 1 warning
+1033 passed, 1 warning
 ```
 
 本机学习版阶段已完成，阶段总复盘见：
@@ -1388,6 +1389,49 @@ uv run python -m app.cli qdrant-backup-retention `
 该命令只管理已经下载到本地目录的 snapshot 文件。
 Qdrant snapshot 创建仍按 docs/deployment/qdrant.md 中的 SOP 手动执行。
 尚未接入 cron、Windows Task Scheduler 或 Kubernetes CronJob。
+```
+
+## 2026-06-30 Update: Qdrant Snapshot Smoke Plan
+
+项目新增离线 Qdrant snapshot smoke 计划和执行记录模板：
+
+```text
+app/qdrant_snapshot_smoke_plan.py
+tests/test_qdrant_snapshot_smoke_plan.py
+```
+
+生成计划：
+
+```powershell
+uv run python -m app.cli qdrant-snapshot-smoke-plan
+```
+
+生成执行记录模板：
+
+```powershell
+uv run python -m app.cli qdrant-snapshot-smoke-report-template `
+  --environment local-compose `
+  --operator "<your-name>" `
+  --output data/reports/qdrant_snapshot_smoke_report.md
+```
+
+计划覆盖：
+
+```text
+create snapshot
+list snapshot
+download snapshot
+restore into disposable collection
+compare restored collection
+retention dry-run
+```
+
+当前边界：
+
+```text
+该能力只生成 smoke test 计划和执行记录模板。
+不会自动调用 Qdrant snapshot API。
+不会自动 restore 或删除 collection。
 ```
 
 ### LangGraph 旁路 Demo

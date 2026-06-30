@@ -160,6 +160,11 @@ from app.qdrant_backup_retention import (
     execute_qdrant_backup_retention,
     render_qdrant_backup_retention_report,
 )
+from app.qdrant_snapshot_smoke_plan import (
+    build_qdrant_snapshot_smoke_plan,
+    render_qdrant_snapshot_smoke_plan,
+    render_qdrant_snapshot_smoke_report_template,
+)
 from app.session_store import DEFAULT_SESSION_DIRECTORY
 from app.feedback_store import (
     create_feedback_record,
@@ -2294,6 +2299,86 @@ def main():
         "--output",
         default=None,
         help="Optional Markdown output path for the retention report",
+    )
+
+    qdrant_snapshot_smoke_plan_parser = subparsers.add_parser(
+        "qdrant-snapshot-smoke-plan",
+        help="Generate a Qdrant snapshot create/restore smoke-test plan",
+    )
+    qdrant_snapshot_smoke_plan_parser.add_argument(
+        "--url",
+        default=QDRANT_URL,
+        help="Qdrant URL",
+    )
+    qdrant_snapshot_smoke_plan_parser.add_argument(
+        "--collection",
+        default=QDRANT_COLLECTION,
+        help="Source Qdrant collection name",
+    )
+    qdrant_snapshot_smoke_plan_parser.add_argument(
+        "--restore-collection",
+        default=f"{QDRANT_COLLECTION}_restore",
+        help="Disposable Qdrant collection name used for restore smoke tests",
+    )
+    qdrant_snapshot_smoke_plan_parser.add_argument(
+        "--backup-dir",
+        default=QDRANT_BACKUP_DIR,
+        help="Local backup directory for downloaded snapshots",
+    )
+    qdrant_snapshot_smoke_plan_parser.add_argument(
+        "--snapshot-name",
+        default="<snapshot_name>",
+        help="Snapshot name placeholder used in generated commands",
+    )
+    qdrant_snapshot_smoke_plan_parser.add_argument(
+        "--output",
+        default=None,
+        help="Optional Markdown output path for the snapshot smoke plan",
+    )
+
+    qdrant_snapshot_smoke_report_parser = subparsers.add_parser(
+        "qdrant-snapshot-smoke-report-template",
+        help="Generate a Qdrant snapshot smoke-test execution report template",
+    )
+    qdrant_snapshot_smoke_report_parser.add_argument(
+        "--url",
+        default=QDRANT_URL,
+        help="Qdrant URL",
+    )
+    qdrant_snapshot_smoke_report_parser.add_argument(
+        "--collection",
+        default=QDRANT_COLLECTION,
+        help="Source Qdrant collection name",
+    )
+    qdrant_snapshot_smoke_report_parser.add_argument(
+        "--restore-collection",
+        default=f"{QDRANT_COLLECTION}_restore",
+        help="Disposable Qdrant collection name used for restore smoke tests",
+    )
+    qdrant_snapshot_smoke_report_parser.add_argument(
+        "--backup-dir",
+        default=QDRANT_BACKUP_DIR,
+        help="Local backup directory for downloaded snapshots",
+    )
+    qdrant_snapshot_smoke_report_parser.add_argument(
+        "--snapshot-name",
+        default="<snapshot_name>",
+        help="Snapshot name placeholder used in generated commands",
+    )
+    qdrant_snapshot_smoke_report_parser.add_argument(
+        "--environment",
+        default="local-qdrant",
+        help="Environment label written into the smoke report",
+    )
+    qdrant_snapshot_smoke_report_parser.add_argument(
+        "--operator",
+        default="",
+        help="Operator name written into the smoke report",
+    )
+    qdrant_snapshot_smoke_report_parser.add_argument(
+        "--output",
+        default=None,
+        help="Optional Markdown output path for the snapshot smoke report template",
     )
 
     import_json_to_postgres_parser = subparsers.add_parser(
@@ -5041,6 +5126,50 @@ def main():
             raise SystemExit(2) from error
 
         markdown = render_qdrant_backup_retention_report(result)
+        print(markdown, end="")
+
+        if args.output is not None:
+            save_text_output(args.output, markdown)
+            print("OUTPUT:", args.output)
+
+    elif args.command == "qdrant-snapshot-smoke-plan":
+        try:
+            plan = build_qdrant_snapshot_smoke_plan(
+                url=args.url,
+                collection=args.collection,
+                restore_collection=args.restore_collection,
+                backup_dir=args.backup_dir,
+                snapshot_name_placeholder=args.snapshot_name,
+            )
+        except ValueError as error:
+            print(f"QDRANT SNAPSHOT SMOKE PLAN ERROR: {error}")
+            raise SystemExit(2) from error
+
+        markdown = render_qdrant_snapshot_smoke_plan(plan)
+        print(markdown, end="")
+
+        if args.output is not None:
+            save_text_output(args.output, markdown)
+            print("OUTPUT:", args.output)
+
+    elif args.command == "qdrant-snapshot-smoke-report-template":
+        try:
+            plan = build_qdrant_snapshot_smoke_plan(
+                url=args.url,
+                collection=args.collection,
+                restore_collection=args.restore_collection,
+                backup_dir=args.backup_dir,
+                snapshot_name_placeholder=args.snapshot_name,
+            )
+            markdown = render_qdrant_snapshot_smoke_report_template(
+                plan,
+                environment=args.environment,
+                operator=args.operator,
+            )
+        except ValueError as error:
+            print(f"QDRANT SNAPSHOT SMOKE REPORT ERROR: {error}")
+            raise SystemExit(2) from error
+
         print(markdown, end="")
 
         if args.output is not None:
