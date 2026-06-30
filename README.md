@@ -41,6 +41,8 @@ PDF / TXT 论文
 → WebSocket 任务控制通道
 → 静态 Web 前端增强
 → PostgreSQL / Qdrant 可替换存储后端
+→ Vector DB governance report
+→ Qdrant backup retention policy
 → K8s manifests / smoke plan / report template
 ```
 
@@ -292,7 +294,7 @@ JSON remains the default session backend.
 最新本地测试基线：
 
 ```text
-1006 passed, 1 warning
+1024 passed, 1 warning
 ```
 
 本机学习版阶段已完成，阶段总复盘见：
@@ -325,6 +327,7 @@ docs/17-本机学习版阶段总复盘.md
 - 支持 query embedding cache，减少重复评估时的 API 调用
 - 支持 RAG benchmark，统计 Top-K 召回关键字覆盖率
 - 支持 JSON 与 Qdrant 向量库后端 benchmark 对比，记录质量和延迟差异
+- 支持 Vector DB 生产化治理报告，明确 JSON / Qdrant / Milvus 的角色、风险和上线门禁
 - 支持 BM25 关键词检索、Vector 语义检索和 Hybrid 融合检索
 - 支持检索器对比和 Hybrid 权重扫描，用 benchmark 自动选择检索参数
 - 支持规则版 reranker，并可用 benchmark 对比 rerank 前后效果
@@ -429,9 +432,10 @@ retrieve_context
 
 ## 暂缓范围
 
-当前已经完成本机 FastAPI 服务化、静态 Web 前端增强、Docker Compose、Prometheus 本地验证、GHCR 镜像发布流程、PostgreSQL runtime smoke 和 Qdrant 最小后端。以下内容暂缓到后续阶段：
+当前已经完成本机 FastAPI 服务化、静态 Web 前端增强、Docker Compose、Prometheus 本地验证、GHCR 镜像发布流程、PostgreSQL runtime smoke、Qdrant 最小后端和 Vector DB 生产化治理报告。以下内容暂缓到后续阶段：
 
-- Qdrant 生产化治理 / Milvus
+- Qdrant 自动备份任务 / 保留策略执行
+- MilvusVectorStoreRepository 与 Milvus runtime benchmark
 - K8s 真实集群 smoke test / 生产化部署验证
 - 服务器长期运行验证
 - 真实 Feishu / WeCom / email 通知提供方
@@ -517,6 +521,7 @@ QDRANT_DISTANCE=Cosine
 QDRANT_HTTP_PORT=6333
 QDRANT_GRPC_PORT=6334
 QDRANT_API_KEY=
+QDRANT_BACKUP_DIR=data/qdrant_backups
 QUERY_EMBEDDING_CACHE_PATH=data/query_embedding_cache.json
 
 AGENT_TRACE_PATH=data/traces/agent_trace.jsonl
@@ -763,7 +768,7 @@ retrieve_context
 
 1. 服务器长期运行验证：在服务器拉取 main，用 docker compose 运行 API 和 Prometheus。
 2. 对 README 和学习路线做周期性同步，避免文档落后于代码。
-3. 后续继续推进 K8s 真实集群 smoke test、真实通知提供方和 Qdrant 生产化治理 / Milvus。
+3. 后续继续推进 K8s 真实集群 smoke test、真实通知提供方、Qdrant 自动备份任务 / 保留策略和 Milvus runtime benchmark。
 
 ## 2026-06-30 Update: External Notification Routing
 
@@ -1301,6 +1306,88 @@ docs/deployment/qdrant.md
 ```text
 已有手动 snapshot backup / restore SOP。
 尚未做定时备份、保留策略清理和自动恢复演练。
+```
+
+## 2026-06-30 Update: Vector DB Governance Report
+
+项目新增离线 Vector DB 生产化治理报告：
+
+```text
+app/vector_db_governance.py
+tests/test_vector_db_governance.py
+docs/deployment/qdrant.md
+```
+
+生成默认 Qdrant 生产化治理报告：
+
+```powershell
+uv run python -m app.cli vector-db-governance-report
+```
+
+保存报告：
+
+```powershell
+uv run python -m app.cli vector-db-governance-report `
+  --output data/reports/vector_db_governance.md
+```
+
+生成 Milvus 作为目标后端的对比报告：
+
+```powershell
+uv run python -m app.cli vector-db-governance-report `
+  --target-backend milvus `
+  --output data/reports/vector_db_governance_milvus.md
+```
+
+当前结论：
+
+```text
+JSON 仍作为本地 fallback 和 rebuild baseline。
+Qdrant 是当前项目的主生产候选。
+Milvus 只作为后续对比候选，尚未实现 MilvusVectorStoreRepository。
+```
+
+下一步边界：
+
+```text
+Qdrant 还缺自动 snapshot 创建任务和自动 restore smoke。
+Milvus 还缺本地环境、repository 实现和同 benchmark 对比。
+```
+
+## 2026-06-30 Update: Qdrant Backup Retention
+
+项目新增本地 Qdrant 备份保留策略执行器：
+
+```text
+app/qdrant_backup_retention.py
+tests/test_qdrant_backup_retention.py
+```
+
+默认 dry-run，不删除文件：
+
+```powershell
+New-Item -ItemType Directory -Force data/qdrant_backups
+
+uv run python -m app.cli qdrant-backup-retention `
+  --backup-dir data/qdrant_backups `
+  --keep-last 5
+```
+
+显式执行删除：
+
+```powershell
+uv run python -m app.cli qdrant-backup-retention `
+  --backup-dir data/qdrant_backups `
+  --keep-last 5 `
+  --apply
+```
+
+当前边界：
+
+```text
+该命令只管理已经下载到本地目录的 snapshot 文件。
+Qdrant snapshot 创建仍按 docs/deployment/qdrant.md 中的 SOP 手动执行。
+尚未接入 cron、Windows Task Scheduler 或 Kubernetes CronJob。
 ```
 
 ### LangGraph 旁路 Demo

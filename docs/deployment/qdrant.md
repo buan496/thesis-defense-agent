@@ -100,13 +100,67 @@ compare-vector-store-backends CLI
 JSON vs Qdrant benchmark comparison path
 delete-qdrant-collection CLI with explicit confirmation
 Qdrant snapshot backup/restore SOP
+vector-db-governance-report CLI
+Qdrant / Milvus production-governance comparison report
+qdrant-backup-retention CLI
+local backup retention dry-run / apply execution
 ```
 
 Not completed:
 
 ```text
 Automated scheduled Qdrant backup job
-Qdrant backup retention policy enforcement
+Automated Qdrant snapshot creation
+MilvusVectorStoreRepository
+Milvus runtime benchmark
+```
+
+## Production Governance Report
+
+The project includes an offline vector database governance report. It does not
+connect to Qdrant or Milvus. Its purpose is to keep production-promotion
+criteria explicit before changing the default runtime backend.
+
+Generate the report:
+
+```powershell
+uv run python -m app.cli vector-db-governance-report
+```
+
+Save the report:
+
+```powershell
+uv run python -m app.cli vector-db-governance-report `
+  --output data/reports/vector_db_governance.md
+```
+
+Evaluate Milvus as the target comparison backend without implementing it:
+
+```powershell
+uv run python -m app.cli vector-db-governance-report `
+  --target-backend milvus `
+  --output data/reports/vector_db_governance_milvus.md
+```
+
+The report covers:
+
+```text
+JSON baseline role
+Qdrant promotion gates
+Milvus comparison boundary
+quality regression gate
+latency recording gate
+backup / restore gate
+destructive-operation guardrails
+rollback requirement
+```
+
+Current decision:
+
+```text
+JSON remains the default local fallback.
+Qdrant remains the primary production candidate.
+Milvus remains a future comparison candidate, not an implemented runtime backend.
 ```
 
 ## Import JSON Vector Store Into Qdrant
@@ -305,6 +359,70 @@ local vector store artifact.
 3. Run compare-vector-store-backends after restore.
 4. Keep JSON vector store as the local fallback until Qdrant is promoted as the primary backend.
 5. Use delete-qdrant-collection only with explicit --confirm-collection.
+```
+
+## Backup Retention Policy
+
+Downloaded Qdrant snapshot files are stored under:
+
+```text
+data/qdrant_backups/
+```
+
+This directory is ignored by Git. The project provides a local retention CLI
+that can be used manually or scheduled later. By default it is dry-run and does
+not delete files.
+
+Preview deletion candidates while keeping the newest 5 snapshots:
+
+```powershell
+New-Item -ItemType Directory -Force data/qdrant_backups
+
+uv run python -m app.cli qdrant-backup-retention `
+  --backup-dir data/qdrant_backups `
+  --keep-last 5
+```
+
+Actually delete older snapshots:
+
+```powershell
+uv run python -m app.cli qdrant-backup-retention `
+  --backup-dir data/qdrant_backups `
+  --keep-last 5 `
+  --apply
+```
+
+Save a retention report:
+
+```powershell
+uv run python -m app.cli qdrant-backup-retention `
+  --backup-dir data/qdrant_backups `
+  --keep-last 5 `
+  --output data/reports/qdrant_backup_retention.md
+```
+
+The default file pattern is:
+
+```text
+*.snapshot
+```
+
+Use additional patterns only if your backup process produces different file
+names:
+
+```powershell
+uv run python -m app.cli qdrant-backup-retention `
+  --backup-dir data/qdrant_backups `
+  --pattern "*.snapshot" `
+  --pattern "*.tar.gz"
+```
+
+Current boundary:
+
+```text
+Retention execution is implemented for local downloaded backup files.
+Qdrant snapshot creation is still manual through the SOP above.
+No cron, Task Scheduler, or Kubernetes CronJob is created yet.
 ```
 
 ## Current Runtime Boundary

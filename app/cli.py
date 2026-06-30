@@ -38,6 +38,7 @@ from app.config import (
     BENCHMARK_CANDIDATE_DIRECTORY,
     LONG_TERM_MEMORY_PATH,
     QDRANT_API_KEY,
+    QDRANT_BACKUP_DIR,
     QDRANT_COLLECTION,
     QDRANT_DISTANCE,
     QDRANT_URL,
@@ -149,6 +150,16 @@ from app.k8s_smoke_plan import (
 )
 from app.vector_store_io import load_vector_store
 from app.vector_store_repository import QdrantVectorStoreRepository
+from app.vector_db_governance import (
+    build_vector_db_governance_report,
+    render_vector_db_governance_report,
+)
+from app.qdrant_backup_retention import (
+    DEFAULT_QDRANT_BACKUP_PATTERNS,
+    build_qdrant_backup_retention_plan,
+    execute_qdrant_backup_retention,
+    render_qdrant_backup_retention_report,
+)
 from app.session_store import DEFAULT_SESSION_DIRECTORY
 from app.feedback_store import (
     create_feedback_record,
@@ -2222,6 +2233,67 @@ def main():
             "Required destructive confirmation. Must exactly match "
             "--collection."
         ),
+    )
+
+    vector_db_governance_parser = subparsers.add_parser(
+        "vector-db-governance-report",
+        help="Generate an offline vector database governance and comparison report",
+    )
+    vector_db_governance_parser.add_argument(
+        "--current-backend",
+        default=VECTOR_STORE_BACKEND,
+        help="Current vector store backend, usually json or qdrant",
+    )
+    vector_db_governance_parser.add_argument(
+        "--target-backend",
+        default="qdrant",
+        choices=["qdrant", "milvus"],
+        help="Target backend to evaluate for promotion",
+    )
+    vector_db_governance_parser.add_argument(
+        "--exclude-milvus",
+        action="store_true",
+        help="Exclude Milvus from the comparison section",
+    )
+    vector_db_governance_parser.add_argument(
+        "--output",
+        default=None,
+        help="Optional Markdown output path for the governance report",
+    )
+
+    qdrant_backup_retention_parser = subparsers.add_parser(
+        "qdrant-backup-retention",
+        help="Apply or preview local Qdrant backup retention policy",
+    )
+    qdrant_backup_retention_parser.add_argument(
+        "--backup-dir",
+        default=QDRANT_BACKUP_DIR,
+        help="Directory containing downloaded Qdrant snapshot files",
+    )
+    qdrant_backup_retention_parser.add_argument(
+        "--keep-last",
+        type=int,
+        default=5,
+        help="Number of newest backup files to retain",
+    )
+    qdrant_backup_retention_parser.add_argument(
+        "--pattern",
+        action="append",
+        default=None,
+        help=(
+            "Backup filename glob pattern. Can be repeated. "
+            f"Default: {', '.join(DEFAULT_QDRANT_BACKUP_PATTERNS)}"
+        ),
+    )
+    qdrant_backup_retention_parser.add_argument(
+        "--apply",
+        action="store_true",
+        help="Actually delete old backups. Without this flag the command is dry-run.",
+    )
+    qdrant_backup_retention_parser.add_argument(
+        "--output",
+        default=None,
+        help="Optional Markdown output path for the retention report",
     )
 
     import_json_to_postgres_parser = subparsers.add_parser(
@@ -4934,6 +5006,46 @@ def main():
         print("QDRANT URL:", args.url)
         print("COLLECTION:", args.collection)
         print("DELETED:", deleted)
+
+    elif args.command == "vector-db-governance-report":
+        try:
+            report = build_vector_db_governance_report(
+                current_backend=args.current_backend,
+                target_backend=args.target_backend,
+                include_milvus=not args.exclude_milvus,
+            )
+        except ValueError as error:
+            print(f"VECTOR DB GOVERNANCE ERROR: {error}")
+            raise SystemExit(2) from error
+
+        markdown = render_vector_db_governance_report(report)
+        print(markdown, end="")
+
+        if args.output is not None:
+            save_text_output(args.output, markdown)
+            print("OUTPUT:", args.output)
+
+    elif args.command == "qdrant-backup-retention":
+        try:
+            plan = build_qdrant_backup_retention_plan(
+                backup_dir=args.backup_dir,
+                keep_last=args.keep_last,
+                patterns=args.pattern,
+            )
+            result = execute_qdrant_backup_retention(
+                plan,
+                dry_run=not args.apply,
+            )
+        except (FileNotFoundError, NotADirectoryError, ValueError) as error:
+            print(f"QDRANT BACKUP RETENTION ERROR: {error}")
+            raise SystemExit(2) from error
+
+        markdown = render_qdrant_backup_retention_report(result)
+        print(markdown, end="")
+
+        if args.output is not None:
+            save_text_output(args.output, markdown)
+            print("OUTPUT:", args.output)
 
     elif args.command == "import-json-to-postgres":
         database_url = (
