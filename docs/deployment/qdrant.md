@@ -104,6 +104,8 @@ vector-db-governance-report CLI
 Qdrant / Milvus production-governance comparison report
 qdrant-backup-retention CLI
 local backup retention dry-run / apply execution
+qdrant-snapshot-smoke-plan CLI
+qdrant-snapshot-smoke-report-template CLI
 ```
 
 Not completed:
@@ -111,6 +113,7 @@ Not completed:
 ```text
 Automated scheduled Qdrant backup job
 Automated Qdrant snapshot creation
+Automated Qdrant snapshot restore runner
 MilvusVectorStoreRepository
 Milvus runtime benchmark
 ```
@@ -350,6 +353,59 @@ uv run python -m app.cli import-vector-store-to-qdrant `
 Use snapshot restore when preserving the exact Qdrant collection state matters.
 Use JSON rebuild when the goal is to regenerate the collection from the current
 local vector store artifact.
+
+## Snapshot Smoke Plan
+
+The project provides an offline snapshot smoke-test plan generator. It does not
+contact Qdrant. It creates a repeatable sequence for manually validating:
+
+```text
+create snapshot
+list snapshot
+download snapshot
+restore into disposable collection
+compare restored collection against JSON baseline
+run backup retention dry-run
+```
+
+Generate the plan:
+
+```powershell
+uv run python -m app.cli qdrant-snapshot-smoke-plan
+```
+
+Save the plan:
+
+```powershell
+uv run python -m app.cli qdrant-snapshot-smoke-plan `
+  --output data/reports/qdrant_snapshot_smoke_plan.md
+```
+
+Generate an execution report template:
+
+```powershell
+uv run python -m app.cli qdrant-snapshot-smoke-report-template `
+  --environment local-compose `
+  --operator "<your-name>" `
+  --output data/reports/qdrant_snapshot_smoke_report.md
+```
+
+Use a disposable restore collection. Do not restore directly over the active
+collection:
+
+```powershell
+uv run python -m app.cli qdrant-snapshot-smoke-plan `
+  --collection thesis_chunks `
+  --restore-collection thesis_chunks_restore
+```
+
+Current boundary:
+
+```text
+The plan and report template are implemented.
+The commands are still executed manually.
+The project does not yet include an automated Qdrant snapshot API runner.
+```
 
 ### Backup Safety Rules
 

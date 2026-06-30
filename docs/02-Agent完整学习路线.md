@@ -1,4 +1,4 @@
----
+﻿---
 tags:
   - roadmap
   - agent-engineering
@@ -76,7 +76,8 @@ updated: 2026-06-30
 - [x] Vector DB 生产化治理报告
 - [x] Qdrant / Milvus 对比边界说明
 - [x] Qdrant backup retention policy CLI
-- [ ] Qdrant 自动 snapshot 创建任务 / 自动 restore smoke
+- [x] Qdrant snapshot smoke plan / report template
+- [ ] Qdrant 自动 snapshot / restore API runner
 - [ ] MilvusVectorStoreRepository / Milvus runtime benchmark
 
 基础知识：
@@ -250,7 +251,7 @@ updated: 2026-06-30
 
 ## 阶段 10：服务化与界面
 
-> 当前机器已经完成 FastAPI 服务化、静态 Web 前端增强、stdio MCP Server、stdio MCP Client、MCP resource / prompt 能力、Docker Compose、Prometheus 本地验证、Alertmanager 本机路由、外部通知路由本地可审计版本、K8s 基础 manifests、生产化基础字段、smoke test 计划 CLI 与执行记录模板 CLI、Docker 镜像 CI 构建、GHCR 镜像发布、PostgreSQL runtime smoke、Qdrant 最小后端、Vector DB 生产化治理报告和 Qdrant backup retention policy CLI。K8s 真实集群 smoke test 执行、Qdrant 自动 snapshot / restore smoke、Milvus runtime benchmark 和服务器长期运行继续作为后续阶段。
+> 当前机器已经完成 FastAPI 服务化、静态 Web 前端增强、stdio MCP Server、stdio MCP Client、MCP resource / prompt 能力、Docker Compose、Prometheus 本地验证、Alertmanager 本机路由、外部通知路由本地可审计版本、K8s 基础 manifests、生产化基础字段、smoke test 计划 CLI 与执行记录模板 CLI、Docker 镜像 CI 构建、GHCR 镜像发布、PostgreSQL runtime smoke、Qdrant 最小后端、Vector DB 生产化治理报告和 Qdrant backup retention policy CLI。K8s 真实集群 smoke test 执行、Qdrant 自动 snapshot / restore API runner、Milvus runtime benchmark 和服务器长期运行继续作为后续阶段。
 
 - [x] FastAPI
 - [x] Pydantic 请求模型
@@ -306,7 +307,8 @@ updated: 2026-06-30
 - [x] Vector DB 生产化治理报告
 - [x] Qdrant / Milvus 对比边界说明
 - [x] Qdrant backup retention policy CLI
-- [ ] Qdrant 自动 snapshot 创建任务 / 自动 restore smoke
+- [x] Qdrant snapshot smoke plan / report template
+- [ ] Qdrant 自动 snapshot / restore API runner
 - [ ] MilvusVectorStoreRepository / Milvus runtime benchmark
 - [x] K8s 基础 manifests
 - [x] K8s 生产化基础字段
@@ -784,7 +786,7 @@ PostgreSQL runtime smoke test。
 
 - LangGraph 后续只做旁路迁移，不覆盖当前手写 Task State / Agent Harness 源码。
 - FastAPI、静态 Web 前端、stdio MCP Server、Dockerfile、docker-compose、Prometheus、Alertmanager 本机路由、外部通知路由本地可审计版本、K8s 基础 manifests、生产化基础字段、smoke test 计划 CLI 与执行记录模板 CLI、本机 PostgreSQL runtime smoke、Qdrant 最小后端、Vector DB 生产化治理报告和 Qdrant backup retention policy CLI 已完成。
-- K8s 真实集群 smoke test 执行、Qdrant 自动 snapshot / restore smoke、Milvus runtime benchmark、私有化部署、服务器长期运行和真实 Feishu / WeCom / email 通知提供方继续作为后续阶段。
+- K8s 真实集群 smoke test 执行、Qdrant 自动 snapshot / restore API runner、Milvus runtime benchmark、私有化部署、服务器长期运行和真实 Feishu / WeCom / email 通知提供方继续作为后续阶段。
 
 ## 下一步学习重点
 
@@ -1961,7 +1963,7 @@ Spec -> Permission -> Plan -> Dry-Run -> Execute -> Trace -> Comparison -> Quali
 ```text
 LangGraph 后续只做旁路迁移，不覆盖现有手写 Agent Harness。
 FastAPI、静态 Web 前端、stdio MCP Server、stdio MCP Client、MCP resource / prompt 能力、Dockerfile、docker-compose、Prometheus、Alertmanager 本机路由、外部通知路由本地可审计版本、K8s 基础 manifests、生产化基础字段、smoke test 计划 CLI 与执行记录模板 CLI、本机 PostgreSQL runtime smoke、Qdrant 最小后端、Vector DB 生产化治理报告和 Qdrant backup retention policy CLI 已完成。
-K8s 真实集群 smoke test 执行、Qdrant 自动 snapshot / restore smoke、Milvus runtime benchmark、私有化部署、服务器长期运行和真实 Feishu / WeCom / email 通知提供方继续作为后续阶段。
+K8s 真实集群 smoke test 执行、Qdrant 自动 snapshot / restore API runner、Milvus runtime benchmark、私有化部署、服务器长期运行和真实 Feishu / WeCom / email 通知提供方继续作为后续阶段。
 ```
 
 <!-- roadmap-update-2026-06-25-trace-replay-feedback -->
@@ -2496,7 +2498,7 @@ docs/17-本机学习版阶段总复盘.md
 
 ```text
 1. K8s 真实集群 smoke test 执行 / 生产化部署验证
-2. Qdrant 自动 snapshot 创建任务 / 自动 restore smoke
+2. Qdrant 自动 snapshot / restore API runner
 3. MilvusVectorStoreRepository / Milvus runtime benchmark
 4. 服务器长期运行验证
 5. 真实 Feishu / WeCom / email 通知提供方
@@ -2571,7 +2573,7 @@ Prometheus 告警规则已完成；Alertmanager 本机路由已完成；外部�
 
 ```text
 1. K8s 真实集群 smoke test 执行 / 生产化部署验证
-2. Qdrant 自动 snapshot 创建任务 / 自动 restore smoke
+2. Qdrant 自动 snapshot / restore API runner
 3. MilvusVectorStoreRepository / Milvus runtime benchmark
 4. 服务器长期运行验证
 5. 真实 Feishu / WeCom / email 通知提供方
@@ -2647,7 +2649,7 @@ API 仍保持 replicas=1，因为默认 JSON / emptyDir 后端不适合多副本
 
 ```text
 如果继续 K8s：执行真实集群 smoke test，并将脱敏输出写入验证记录模板。
-如果暂不接服务器：继续 Qdrant 自动 snapshot 创建任务 / restore smoke，或进入 Milvus runtime benchmark。
+如果暂不接服务器：继续 Qdrant 自动 snapshot / restore API runner，或进入 Milvus runtime benchmark。
 ```
 
 <!-- roadmap-update-2026-06-30-vector-db-governance -->
@@ -2678,7 +2680,41 @@ Milvus 只作为未来对比候选，尚未实现 MilvusVectorStoreRepository。
 下一步学习：
 
 ```text
-1. Qdrant 自动 snapshot 创建任务 / 自动 restore smoke
+1. Qdrant 自动 snapshot / restore API runner
+2. MilvusVectorStoreRepository / Milvus runtime benchmark
+3. K8s 真实集群 smoke test 执行 / 生产化部署验证
+```
+<!-- roadmap-update-2026-06-30-qdrant-snapshot-smoke-plan -->
+
+## 2026-06-30 路线同步：Qdrant Snapshot Smoke Plan 已完成
+
+本阶段完成的是 Qdrant snapshot 创建、下载、恢复和对比验证的离线执行计划，不直接调用 Qdrant API。
+
+已完成：
+
+- [x] `app/qdrant_snapshot_smoke_plan.py`
+- [x] `qdrant-snapshot-smoke-plan` CLI
+- [x] `qdrant-snapshot-smoke-report-template` CLI
+- [x] create snapshot / list snapshots / download snapshot 步骤
+- [x] restore 到 disposable collection 的步骤
+- [x] restored collection 与 JSON baseline 对比步骤
+- [x] retention dry-run 步骤
+- [x] `tests/test_qdrant_snapshot_smoke_plan.py`
+- [x] `docs/deployment/qdrant.md` 更新 snapshot smoke plan
+
+当前边界：
+
+```text
+只生成执行计划和记录模板。
+不自动调用 Qdrant snapshot API。
+不自动 upload restore。
+不删除或切换生产 collection。
+```
+
+下一步学习：
+
+```text
+1. Qdrant 自动 snapshot / restore API runner
 2. MilvusVectorStoreRepository / Milvus runtime benchmark
 3. K8s 真实集群 smoke test 执行 / 生产化部署验证
 ```
@@ -2712,7 +2748,7 @@ Milvus 只作为未来对比候选，尚未实现 MilvusVectorStoreRepository。
 下一步学习：
 
 ```text
-1. Qdrant 自动 snapshot 创建任务 / 自动 restore smoke
+1. Qdrant 自动 snapshot / restore API runner
 2. MilvusVectorStoreRepository / Milvus runtime benchmark
 3. K8s 真实集群 smoke test 执行 / 生产化部署验证
 ```
