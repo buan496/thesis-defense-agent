@@ -3,6 +3,8 @@ import sys
 from collections.abc import Callable
 from typing import Any, TextIO
 
+from app.mcp_prompts import get_mcp_prompt, list_mcp_prompt_schemas
+from app.mcp_resources import list_mcp_resource_schemas, read_mcp_resource
 from app.tool_executor import (
     execute_tool_function_with_retry,
     limit_tool_result_text,
@@ -53,6 +55,8 @@ def build_initialize_result() -> dict[str, Any]:
     return {
         "protocolVersion": MCP_PROTOCOL_VERSION,
         "capabilities": {
+            "resources": {},
+            "prompts": {},
             "tools": {},
         },
         "serverInfo": {
@@ -198,6 +202,59 @@ def handle_mcp_request(
             return build_json_rpc_response(
                 request_id,
                 tool_caller(tool_name, arguments),
+            )
+
+        if method == "resources/list":
+            return build_json_rpc_response(
+                request_id,
+                {
+                    "resources": list_mcp_resource_schemas(),
+                },
+            )
+
+        if method == "resources/read":
+            uri = params.get("uri")
+            if not isinstance(uri, str) or not uri:
+                return build_json_rpc_error(
+                    request_id,
+                    INVALID_PARAMS,
+                    "params.uri must be a non-empty string",
+                )
+
+            return build_json_rpc_response(
+                request_id,
+                read_mcp_resource(uri),
+            )
+
+        if method == "prompts/list":
+            return build_json_rpc_response(
+                request_id,
+                {
+                    "prompts": list_mcp_prompt_schemas(),
+                },
+            )
+
+        if method == "prompts/get":
+            prompt_name = params.get("name")
+            arguments = params.get("arguments", {})
+
+            if not isinstance(prompt_name, str) or not prompt_name:
+                return build_json_rpc_error(
+                    request_id,
+                    INVALID_PARAMS,
+                    "params.name must be a non-empty string",
+                )
+
+            if arguments is not None and not isinstance(arguments, dict):
+                return build_json_rpc_error(
+                    request_id,
+                    INVALID_PARAMS,
+                    "params.arguments must be an object",
+                )
+
+            return build_json_rpc_response(
+                request_id,
+                get_mcp_prompt(prompt_name, arguments),
             )
 
         return build_json_rpc_error(

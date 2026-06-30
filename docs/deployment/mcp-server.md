@@ -10,6 +10,10 @@ separate tool implementation.
 Tool Registry
 -> MCP tools/list
 -> MCP tools/call
+-> MCP resources/list
+-> MCP resources/read
+-> MCP prompts/list
+-> MCP prompts/get
 -> stdio JSON-RPC loop
 ```
 
@@ -23,6 +27,8 @@ search_thesis
 
 ```text
 app/mcp_server.py
+app/mcp_resources.py
+app/mcp_prompts.py
 tests/test_mcp_server.py
 ```
 
@@ -33,6 +39,10 @@ initialize
 notifications/initialized
 tools/list
 tools/call
+resources/list
+resources/read
+prompts/list
+prompts/get
 ```
 
 Unsupported methods return JSON-RPC `METHOD_NOT_FOUND`.
@@ -65,7 +75,9 @@ Expected response shape:
   "result": {
     "protocolVersion": "2024-11-05",
     "capabilities": {
-      "tools": {}
+      "tools": {},
+      "resources": {},
+      "prompts": {}
     },
     "serverInfo": {
       "name": "thesis-defense-agent",
@@ -108,6 +120,46 @@ result length limit
 standardized errors
 ```
 
+## Example: List Resources
+
+```json
+{"jsonrpc":"2.0","id":4,"method":"resources/list","params":{}}
+```
+
+Available local resources:
+
+```text
+thesis://summary
+thesis://readme
+thesis://progress
+```
+
+## Example: Read Resource
+
+```json
+{"jsonrpc":"2.0","id":5,"method":"resources/read","params":{"uri":"thesis://summary"}}
+```
+
+## Example: List Prompts
+
+```json
+{"jsonrpc":"2.0","id":6,"method":"prompts/list","params":{}}
+```
+
+Available local prompts:
+
+```text
+defense_question_prompt
+answer_evaluation_prompt
+follow_up_prompt
+```
+
+## Example: Get Prompt
+
+```json
+{"jsonrpc":"2.0","id":7,"method":"prompts/get","params":{"name":"defense_question_prompt","arguments":{"thesis_context":"系统架构包括特征处理和模型训练。"}}}
+```
+
 ## Current Boundary
 
 Completed:
@@ -117,7 +169,13 @@ stdio JSON-RPC server loop
 initialize
 tools/list
 tools/call
+resources/list
+resources/read
+prompts/list
+prompts/get
 Tool Registry integration
+local resource registry
+local prompt registry
 offline tests with fake tool caller
 ```
 
@@ -126,7 +184,6 @@ Not completed:
 ```text
 remote HTTP MCP transport
 authentication
-resource/list and prompt/list support
 multi-server MCP client
 tool marketplace integration
 production MCP deployment
