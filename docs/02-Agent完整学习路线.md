@@ -3,7 +3,7 @@ tags:
   - roadmap
   - agent-engineering
 status: active
-updated: 2026-06-29
+updated: 2026-06-30
 ---
 
 # Agent 完整学习路线
@@ -246,7 +246,7 @@ updated: 2026-06-29
 
 ## 阶段 10：服务化与界面
 
-> 当前机器已经完成 FastAPI 服务化、静态 Web 前端、stdio MCP Server、stdio MCP Client、MCP resource / prompt 能力、Docker Compose、Prometheus 本地验证、Alertmanager 本机路由、外部通知路由本地可审计版本、K8s 基础 manifests、Docker 镜像 CI 构建、GHCR 镜像发布、PostgreSQL runtime smoke 和 Qdrant 最小后端。Web 前端增强、K8s 生产化部署、Milvus / 向量数据库生产化治理和服务器长期运行继续作为后续阶段。
+> 当前机器已经完成 FastAPI 服务化、静态 Web 前端增强、stdio MCP Server、stdio MCP Client、MCP resource / prompt 能力、Docker Compose、Prometheus 本地验证、Alertmanager 本机路由、外部通知路由本地可审计版本、K8s 基础 manifests、Docker 镜像 CI 构建、GHCR 镜像发布、PostgreSQL runtime smoke 和 Qdrant 最小后端。K8s 生产化部署、Milvus / 向量数据库生产化治理和服务器长期运行继续作为后续阶段。
 
 - [x] FastAPI
 - [x] Pydantic 请求模型
@@ -254,7 +254,7 @@ updated: 2026-06-29
 - [x] 真实 LLM SSE 流式输出
 - [x] WebSocket 双向交互
 - [x] 静态前端答辩界面
-- [ ] 前端增强：SSE / WebSocket / 文件上传 UI / trace 可视化
+- [x] 前端增强：SSE / WebSocket / 文件上传 UI / trace 可视化
 - [x] 文件上传
 - [ ] 会话列表
 - [ ] Trace 查看器
@@ -773,7 +773,7 @@ PostgreSQL runtime smoke test。
 
 - LangGraph 后续只做旁路迁移，不覆盖当前手写 Task State / Agent Harness 源码。
 - FastAPI、静态 Web 前端、stdio MCP Server、Dockerfile、docker-compose、Prometheus、Alertmanager 本机路由、外部通知路由本地可审计版本、K8s 基础 manifests、本机 PostgreSQL runtime smoke 和 Qdrant 最小后端已完成。
-- Web 前端增强、K8s 生产化部署、Milvus / 向量数据库生产化治理、私有化部署、服务器长期运行和真实 Feishu / WeCom / email 通知提供方继续作为后续阶段。
+- K8s 生产化部署、Milvus / 向量数据库生产化治理、私有化部署、服务器长期运行和真实 Feishu / WeCom / email 通知提供方继续作为后续阶段。
 
 ## 下一步学习重点
 
@@ -1950,7 +1950,7 @@ Spec -> Permission -> Plan -> Dry-Run -> Execute -> Trace -> Comparison -> Quali
 ```text
 LangGraph 后续只做旁路迁移，不覆盖现有手写 Agent Harness。
 FastAPI、静态 Web 前端、stdio MCP Server、stdio MCP Client、MCP resource / prompt 能力、Dockerfile、docker-compose、Prometheus、Alertmanager 本机路由、外部通知路由本地可审计版本、K8s 基础 manifests、本机 PostgreSQL runtime smoke 和 Qdrant 最小后端已完成。
-Web 前端增强、K8s 生产化部署、Milvus / 向量数据库生产化治理、私有化部署、服务器长期运行和真实 Feishu / WeCom / email 通知提供方继续作为后续阶段。
+K8s 生产化部署、Milvus / 向量数据库生产化治理、私有化部署、服务器长期运行和真实 Feishu / WeCom / email 通知提供方继续作为后续阶段。
 ```
 
 <!-- roadmap-update-2026-06-25-trace-replay-feedback -->
@@ -2484,13 +2484,11 @@ docs/17-本机学习版阶段总复盘.md
 服务器笔记本阶段建议顺序：
 
 ```text
-1. Web 前端增强
-2. K8s 生产化部署
-3. Qdrant 生产化治理或 Milvus 替换本地 JSON 向量库
-4. 服务器长期运行验证
-5. 真实 Feishu / WeCom / email 通知提供方
-6. 真实 Feishu / WeCom / email 通知提供方
-7. 权限审批和 workspace 隔离
+1. K8s 生产化部署
+2. Qdrant 生产化治理或 Milvus 替换本地 JSON 向量库
+3. 服务器长期运行验证
+4. 真实 Feishu / WeCom / email 通知提供方
+5. 权限审批和 workspace 隔离
 ```
 
 <!-- roadmap-update-2026-06-26-fastapi-docker-prometheus -->
@@ -2560,10 +2558,44 @@ Prometheus 告警规则已完成；Alertmanager 本机路由已完成；外部�
 下一阶段建议顺序：
 
 ```text
-1. Web 前端增强
-2. K8s 生产化部署
-3. Qdrant 生产化治理 / Milvus
-4. 服务器长期运行验证
-5. 真实 Feishu / WeCom / email 通知提供方
-6. 真实 Feishu / WeCom / email 通知提供方
+1. K8s 生产化部署
+2. Qdrant 生产化治理 / Milvus
+3. 服务器长期运行验证
+4. 真实 Feishu / WeCom / email 通知提供方
+```
+
+<!-- roadmap-update-2026-06-30-web-frontend-enhancements -->
+
+## 2026-06-30 路线同步：Web 前端增强已完成
+
+本阶段在已有 FastAPI 静态页面基础上补齐本机学习版操作面板。
+
+已完成：
+
+- [x] 文件上传 UI，对接 `POST /documents/upload`
+- [x] SSE 输出测试面板，对接 `GET /stream/echo`
+- [x] WebSocket 连接状态，对接 `/ws/tasks/{task_id}`
+- [x] Trace 指标卡片：工具调用、成功调用、token、cost
+- [x] 可点击步骤列表，查看单步详情
+- [x] Markdown 报告导出后支持浏览器下载
+- [x] `tests/test_api_frontend.py` 覆盖新增入口
+
+当前边界：
+
+```text
+仍是静态 HTML/CSS/JS 学习版。
+不引入 React/Vite。
+不做登录鉴权。
+不做图形化 trace 拓扑。
+不做复杂前端状态管理。
+```
+
+下一步学习：
+
+```text
+K8s 生产化部署基础：
+namespace / configmap / secret 模板
+readiness / liveness
+resource requests / limits
+rollout / rollback SOP
 ```

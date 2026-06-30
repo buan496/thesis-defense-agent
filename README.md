@@ -39,6 +39,7 @@ PDF / TXT 论文
 → SSE 流式输出基础接口
 → 真实 LLM SSE 流式输出接口
 → WebSocket 任务控制通道
+→ 静态 Web 前端增强
 → PostgreSQL / Qdrant 可替换存储后端
 ```
 
@@ -290,7 +291,7 @@ JSON remains the default session backend.
 最新本地测试基线：
 
 ```text
-915 passed
+989 passed, 1 warning
 ```
 
 本机学习版阶段已完成，阶段总复盘见：
@@ -427,18 +428,18 @@ retrieve_context
 
 ## 暂缓范围
 
-当前已经完成本机 FastAPI 服务化、Docker Compose、Prometheus 本地验证、GHCR 镜像发布流程、PostgreSQL runtime smoke 和 Qdrant 最小后端。以下内容暂缓到后续阶段：
+当前已经完成本机 FastAPI 服务化、静态 Web 前端增强、Docker Compose、Prometheus 本地验证、GHCR 镜像发布流程、PostgreSQL runtime smoke 和 Qdrant 最小后端。以下内容暂缓到后续阶段：
 
-- Web 前端增强
 - Qdrant 生产化治理 / Milvus
-- 外部通知渠道 / on-call routing
 - K8s 生产化部署
+- 服务器长期运行验证
+- 真实 Feishu / WeCom / email 通知提供方
 - 私有化部署
 - 服务器环境变量和密钥管理
 
 LangGraph 已完成旁路迁移学习版闭环，并保留在 `app/langgraph_workflow/`。它只用于和当前 `app/agent.py`、`app/task_*` 对照学习，不覆盖当前手写实现。数据库级 checkpointer、服务器部署和跨进程恢复继续后移到服务器/数据库阶段。
 
-FastAPI、静态 Web 前端、stdio MCP Server、stdio MCP Client、MCP resource / prompt 能力、Dockerfile、docker-compose、Prometheus 抓取、Alertmanager 本机路由、外部通知路由本地可审计版本、K8s 基础 manifests 和 GitHub Actions Docker 镜像构建已完成本机/CI 验证；GHCR 发布流程已完成。服务器长期运行、真实 Feishu / WeCom / email 通知提供方、Web 前端增强、K8s 生产化部署和更完整的向量数据库生产治理继续作为后续阶段。
+FastAPI、静态 Web 前端、stdio MCP Server、stdio MCP Client、MCP resource / prompt 能力、Dockerfile、docker-compose、Prometheus 抓取、Alertmanager 本机路由、外部通知路由本地可审计版本、K8s 基础 manifests 和 GitHub Actions Docker 镜像构建已完成本机/CI 验证；GHCR 发布流程已完成。服务器长期运行、真实 Feishu / WeCom / email 通知提供方、K8s 生产化部署和更完整的向量数据库生产治理继续作为后续阶段。
 
 PostgreSQL 当前已完成 Compose 服务、schema migration、JSON-to-PostgreSQL import、task/session/trace repository 实现，以及 task/session/trace runtime repository integration。默认后端仍是 `STORAGE_BACKEND=json`，本机或服务器运行时可以通过 `STORAGE_BACKEND=postgres` 和 `DATABASE_URL` 显式切换。设计说明见：
 
@@ -761,7 +762,7 @@ retrieve_context
 
 1. 服务器长期运行验证：在服务器拉取 main，用 docker compose 运行 API 和 Prometheus。
 2. 对 README 和学习路线做周期性同步，避免文档落后于代码。
-3. 后续继续推进 Web 前端增强、K8s 生产化部署、真实通知提供方和 Qdrant 生产化治理 / Milvus。
+3. 后续继续推进 K8s 生产化部署、真实通知提供方和 Qdrant 生产化治理 / Milvus。
 
 ## 2026-06-30 Update: External Notification Routing
 
@@ -931,7 +932,39 @@ http://127.0.0.1:8000/
 边界：
 
 ```text
-当前是静态 HTML/CSS/JS 学习版，不包含 React/Vite、登录鉴权、文件上传 UI、SSE 进度条或可视化 trace 图。
+当前是静态 HTML/CSS/JS 学习版，已包含文件上传 UI、SSE 输出测试、WebSocket 状态展示、Trace 指标卡片、步骤详情查看和 Markdown 报告下载。
+仍不包含 React/Vite、登录鉴权、会话列表、图形化 trace 拓扑或复杂前端状态管理。
+```
+
+## 2026-06-30 Update: Web Frontend Enhancements
+
+静态 Web 前端已从最小 Task 控制台增强为本机学习版操作面板。
+
+新增能力：
+
+```text
+文件上传 UI -> POST /documents/upload
+SSE 流式输出测试 -> GET /stream/echo
+WebSocket 连接状态 -> /ws/tasks/{task_id}
+Task Trace 指标卡片 -> tool calls / token / cost
+可点击步骤列表 -> 查看单步输入输出与状态
+Markdown 报告下载 -> 浏览器本地下载
+```
+
+相关文件：
+
+```text
+app/api/static/index.html
+app/api/static/app.js
+app/api/static/styles.css
+tests/test_api_frontend.py
+```
+
+验证基线：
+
+```text
+uv run pytest tests/test_api_frontend.py -q
+uv run pytest -q
 ```
 
 ## 2026-06-30 Update: MCP Stdio Server
