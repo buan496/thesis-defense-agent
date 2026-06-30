@@ -238,14 +238,14 @@ updated: 2026-06-29
 - [x] Sub-Agent execution trace
 - [x] Sub-Agent plan / execution comparator
 - [ ] 真实 MCP Client
-- [ ] 真实 MCP Server
+- [x] 真实 MCP Server 最小 stdio 版本
 - [ ] Planner / Researcher / Evaluator 多角色协作
 - [ ] 多 Agent 共享上下文边界
 - [ ] 失败回收和预算控制
 
 ## 阶段 10：服务化与界面
 
-> 当前机器已经完成 FastAPI 服务化、静态 Web 前端、Docker Compose、Prometheus 本地验证、Alertmanager 本机路由、K8s 基础 manifests、Docker 镜像 CI 构建、GHCR 镜像发布、PostgreSQL runtime smoke 和 Qdrant 最小后端。真实 MCP Server、外部通知渠道、Web 前端增强、K8s 生产化部署、Milvus / 向量数据库生产化治理和服务器长期运行继续作为后续阶段。
+> 当前机器已经完成 FastAPI 服务化、静态 Web 前端、stdio MCP Server、Docker Compose、Prometheus 本地验证、Alertmanager 本机路由、K8s 基础 manifests、Docker 镜像 CI 构建、GHCR 镜像发布、PostgreSQL runtime smoke 和 Qdrant 最小后端。外部通知渠道、MCP Client、Web 前端增强、K8s 生产化部署、Milvus / 向量数据库生产化治理和服务器长期运行继续作为后续阶段。
 
 - [x] FastAPI
 - [x] Pydantic 请求模型
@@ -771,8 +771,8 @@ PostgreSQL runtime smoke test。
 边界说明：
 
 - LangGraph 后续只做旁路迁移，不覆盖当前手写 Task State / Agent Harness 源码。
-- FastAPI、静态 Web 前端、Dockerfile、docker-compose、Prometheus、Alertmanager 本机路由、K8s 基础 manifests、本机 PostgreSQL runtime smoke 和 Qdrant 最小后端已完成。
-- 真实 MCP Server、外部通知渠道、Web 前端增强、K8s 生产化部署、Milvus / 向量数据库生产化治理、私有化部署和服务器长期运行继续作为后续阶段。
+- FastAPI、静态 Web 前端、stdio MCP Server、Dockerfile、docker-compose、Prometheus、Alertmanager 本机路由、K8s 基础 manifests、本机 PostgreSQL runtime smoke 和 Qdrant 最小后端已完成。
+- 外部通知渠道、MCP Client、Web 前端增强、K8s 生产化部署、Milvus / 向量数据库生产化治理、私有化部署和服务器长期运行继续作为后续阶段。
 
 ## 下一步学习重点
 
@@ -1948,8 +1948,8 @@ Spec -> Permission -> Plan -> Dry-Run -> Execute -> Trace -> Comparison -> Quali
 
 ```text
 LangGraph 后续只做旁路迁移，不覆盖现有手写 Agent Harness。
-FastAPI、静态 Web 前端、Dockerfile、docker-compose、Prometheus、Alertmanager 本机路由、K8s 基础 manifests、本机 PostgreSQL runtime smoke 和 Qdrant 最小后端已完成。
-真实 MCP Server、外部通知渠道、Web 前端增强、K8s 生产化部署、Milvus / 向量数据库生产化治理、私有化部署和服务器长期运行继续作为后续阶段。
+FastAPI、静态 Web 前端、stdio MCP Server、Dockerfile、docker-compose、Prometheus、Alertmanager 本机路由、K8s 基础 manifests、本机 PostgreSQL runtime smoke 和 Qdrant 最小后端已完成。
+外部通知渠道、MCP Client、Web 前端增强、K8s 生产化部署、Milvus / 向量数据库生产化治理、私有化部署和服务器长期运行继续作为后续阶段。
 ```
 
 <!-- roadmap-update-2026-06-25-trace-replay-feedback -->
@@ -2483,8 +2483,8 @@ docs/17-本机学习版阶段总复盘.md
 服务器笔记本阶段建议顺序：
 
 ```text
-1. MCP Server 实际接入
-2. 外部通知渠道和日志集中采集
+1. 外部通知渠道和日志集中采集
+2. MCP Client / resource 和 prompt 能力
 3. Web 前端增强
 4. K8s 生产化部署
 5. Qdrant 生产化治理或 Milvus 替换本地 JSON 向量库
@@ -2551,7 +2551,7 @@ docs/deployment/server.md
 ```text
 PostgreSQL repository、runtime integration 和本机 smoke test 已完成；默认后端仍是 json。
 Qdrant 已有本地最小实现、benchmark 对比和 backup / restore SOP；尚未做生产化治理和 Milvus。
-Prometheus 告警规则已完成；Alertmanager 本机路由已完成；K8s 基础 manifests 已完成；静态 Web 前端已完成；日志保留与查询文档已完成；API request Correlation ID 已完成；request -> task -> tool call 全链路 Correlation ID 已完成。
+Prometheus 告警规则已完成；Alertmanager 本机路由已完成；K8s 基础 manifests 已完成；静态 Web 前端已完成；stdio MCP Server 已完成；日志保留与查询文档已完成；API request Correlation ID 已完成；request -> task -> tool call 全链路 Correlation ID 已完成。
 尚未提供外部通知渠道 / on-call routing。
 尚未提供 K8s 生产化部署。
 ```
@@ -2559,8 +2559,8 @@ Prometheus 告警规则已完成；Alertmanager 本机路由已完成；K8s 基�
 下一阶段建议顺序：
 
 ```text
-1. 真实 MCP Server
-2. 外部通知渠道 / on-call routing
+1. 外部通知渠道 / on-call routing
+2. MCP Client / resource 和 prompt 能力
 3. Web 前端增强
 4. K8s 生产化部署
 5. Qdrant 生产化治理 / Milvus
