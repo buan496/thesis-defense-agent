@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: thesis-defense-agent-prometheus
+  namespace: thesis-defense-agent
+  labels:
+    app.kubernetes.io/name: thesis-defense-agent-prometheus
+    app.kubernetes.io/part-of: thesis-defense-agent
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: thesis-defense-agent-prometheus
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: thesis-defense-agent-prometheus
+        app.kubernetes.io/part-of: thesis-defense-agent
+    spec:
+      containers:
+        - name: prometheus
+          image: prom/prometheus:v3.8.0
+          args:
+            - "--config.file=/etc/prometheus/prometheus.yml"
+            - "--storage.tsdb.path=/prometheus"
+          ports:
+            - name: http
+              containerPort: 9090
+          volumeMounts:
+            - name: config
+              mountPath: /etc/prometheus/prometheus.yml
+              subPath: prometheus.yml
+            - name: config
+              mountPath: /etc/prometheus/alert_rules.yml
+              subPath: alert_rules.yml
+          readinessProbe:
+            httpGet:
+              path: /-/ready
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /-/healthy
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "1000m"
+              memory: "1Gi"
+      volumes:
+        - name: config
+          configMap:
+            name: thesis-defense-agent-prometheus-config

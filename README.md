@@ -432,13 +432,13 @@ retrieve_context
 - Web 前端
 - Qdrant 生产化治理 / Milvus
 - 外部通知渠道 / on-call routing
-- K8s
+- K8s 生产化部署
 - 私有化部署
 - 服务器环境变量和密钥管理
 
 LangGraph 已完成旁路迁移学习版闭环，并保留在 `app/langgraph_workflow/`。它只用于和当前 `app/agent.py`、`app/task_*` 对照学习，不覆盖当前手写实现。数据库级 checkpointer、服务器部署和跨进程恢复继续后移到服务器/数据库阶段。
 
-FastAPI、Dockerfile、docker-compose、Prometheus 抓取、Alertmanager 本机路由和 GitHub Actions Docker 镜像构建已完成本机/CI 验证；GHCR 发布流程已完成。服务器长期运行、外部通知渠道、K8s 和更完整的向量数据库生产治理继续作为后续阶段。
+FastAPI、Dockerfile、docker-compose、Prometheus 抓取、Alertmanager 本机路由、K8s 基础 manifests 和 GitHub Actions Docker 镜像构建已完成本机/CI 验证；GHCR 发布流程已完成。服务器长期运行、外部通知渠道、K8s 生产化部署和更完整的向量数据库生产治理继续作为后续阶段。
 
 PostgreSQL 当前已完成 Compose 服务、schema migration、JSON-to-PostgreSQL import、task/session/trace repository 实现，以及 task/session/trace runtime repository integration。默认后端仍是 `STORAGE_BACKEND=json`，本机或服务器运行时可以通过 `STORAGE_BACKEND=postgres` 和 `DATABASE_URL` 显式切换。设计说明见：
 
@@ -761,7 +761,7 @@ retrieve_context
 
 1. 服务器长期运行验证：在服务器拉取 main，用 docker compose 运行 API 和 Prometheus。
 2. 对 README 和学习路线做周期性同步，避免文档落后于代码。
-3. 后续继续推进 K8s 样例、Web 前端、真实 MCP Server、外部通知渠道和 Qdrant 生产化治理 / Milvus。
+3. 后续继续推进 Web 前端、真实 MCP Server、外部通知渠道、K8s 生产化部署和 Qdrant 生产化治理 / Milvus。
 
 ## 2026-06-29 Update: Prometheus Alert Rules
 
@@ -820,6 +820,40 @@ docker compose up -d api alertmanager prometheus
 ```text
 本阶段只做本机 webhook 接收和路由验证。
 暂未接邮件、飞书、企业微信、PagerDuty 或生产 on-call。
+```
+
+## 2026-06-30 Update: Kubernetes Base Manifests
+
+项目现在新增学习版 K8s manifests：
+
+```text
+k8s/base/
+docs/deployment/k8s.md
+```
+
+已完成资源：
+
+```text
+Namespace
+API Deployment / Service / ConfigMap / Secret example
+Prometheus Deployment / Service / ConfigMap
+Alertmanager Deployment / Service / ConfigMap
+```
+
+本阶段只做无状态服务的基础对象映射：
+
+```text
+docker-compose service
+-> Deployment
+-> Service
+-> ConfigMap
+-> Secret example
+```
+
+边界：
+
+```text
+尚未做 Ingress、TLS、HPA、NetworkPolicy、PVC、PostgreSQL StatefulSet、Qdrant StatefulSet、Helm/Kustomize 或真实集群 smoke test。
 ```
 
 ## 2026-06-29 Update: Logging Retention and Query Guide

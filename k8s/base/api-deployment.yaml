@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: thesis-defense-agent-api
+  namespace: thesis-defense-agent
+  labels:
+    app.kubernetes.io/name: thesis-defense-agent-api
+    app.kubernetes.io/part-of: thesis-defense-agent
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: thesis-defense-agent-api
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: thesis-defense-agent-api
+        app.kubernetes.io/part-of: thesis-defense-agent
+    spec:
+      containers:
+        - name: api
+          image: ghcr.io/buan496/thesis-defense-agent:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8000
+          envFrom:
+            - configMapRef:
+                name: thesis-defense-agent-api-config
+            - secretRef:
+                name: thesis-defense-agent-api-secret
+                optional: true
+          volumeMounts:
+            - name: data
+              mountPath: /app/data
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 3
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 3
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "1000m"
+              memory: "1Gi"
+      volumes:
+        - name: data
+          emptyDir: {}
