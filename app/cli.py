@@ -142,6 +142,11 @@ from app.postgres_migrations import build_postgres_migration_plan
 from app.postgres_migration_runner import run_postgres_migrations
 from app.postgres_json_importer import import_json_storage_to_repositories
 from app.repository_factory import create_repositories
+from app.k8s_smoke_plan import (
+    build_k8s_smoke_plan,
+    render_k8s_smoke_plan,
+    render_k8s_smoke_report_template,
+)
 from app.vector_store_io import load_vector_store
 from app.vector_store_repository import QdrantVectorStoreRepository
 from app.session_store import DEFAULT_SESSION_DIRECTORY
@@ -272,6 +277,12 @@ def create_trace_repository_for_cli(file_path: str):
     )
 
     return repositories.trace_repository
+
+
+def save_text_output(path: str, content: str) -> None:
+    output_path = Path(path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(content, encoding="utf-8")
 
 def main():
     parser = argparse.ArgumentParser(
@@ -1980,6 +1991,68 @@ def main():
         "--markdown-output",
         default=None,
         help="Optional Markdown output path for the quality gate report",
+    )
+
+    k8s_smoke_plan_parser = subparsers.add_parser(
+        "k8s-smoke-plan",
+        help="Print a Kubernetes smoke-test plan without applying manifests",
+    )
+    k8s_smoke_plan_parser.add_argument(
+        "--namespace",
+        default="thesis-defense-agent",
+        help="Kubernetes namespace used by the manifests",
+    )
+    k8s_smoke_plan_parser.add_argument(
+        "--kustomize-dir",
+        default="k8s/base",
+        help="Kustomize directory to render and apply",
+    )
+    k8s_smoke_plan_parser.add_argument(
+        "--api-local-port",
+        type=int,
+        default=18000,
+        help="Local port used in the API port-forward smoke test",
+    )
+    k8s_smoke_plan_parser.add_argument(
+        "--output",
+        default=None,
+        help="Optional Markdown output path for the smoke-test plan",
+    )
+
+    k8s_smoke_report_template_parser = subparsers.add_parser(
+        "k8s-smoke-report-template",
+        help="Print a Kubernetes smoke-test execution report template",
+    )
+    k8s_smoke_report_template_parser.add_argument(
+        "--namespace",
+        default="thesis-defense-agent",
+        help="Kubernetes namespace used by the manifests",
+    )
+    k8s_smoke_report_template_parser.add_argument(
+        "--kustomize-dir",
+        default="k8s/base",
+        help="Kustomize directory to render and apply",
+    )
+    k8s_smoke_report_template_parser.add_argument(
+        "--api-local-port",
+        type=int,
+        default=18000,
+        help="Local port used in the API port-forward smoke test",
+    )
+    k8s_smoke_report_template_parser.add_argument(
+        "--environment",
+        default="local-cluster",
+        help="Environment label written into the smoke-test report",
+    )
+    k8s_smoke_report_template_parser.add_argument(
+        "--operator",
+        default="",
+        help="Operator name written into the smoke-test report",
+    )
+    k8s_smoke_report_template_parser.add_argument(
+        "--output",
+        default=None,
+        help="Optional Markdown output path for the smoke-test report template",
     )
 
     postgres_migrations_parser = subparsers.add_parser(
@@ -4601,6 +4674,46 @@ def main():
 
         if not report.passed and not args.allow_fail:
             raise SystemExit(1)
+
+    elif args.command == "k8s-smoke-plan":
+        try:
+            plan = build_k8s_smoke_plan(
+                namespace=args.namespace,
+                kustomize_dir=args.kustomize_dir,
+                api_local_port=args.api_local_port,
+            )
+        except ValueError as error:
+            print(f"K8S SMOKE PLAN ERROR: {error}")
+            raise SystemExit(2) from error
+
+        markdown = render_k8s_smoke_plan(plan)
+        print(markdown, end="")
+
+        if args.output is not None:
+            save_text_output(args.output, markdown)
+            print("OUTPUT:", args.output)
+
+    elif args.command == "k8s-smoke-report-template":
+        try:
+            plan = build_k8s_smoke_plan(
+                namespace=args.namespace,
+                kustomize_dir=args.kustomize_dir,
+                api_local_port=args.api_local_port,
+            )
+            markdown = render_k8s_smoke_report_template(
+                plan,
+                environment=args.environment,
+                operator=args.operator,
+            )
+        except ValueError as error:
+            print(f"K8S SMOKE REPORT TEMPLATE ERROR: {error}")
+            raise SystemExit(2) from error
+
+        print(markdown, end="")
+
+        if args.output is not None:
+            save_text_output(args.output, markdown)
+            print("OUTPUT:", args.output)
 
     elif args.command == "postgres-migrations":
         try:
