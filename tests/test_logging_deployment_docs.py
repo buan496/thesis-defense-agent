@@ -2,14 +2,21 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
+RUNTIME_SERVICE_COUNT = 5
 
 
 def test_docker_compose_configures_log_rotation_for_runtime_services():
     compose_text = (ROOT / "docker-compose.yml").read_text(encoding="utf-8")
 
-    assert compose_text.count("driver: json-file") == 4
-    assert compose_text.count('max-size: "${DOCKER_LOG_MAX_SIZE:-10m}"') == 4
-    assert compose_text.count('max-file: "${DOCKER_LOG_MAX_FILE:-5}"') == 4
+    assert compose_text.count("driver: json-file") == RUNTIME_SERVICE_COUNT
+    assert (
+        compose_text.count('max-size: "${DOCKER_LOG_MAX_SIZE:-10m}"')
+        == RUNTIME_SERVICE_COUNT
+    )
+    assert (
+        compose_text.count('max-file: "${DOCKER_LOG_MAX_FILE:-5}"')
+        == RUNTIME_SERVICE_COUNT
+    )
 
 
 def test_env_example_documents_docker_log_retention_defaults():

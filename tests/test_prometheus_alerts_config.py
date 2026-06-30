@@ -9,6 +9,8 @@ def test_prometheus_config_loads_alert_rules():
         ROOT / "observability" / "prometheus" / "prometheus.yml"
     ).read_text(encoding="utf-8")
 
+    assert "alerting:" in prometheus_text
+    assert '"alertmanager:9093"' in prometheus_text
     assert "rule_files:" in prometheus_text
     assert "- /etc/prometheus/alert_rules.yml" in prometheus_text
     assert 'job_name: "thesis-defense-agent-api"' in prometheus_text
@@ -58,5 +60,5 @@ def test_prometheus_alerts_documentation_exists():
     assert "ThesisDefenseAgentApiDown" in docs_text
     assert "ThesisDefenseAgentHigh5xxRate" in docs_text
     assert "ThesisDefenseAgentHighAverageLatency" in docs_text
-    assert "docker compose up -d api prometheus" in docs_text
+    assert "docker compose up -d api alertmanager prometheus" in docs_text
     assert "Alertmanager" in docs_text
