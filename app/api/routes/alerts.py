@@ -3,9 +3,13 @@ from typing import Any
 
 from fastapi import APIRouter, Body
 
+from app.alert_notification_adapter import route_alertmanager_payload
+from app.notification_router import build_default_notification_router
+
 
 router = APIRouter(prefix="/alerts", tags=["alerts"])
 logger = logging.getLogger("app.api.alerts")
+notification_router = build_default_notification_router()
 
 
 @router.post("/alertmanager")
@@ -37,6 +41,9 @@ def receive_alertmanager_webhook(
         "alert_names": alert_names,
         "group_key": payload.get("groupKey"),
     }
+    result.update(
+        route_alertmanager_payload(payload, router=notification_router)
+    )
     logger.info("alertmanager_webhook_received: %s", result)
 
     return result
