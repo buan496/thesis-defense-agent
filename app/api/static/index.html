@@ -10,9 +10,12 @@
     <header class="app-header">
       <div>
         <h1>论文答辩训练</h1>
-        <p>创建任务、推进步骤、提交回答并导出训练报告。</p>
+        <p>创建任务、推进步骤、提交回答、查看 Trace 并导出训练报告。</p>
       </div>
-      <div class="status-pill" id="connectionStatus">Ready</div>
+      <div class="header-actions">
+        <div class="status-pill" id="connectionStatus">Ready</div>
+        <div class="status-pill neutral" id="websocketStatus">WS Idle</div>
+      </div>
     </header>
 
     <main class="layout">
@@ -41,6 +44,10 @@
           <button id="executeStepButton" type="button">执行当前步骤</button>
           <button id="analysisButton" type="button">Trace 汇总</button>
           <button id="reportButton" type="button">导出报告</button>
+          <button id="connectWebSocketButton" type="button">连接 WebSocket</button>
+          <button id="downloadReportButton" type="button" disabled>
+            下载报告
+          </button>
         </div>
 
         <label for="answerInput">学生回答</label>
@@ -60,6 +67,20 @@
         <button id="submitFollowUpAnswerButton" type="button">
           提交追问回答
         </button>
+
+        <h3>论文文件</h3>
+        <label for="documentFileInput">上传文档</label>
+        <input id="documentFileInput" type="file" accept=".pdf,.txt,.md" />
+        <button id="uploadDocumentButton" type="button">上传文档</button>
+
+        <h3>流式输出测试</h3>
+        <label for="streamMessageInput">流式消息</label>
+        <textarea
+          id="streamMessageInput"
+          rows="3"
+          placeholder="输入一段文本，测试 SSE 分块输出"
+        ></textarea>
+        <button id="streamEchoButton" type="button">测试 SSE</button>
       </section>
 
       <section class="panel" aria-labelledby="taskStateTitle">
@@ -89,8 +110,36 @@
         <h3>步骤</h3>
         <ol id="stepList" class="step-list"></ol>
 
+        <h3>Trace 指标</h3>
+        <div class="metric-grid" id="traceMetrics">
+          <div>
+            <span>工具调用</span>
+            <strong id="toolCallCount">-</strong>
+          </div>
+          <div>
+            <span>成功调用</span>
+            <strong id="successfulToolCallCount">-</strong>
+          </div>
+          <div>
+            <span>Token</span>
+            <strong id="totalTokens">-</strong>
+          </div>
+          <div>
+            <span>成本</span>
+            <strong id="totalCost">-</strong>
+          </div>
+        </div>
+
         <h3>当前输出</h3>
         <pre id="currentOutput" class="output-box">{}</pre>
+      </section>
+
+      <section class="panel detail-panel" aria-labelledby="stepDetailTitle">
+        <div class="panel-heading">
+          <h2 id="stepDetailTitle">步骤详情</h2>
+          <span id="selectedStepLabel">未选择步骤</span>
+        </div>
+        <pre id="stepDetailOutput" class="output-box">{}</pre>
       </section>
 
       <section class="panel report-panel" aria-labelledby="reportTitle">
@@ -99,6 +148,14 @@
           <span id="lastAction">等待操作</span>
         </div>
         <pre id="logOutput" class="output-box">Ready.</pre>
+      </section>
+
+      <section class="panel stream-panel" aria-labelledby="streamTitle">
+        <div class="panel-heading">
+          <h2 id="streamTitle">SSE / WebSocket 输出</h2>
+          <span id="streamStatus">Idle</span>
+        </div>
+        <pre id="streamOutput" class="output-box">等待流式事件。</pre>
       </section>
     </main>
 
