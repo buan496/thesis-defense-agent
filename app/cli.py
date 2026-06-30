@@ -38,6 +38,7 @@ from app.config import (
     BENCHMARK_CANDIDATE_DIRECTORY,
     LONG_TERM_MEMORY_PATH,
     QDRANT_API_KEY,
+    QDRANT_BACKUP_DIR,
     QDRANT_COLLECTION,
     QDRANT_DISTANCE,
     QDRANT_URL,
@@ -152,6 +153,12 @@ from app.vector_store_repository import QdrantVectorStoreRepository
 from app.vector_db_governance import (
     build_vector_db_governance_report,
     render_vector_db_governance_report,
+)
+from app.qdrant_backup_retention import (
+    DEFAULT_QDRANT_BACKUP_PATTERNS,
+    build_qdrant_backup_retention_plan,
+    execute_qdrant_backup_retention,
+    render_qdrant_backup_retention_report,
 )
 from app.session_store import DEFAULT_SESSION_DIRECTORY
 from app.feedback_store import (
@@ -2252,6 +2259,41 @@ def main():
         "--output",
         default=None,
         help="Optional Markdown output path for the governance report",
+    )
+
+    qdrant_backup_retention_parser = subparsers.add_parser(
+        "qdrant-backup-retention",
+        help="Apply or preview local Qdrant backup retention policy",
+    )
+    qdrant_backup_retention_parser.add_argument(
+        "--backup-dir",
+        default=QDRANT_BACKUP_DIR,
+        help="Directory containing downloaded Qdrant snapshot files",
+    )
+    qdrant_backup_retention_parser.add_argument(
+        "--keep-last",
+        type=int,
+        default=5,
+        help="Number of newest backup files to retain",
+    )
+    qdrant_backup_retention_parser.add_argument(
+        "--pattern",
+        action="append",
+        default=None,
+        help=(
+            "Backup filename glob pattern. Can be repeated. "
+            f"Default: {', '.join(DEFAULT_QDRANT_BACKUP_PATTERNS)}"
+        ),
+    )
+    qdrant_backup_retention_parser.add_argument(
+        "--apply",
+        action="store_true",
+        help="Actually delete old backups. Without this flag the command is dry-run.",
+    )
+    qdrant_backup_retention_parser.add_argument(
+        "--output",
+        default=None,
+        help="Optional Markdown output path for the retention report",
     )
 
     import_json_to_postgres_parser = subparsers.add_parser(
@@ -4977,6 +5019,28 @@ def main():
             raise SystemExit(2) from error
 
         markdown = render_vector_db_governance_report(report)
+        print(markdown, end="")
+
+        if args.output is not None:
+            save_text_output(args.output, markdown)
+            print("OUTPUT:", args.output)
+
+    elif args.command == "qdrant-backup-retention":
+        try:
+            plan = build_qdrant_backup_retention_plan(
+                backup_dir=args.backup_dir,
+                keep_last=args.keep_last,
+                patterns=args.pattern,
+            )
+            result = execute_qdrant_backup_retention(
+                plan,
+                dry_run=not args.apply,
+            )
+        except (FileNotFoundError, NotADirectoryError, ValueError) as error:
+            print(f"QDRANT BACKUP RETENTION ERROR: {error}")
+            raise SystemExit(2) from error
+
+        markdown = render_qdrant_backup_retention_report(result)
         print(markdown, end="")
 
         if args.output is not None:

@@ -42,6 +42,7 @@ PDF / TXT 论文
 → 静态 Web 前端增强
 → PostgreSQL / Qdrant 可替换存储后端
 → Vector DB governance report
+→ Qdrant backup retention policy
 → K8s manifests / smoke plan / report template
 ```
 
@@ -293,7 +294,7 @@ JSON remains the default session backend.
 最新本地测试基线：
 
 ```text
-1014 passed, 1 warning
+1024 passed, 1 warning
 ```
 
 本机学习版阶段已完成，阶段总复盘见：
@@ -520,6 +521,7 @@ QDRANT_DISTANCE=Cosine
 QDRANT_HTTP_PORT=6333
 QDRANT_GRPC_PORT=6334
 QDRANT_API_KEY=
+QDRANT_BACKUP_DIR=data/qdrant_backups
 QUERY_EMBEDDING_CACHE_PATH=data/query_embedding_cache.json
 
 AGENT_TRACE_PATH=data/traces/agent_trace.jsonl
@@ -1348,8 +1350,44 @@ Milvus 只作为后续对比候选，尚未实现 MilvusVectorStoreRepository。
 下一步边界：
 
 ```text
-Qdrant 还缺自动备份任务、保留策略执行和自动 restore smoke。
+Qdrant 还缺自动 snapshot 创建任务和自动 restore smoke。
 Milvus 还缺本地环境、repository 实现和同 benchmark 对比。
+```
+
+## 2026-06-30 Update: Qdrant Backup Retention
+
+项目新增本地 Qdrant 备份保留策略执行器：
+
+```text
+app/qdrant_backup_retention.py
+tests/test_qdrant_backup_retention.py
+```
+
+默认 dry-run，不删除文件：
+
+```powershell
+New-Item -ItemType Directory -Force data/qdrant_backups
+
+uv run python -m app.cli qdrant-backup-retention `
+  --backup-dir data/qdrant_backups `
+  --keep-last 5
+```
+
+显式执行删除：
+
+```powershell
+uv run python -m app.cli qdrant-backup-retention `
+  --backup-dir data/qdrant_backups `
+  --keep-last 5 `
+  --apply
+```
+
+当前边界：
+
+```text
+该命令只管理已经下载到本地目录的 snapshot 文件。
+Qdrant snapshot 创建仍按 docs/deployment/qdrant.md 中的 SOP 手动执行。
+尚未接入 cron、Windows Task Scheduler 或 Kubernetes CronJob。
 ```
 
 ### LangGraph 旁路 Demo

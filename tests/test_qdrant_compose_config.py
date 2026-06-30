@@ -34,6 +34,7 @@ def test_env_example_documents_qdrant_defaults():
     assert "QDRANT_HTTP_PORT=6333" in env_text
     assert "QDRANT_GRPC_PORT=6334" in env_text
     assert "QDRANT_API_KEY=" in env_text
+    assert "QDRANT_BACKUP_DIR=data/qdrant_backups" in env_text
 
 
 def test_app_config_documents_qdrant_defaults_without_secret():
@@ -44,6 +45,7 @@ def test_app_config_documents_qdrant_defaults_without_secret():
     assert 'QDRANT_VECTOR_SIZE = int(os.getenv("QDRANT_VECTOR_SIZE", "1024"))' in config_text
     assert 'QDRANT_DISTANCE = os.getenv("QDRANT_DISTANCE", "Cosine")' in config_text
     assert 'QDRANT_API_KEY = os.getenv("QDRANT_API_KEY", "")' in config_text
+    assert 'QDRANT_BACKUP_DIR = os.getenv("QDRANT_BACKUP_DIR", "data/qdrant_backups")' in config_text
     assert "qdrant_api_key_here" not in config_text
 
 
@@ -59,6 +61,7 @@ def test_qdrant_docs_include_snapshot_backup_restore_sop():
     assert "snapshots/upload?priority=snapshot" in docs_text
     assert "compare-vector-store-backends" in docs_text
     assert "Rebuild from JSON Baseline" in docs_text
+    assert "qdrant-backup-retention" in docs_text
 
 
 def test_gitignore_excludes_qdrant_backup_artifacts():
