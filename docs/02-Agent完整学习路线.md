@@ -246,7 +246,7 @@ updated: 2026-06-30
 
 ## 阶段 10：服务化与界面
 
-> 当前机器已经完成 FastAPI 服务化、静态 Web 前端增强、stdio MCP Server、stdio MCP Client、MCP resource / prompt 能力、Docker Compose、Prometheus 本地验证、Alertmanager 本机路由、外部通知路由本地可审计版本、K8s 基础 manifests、Docker 镜像 CI 构建、GHCR 镜像发布、PostgreSQL runtime smoke 和 Qdrant 最小后端。K8s 生产化部署、Milvus / 向量数据库生产化治理和服务器长期运行继续作为后续阶段。
+> 当前机器已经完成 FastAPI 服务化、静态 Web 前端增强、stdio MCP Server、stdio MCP Client、MCP resource / prompt 能力、Docker Compose、Prometheus 本地验证、Alertmanager 本机路由、外部通知路由本地可审计版本、K8s 基础 manifests 与生产化基础字段、Docker 镜像 CI 构建、GHCR 镜像发布、PostgreSQL runtime smoke 和 Qdrant 最小后端。K8s 真实集群 smoke test、Milvus / 向量数据库生产化治理和服务器长期运行继续作为后续阶段。
 
 - [x] FastAPI
 - [x] Pydantic 请求模型
@@ -301,7 +301,8 @@ updated: 2026-06-30
 - [x] Qdrant snapshot backup/restore SOP
 - [ ] Qdrant 生产化治理 / Milvus
 - [x] K8s 基础 manifests
-- [ ] K8s 生产化部署
+- [x] K8s 生产化基础字段
+- [ ] K8s 真实集群 smoke test / 生产化部署验证
 - [ ] 私有化配置和密钥管理
 
 ## 当前阶段：本机学习版 Agent Harness + 交付基础闭环
@@ -772,8 +773,8 @@ PostgreSQL runtime smoke test。
 边界说明：
 
 - LangGraph 后续只做旁路迁移，不覆盖当前手写 Task State / Agent Harness 源码。
-- FastAPI、静态 Web 前端、stdio MCP Server、Dockerfile、docker-compose、Prometheus、Alertmanager 本机路由、外部通知路由本地可审计版本、K8s 基础 manifests、本机 PostgreSQL runtime smoke 和 Qdrant 最小后端已完成。
-- K8s 生产化部署、Milvus / 向量数据库生产化治理、私有化部署、服务器长期运行和真实 Feishu / WeCom / email 通知提供方继续作为后续阶段。
+- FastAPI、静态 Web 前端、stdio MCP Server、Dockerfile、docker-compose、Prometheus、Alertmanager 本机路由、外部通知路由本地可审计版本、K8s 基础 manifests 与生产化基础字段、本机 PostgreSQL runtime smoke 和 Qdrant 最小后端已完成。
+- K8s 真实集群 smoke test、Milvus / 向量数据库生产化治理、私有化部署、服务器长期运行和真实 Feishu / WeCom / email 通知提供方继续作为后续阶段。
 
 ## 下一步学习重点
 
@@ -1949,8 +1950,8 @@ Spec -> Permission -> Plan -> Dry-Run -> Execute -> Trace -> Comparison -> Quali
 
 ```text
 LangGraph 后续只做旁路迁移，不覆盖现有手写 Agent Harness。
-FastAPI、静态 Web 前端、stdio MCP Server、stdio MCP Client、MCP resource / prompt 能力、Dockerfile、docker-compose、Prometheus、Alertmanager 本机路由、外部通知路由本地可审计版本、K8s 基础 manifests、本机 PostgreSQL runtime smoke 和 Qdrant 最小后端已完成。
-K8s 生产化部署、Milvus / 向量数据库生产化治理、私有化部署、服务器长期运行和真实 Feishu / WeCom / email 通知提供方继续作为后续阶段。
+FastAPI、静态 Web 前端、stdio MCP Server、stdio MCP Client、MCP resource / prompt 能力、Dockerfile、docker-compose、Prometheus、Alertmanager 本机路由、外部通知路由本地可审计版本、K8s 基础 manifests 与生产化基础字段、本机 PostgreSQL runtime smoke 和 Qdrant 最小后端已完成。
+K8s 真实集群 smoke test、Milvus / 向量数据库生产化治理、私有化部署、服务器长期运行和真实 Feishu / WeCom / email 通知提供方继续作为后续阶段。
 ```
 
 <!-- roadmap-update-2026-06-25-trace-replay-feedback -->
@@ -2484,7 +2485,7 @@ docs/17-本机学习版阶段总复盘.md
 服务器笔记本阶段建议顺序：
 
 ```text
-1. K8s 生产化部署
+1. K8s 真实集群 smoke test / 生产化部署验证
 2. Qdrant 生产化治理或 Milvus 替换本地 JSON 向量库
 3. 服务器长期运行验证
 4. 真实 Feishu / WeCom / email 通知提供方
@@ -2550,15 +2551,15 @@ docs/deployment/server.md
 ```text
 PostgreSQL repository、runtime integration 和本机 smoke test 已完成；默认后端仍是 json。
 Qdrant 已有本地最小实现、benchmark 对比和 backup / restore SOP；尚未做生产化治理和 Milvus。
-Prometheus 告警规则已完成；Alertmanager 本机路由已完成；外部通知路由本地可审计版本已完成；K8s 基础 manifests 已完成；静态 Web 前端已完成；stdio MCP Server 已完成；stdio MCP Client 已完成；MCP resource / prompt 能力已完成；日志保留与查询文档已完成；API request Correlation ID 已完成；request -> task -> tool call 全链路 Correlation ID 已完成。
+Prometheus 告警规则已完成；Alertmanager 本机路由已完成；外部通知路由本地可审计版本已完成；K8s 基础 manifests 与生产化基础字段已完成；静态 Web 前端已完成；stdio MCP Server 已完成；stdio MCP Client 已完成；MCP resource / prompt 能力已完成；日志保留与查询文档已完成；API request Correlation ID 已完成；request -> task -> tool call 全链路 Correlation ID 已完成。
 尚未提供真实 Feishu / WeCom / email 通知提供方。
-尚未提供 K8s 生产化部署。
+尚未提供 K8s 真实集群 smoke test 和生产化部署验证。
 ```
 
 下一阶段建议顺序：
 
 ```text
-1. K8s 生产化部署
+1. K8s 真实集群 smoke test / 生产化部署验证
 2. Qdrant 生产化治理 / Milvus
 3. 服务器长期运行验证
 4. 真实 Feishu / WeCom / email 通知提供方
@@ -2598,4 +2599,38 @@ namespace / configmap / secret 模板
 readiness / liveness
 resource requests / limits
 rollout / rollback SOP
+```
+
+<!-- roadmap-update-2026-06-30-k8s-production-basics -->
+
+## 2026-06-30 路线同步：K8s 生产化基础字段已完成
+
+本阶段在已有 `k8s/base` manifests 上补齐生产化基础字段，不做真实集群长期运行。
+
+已完成：
+
+- [x] API / Prometheus / Alertmanager Deployment 增加 `revisionHistoryLimit`
+- [x] API / Prometheus / Alertmanager Deployment 增加 `progressDeadlineSeconds`
+- [x] API / Prometheus / Alertmanager Deployment 增加 RollingUpdate 策略
+- [x] API / Prometheus / Alertmanager 保留 readiness / liveness probe
+- [x] API / Prometheus / Alertmanager 保留 resource requests / limits
+- [x] API / Prometheus / Alertmanager 增加 restricted securityContext
+- [x] API / Prometheus / Alertmanager 增加 PodDisruptionBudget
+- [x] `docs/deployment/k8s.md` 增加 rollout / rollback SOP
+- [x] `tests/test_k8s_manifests.py` 覆盖新增字段
+
+当前边界：
+
+```text
+这是静态 manifest 生产化基础学习。
+尚未做真实集群 apply / rollout status / rollback 验证。
+尚未做 Ingress、TLS、HPA、NetworkPolicy、PVC、Helm chart。
+API 仍保持 replicas=1，因为默认 JSON / emptyDir 后端不适合多副本共享状态。
+```
+
+下一步学习：
+
+```text
+如果继续 K8s：做真实集群 smoke test SOP 与验证记录。
+如果暂不接服务器：进入 Qdrant 生产化治理 / Milvus 对比学习。
 ```

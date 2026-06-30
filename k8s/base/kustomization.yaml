@@ -5,10 +5,13 @@ resources:
   - api-configmap.yaml
   - api-secret.example.yaml
   - api-deployment.yaml
+  - api-pod-disruption-budget.yaml
   - api-service.yaml
   - prometheus-configmap.yaml
   - prometheus-deployment.yaml
+  - prometheus-pod-disruption-budget.yaml
   - prometheus-service.yaml
   - alertmanager-configmap.yaml
   - alertmanager-deployment.yaml
+  - alertmanager-pod-disruption-budget.yaml
   - alertmanager-service.yaml
