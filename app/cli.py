@@ -165,6 +165,7 @@ from app.qdrant_snapshot_smoke_plan import (
     render_qdrant_snapshot_smoke_plan,
     render_qdrant_snapshot_smoke_report_template,
 )
+from app.qdrant_snapshot_client import QdrantSnapshotClient
 from app.session_store import DEFAULT_SESSION_DIRECTORY
 from app.feedback_store import (
     create_feedback_record,
@@ -2379,6 +2380,109 @@ def main():
         "--output",
         default=None,
         help="Optional Markdown output path for the snapshot smoke report template",
+    )
+
+    qdrant_snapshot_create_parser = subparsers.add_parser(
+        "qdrant-snapshot-create",
+        help="Create a Qdrant collection snapshot through the Qdrant HTTP API",
+    )
+    qdrant_snapshot_create_parser.add_argument(
+        "--url",
+        default=QDRANT_URL,
+        help="Qdrant URL",
+    )
+    qdrant_snapshot_create_parser.add_argument(
+        "--collection",
+        default=QDRANT_COLLECTION,
+        help="Qdrant collection name",
+    )
+    qdrant_snapshot_create_parser.add_argument(
+        "--api-key",
+        default=None,
+        help="Optional Qdrant API key. Defaults to QDRANT_API_KEY.",
+    )
+
+    qdrant_snapshot_list_parser = subparsers.add_parser(
+        "qdrant-snapshot-list",
+        help="List Qdrant collection snapshots through the Qdrant HTTP API",
+    )
+    qdrant_snapshot_list_parser.add_argument(
+        "--url",
+        default=QDRANT_URL,
+        help="Qdrant URL",
+    )
+    qdrant_snapshot_list_parser.add_argument(
+        "--collection",
+        default=QDRANT_COLLECTION,
+        help="Qdrant collection name",
+    )
+    qdrant_snapshot_list_parser.add_argument(
+        "--api-key",
+        default=None,
+        help="Optional Qdrant API key. Defaults to QDRANT_API_KEY.",
+    )
+
+    qdrant_snapshot_download_parser = subparsers.add_parser(
+        "qdrant-snapshot-download",
+        help="Download a Qdrant collection snapshot through the Qdrant HTTP API",
+    )
+    qdrant_snapshot_download_parser.add_argument(
+        "--url",
+        default=QDRANT_URL,
+        help="Qdrant URL",
+    )
+    qdrant_snapshot_download_parser.add_argument(
+        "--collection",
+        default=QDRANT_COLLECTION,
+        help="Qdrant collection name",
+    )
+    qdrant_snapshot_download_parser.add_argument(
+        "--snapshot-name",
+        required=True,
+        help="Qdrant snapshot file name to download",
+    )
+    qdrant_snapshot_download_parser.add_argument(
+        "--backup-dir",
+        default=QDRANT_BACKUP_DIR,
+        help="Local backup directory for downloaded snapshots",
+    )
+    qdrant_snapshot_download_parser.add_argument(
+        "--api-key",
+        default=None,
+        help="Optional Qdrant API key. Defaults to QDRANT_API_KEY.",
+    )
+
+    qdrant_snapshot_restore_parser = subparsers.add_parser(
+        "qdrant-snapshot-restore",
+        help="Restore a Qdrant snapshot into a confirmed target collection",
+    )
+    qdrant_snapshot_restore_parser.add_argument(
+        "--url",
+        default=QDRANT_URL,
+        help="Qdrant URL",
+    )
+    qdrant_snapshot_restore_parser.add_argument(
+        "--restore-collection",
+        required=True,
+        help="Target collection to restore the snapshot into",
+    )
+    qdrant_snapshot_restore_parser.add_argument(
+        "--snapshot-path",
+        required=True,
+        help="Local snapshot file path to upload",
+    )
+    qdrant_snapshot_restore_parser.add_argument(
+        "--confirm-restore-collection",
+        required=True,
+        help=(
+            "Required restore confirmation. Must exactly match "
+            "--restore-collection."
+        ),
+    )
+    qdrant_snapshot_restore_parser.add_argument(
+        "--api-key",
+        default=None,
+        help="Optional Qdrant API key. Defaults to QDRANT_API_KEY.",
     )
 
     import_json_to_postgres_parser = subparsers.add_parser(
@@ -5175,6 +5279,112 @@ def main():
         if args.output is not None:
             save_text_output(args.output, markdown)
             print("OUTPUT:", args.output)
+
+    elif args.command == "qdrant-snapshot-create":
+        try:
+            client = QdrantSnapshotClient(
+                url=args.url,
+                api_key=(
+                    args.api_key
+                    if args.api_key is not None
+                    else QDRANT_API_KEY
+                ),
+            )
+            snapshot = client.create_snapshot(args.collection)
+        except (ValueError, RuntimeError) as error:
+            print(f"QDRANT SNAPSHOT CREATE ERROR: {error}")
+            raise SystemExit(1) from error
+
+        print("QDRANT SNAPSHOT CREATE")
+        print("QDRANT URL:", args.url)
+        print("COLLECTION:", args.collection)
+        print("SNAPSHOT NAME:", snapshot.name)
+        print("CREATION TIME:", snapshot.creation_time)
+        print("SIZE:", snapshot.size)
+
+    elif args.command == "qdrant-snapshot-list":
+        try:
+            client = QdrantSnapshotClient(
+                url=args.url,
+                api_key=(
+                    args.api_key
+                    if args.api_key is not None
+                    else QDRANT_API_KEY
+                ),
+            )
+            snapshots = client.list_snapshots(args.collection)
+        except (ValueError, RuntimeError) as error:
+            print(f"QDRANT SNAPSHOT LIST ERROR: {error}")
+            raise SystemExit(1) from error
+
+        print("QDRANT SNAPSHOT LIST")
+        print("QDRANT URL:", args.url)
+        print("COLLECTION:", args.collection)
+        print("COUNT:", len(snapshots))
+
+        for snapshot in snapshots:
+            print("-" * 40)
+            print("SNAPSHOT NAME:", snapshot.name)
+            print("CREATION TIME:", snapshot.creation_time)
+            print("SIZE:", snapshot.size)
+
+    elif args.command == "qdrant-snapshot-download":
+        try:
+            target_path = Path(args.backup_dir) / args.snapshot_name
+            client = QdrantSnapshotClient(
+                url=args.url,
+                api_key=(
+                    args.api_key
+                    if args.api_key is not None
+                    else QDRANT_API_KEY
+                ),
+            )
+            saved_path = client.download_snapshot(
+                collection=args.collection,
+                snapshot_name=args.snapshot_name,
+                output_path=target_path,
+            )
+        except (ValueError, RuntimeError, OSError) as error:
+            print(f"QDRANT SNAPSHOT DOWNLOAD ERROR: {error}")
+            raise SystemExit(1) from error
+
+        print("QDRANT SNAPSHOT DOWNLOAD")
+        print("QDRANT URL:", args.url)
+        print("COLLECTION:", args.collection)
+        print("SNAPSHOT NAME:", args.snapshot_name)
+        print("SAVED PATH:", saved_path)
+
+    elif args.command == "qdrant-snapshot-restore":
+        if args.confirm_restore_collection != args.restore_collection:
+            print(
+                "QDRANT SNAPSHOT RESTORE ERROR: "
+                "--confirm-restore-collection must exactly match "
+                "--restore-collection"
+            )
+            raise SystemExit(1)
+
+        try:
+            client = QdrantSnapshotClient(
+                url=args.url,
+                api_key=(
+                    args.api_key
+                    if args.api_key is not None
+                    else QDRANT_API_KEY
+                ),
+            )
+            result = client.restore_snapshot(
+                restore_collection=args.restore_collection,
+                snapshot_path=args.snapshot_path,
+            )
+        except (FileNotFoundError, ValueError, RuntimeError, OSError) as error:
+            print(f"QDRANT SNAPSHOT RESTORE ERROR: {error}")
+            raise SystemExit(1) from error
+
+        print("QDRANT SNAPSHOT RESTORE")
+        print("QDRANT URL:", args.url)
+        print("RESTORE COLLECTION:", args.restore_collection)
+        print("SNAPSHOT PATH:", args.snapshot_path)
+        print("RESULT:", result)
 
     elif args.command == "import-json-to-postgres":
         database_url = (

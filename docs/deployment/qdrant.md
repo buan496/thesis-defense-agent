@@ -106,14 +106,18 @@ qdrant-backup-retention CLI
 local backup retention dry-run / apply execution
 qdrant-snapshot-smoke-plan CLI
 qdrant-snapshot-smoke-report-template CLI
+qdrant-snapshot-create CLI
+qdrant-snapshot-list CLI
+qdrant-snapshot-download CLI
+qdrant-snapshot-restore CLI with explicit confirmation
 ```
 
 Not completed:
 
 ```text
 Automated scheduled Qdrant backup job
-Automated Qdrant snapshot creation
-Automated Qdrant snapshot restore runner
+Automated scheduled Qdrant snapshot creation
+Automated scheduled restore smoke drill
 MilvusVectorStoreRepository
 Milvus runtime benchmark
 ```
@@ -354,6 +358,52 @@ Use snapshot restore when preserving the exact Qdrant collection state matters.
 Use JSON rebuild when the goal is to regenerate the collection from the current
 local vector store artifact.
 
+## Snapshot API Runner
+
+The project provides manual CLI wrappers around Qdrant's collection snapshot
+HTTP APIs. These commands are useful for local operational drills and scripted
+maintenance, but they do not create a scheduler by themselves.
+
+Create a snapshot:
+
+```powershell
+uv run python -m app.cli qdrant-snapshot-create `
+  --url http://127.0.0.1:6333 `
+  --collection thesis_chunks
+```
+
+List snapshots:
+
+```powershell
+uv run python -m app.cli qdrant-snapshot-list `
+  --url http://127.0.0.1:6333 `
+  --collection thesis_chunks
+```
+
+Download a snapshot:
+
+```powershell
+uv run python -m app.cli qdrant-snapshot-download `
+  --url http://127.0.0.1:6333 `
+  --collection thesis_chunks `
+  --snapshot-name <snapshot_name> `
+  --backup-dir data/qdrant_backups
+```
+
+Restore a snapshot into a disposable collection:
+
+```powershell
+uv run python -m app.cli qdrant-snapshot-restore `
+  --url http://127.0.0.1:6333 `
+  --restore-collection thesis_chunks_restore `
+  --confirm-restore-collection thesis_chunks_restore `
+  --snapshot-path data/qdrant_backups/<snapshot_name>
+```
+
+Restore requires `--confirm-restore-collection` to exactly match
+`--restore-collection`. This prevents accidental restore into the wrong
+collection. Do not restore over the active collection during smoke testing.
+
 ## Snapshot Smoke Plan
 
 The project provides an offline snapshot smoke-test plan generator. It does not
@@ -403,8 +453,8 @@ Current boundary:
 
 ```text
 The plan and report template are implemented.
-The commands are still executed manually.
-The project does not yet include an automated Qdrant snapshot API runner.
+The Qdrant snapshot API runner is implemented as manual CLI commands.
+The project does not yet include scheduled backup or scheduled restore drill automation.
 ```
 
 ### Backup Safety Rules
@@ -477,7 +527,7 @@ Current boundary:
 
 ```text
 Retention execution is implemented for local downloaded backup files.
-Qdrant snapshot creation is still manual through the SOP above.
+Qdrant snapshot creation / list / download / restore can be run through manual CLI commands.
 No cron, Task Scheduler, or Kubernetes CronJob is created yet.
 ```
 
