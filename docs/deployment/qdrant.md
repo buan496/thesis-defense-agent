@@ -100,6 +100,8 @@ compare-vector-store-backends CLI
 JSON vs Qdrant benchmark comparison path
 delete-qdrant-collection CLI with explicit confirmation
 Qdrant snapshot backup/restore SOP
+vector-db-governance-report CLI
+Qdrant / Milvus production-governance comparison report
 ```
 
 Not completed:
@@ -107,6 +109,56 @@ Not completed:
 ```text
 Automated scheduled Qdrant backup job
 Qdrant backup retention policy enforcement
+MilvusVectorStoreRepository
+Milvus runtime benchmark
+```
+
+## Production Governance Report
+
+The project includes an offline vector database governance report. It does not
+connect to Qdrant or Milvus. Its purpose is to keep production-promotion
+criteria explicit before changing the default runtime backend.
+
+Generate the report:
+
+```powershell
+uv run python -m app.cli vector-db-governance-report
+```
+
+Save the report:
+
+```powershell
+uv run python -m app.cli vector-db-governance-report `
+  --output data/reports/vector_db_governance.md
+```
+
+Evaluate Milvus as the target comparison backend without implementing it:
+
+```powershell
+uv run python -m app.cli vector-db-governance-report `
+  --target-backend milvus `
+  --output data/reports/vector_db_governance_milvus.md
+```
+
+The report covers:
+
+```text
+JSON baseline role
+Qdrant promotion gates
+Milvus comparison boundary
+quality regression gate
+latency recording gate
+backup / restore gate
+destructive-operation guardrails
+rollback requirement
+```
+
+Current decision:
+
+```text
+JSON remains the default local fallback.
+Qdrant remains the primary production candidate.
+Milvus remains a future comparison candidate, not an implemented runtime backend.
 ```
 
 ## Import JSON Vector Store Into Qdrant
