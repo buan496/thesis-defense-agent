@@ -125,11 +125,15 @@ compare-vector-store-backends --include-milvus
 fake-client unit tests
 local Milvus runtime smoke execution
 JSON / Qdrant / Milvus benchmark result report
+Milvus backup / restore SOP document
+milvus-backup-restore-plan CLI
+milvus-restore-report-template CLI
 ```
 
 Not completed:
 
 ```text
-Milvus backup / restore SOP
+Milvus Backup Tool integration
+Milvus cluster-level restore drill
 Milvus production deployment topology
 ```
