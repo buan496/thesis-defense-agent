@@ -222,6 +222,7 @@ Agent 与 RAG：
 - AsyncTaskRunner 并发限制
 - 异步 DefenseTask step execution API
 - 异步 LLM / 工具调用边界
+- 原生异步 LLM SDK 调用
 - 后台任务幂等请求
 - 后台任务持久化状态恢复
 - FastAPI / Docker / PostgreSQL / Qdrant / Milvus 本机验证
@@ -231,7 +232,7 @@ Agent 与 RAG：
 仍待推进：
 
 - Qdrant cron / Kubernetes CronJob 长期调度证据
-- 原生异步 LLM / 工具 SDK 调用
+- 原生异步工具 SDK 调用
 - K8s 真实集群 smoke test
 - 真实 Feishu / WeCom / email 通知提供方
 - 服务器长期运行验证

@@ -207,7 +207,8 @@ updated: 2026-07-01
 
 - [x] `async` / `await`
 - [x] 异步 LLM / 工具调用边界
-- [ ] 原生异步 LLM 和工具 SDK 调用
+- [x] 原生异步 LLM SDK 调用
+- [ ] 原生异步工具 SDK 调用
 - [x] 并发限制
 - [x] 超时和取消
 - [x] 后台任务基础 runner
@@ -820,9 +821,9 @@ PostgreSQL runtime smoke test。
 
 ## 下一步学习重点
 
-当前已经完成本机 Agent Harness、RAG、Tool Calling、Memory、Trace、Sub-Agent、LangGraph 旁路迁移、FastAPI / Web / Docker / Prometheus / PostgreSQL / Qdrant / Milvus 基础治理、Qdrant Windows Task Scheduler 本机实验，以及 AsyncTaskRunner / FastAPI 后台任务 / DefenseTask 当前步骤后台执行 / 异步 LLM 与工具调用边界 / 后台任务幂等请求 / 后台任务持久化状态恢复。下一阶段按异步与长任务服务化继续补齐：
+当前已经完成本机 Agent Harness、RAG、Tool Calling、Memory、Trace、Sub-Agent、LangGraph 旁路迁移、FastAPI / Web / Docker / Prometheus / PostgreSQL / Qdrant / Milvus 基础治理、Qdrant Windows Task Scheduler 本机实验，以及 AsyncTaskRunner / FastAPI 后台任务 / DefenseTask 当前步骤后台执行 / 异步 LLM 与工具调用边界 / 原生异步 LLM SDK / 后台任务幂等请求 / 后台任务持久化状态恢复。下一阶段按异步与长任务服务化继续补齐：
 
-1. 原生异步 LLM / 工具 SDK 调用
+1. 原生异步工具 SDK 调用
 2. K8s 真实集群 smoke test 执行 / 生产化部署验证
 3. Qdrant cron / Kubernetes CronJob 长期调度证据
 
@@ -2909,6 +2910,35 @@ Milvus 只作为未来对比候选，尚未实现 MilvusVectorStoreRepository。
 
 ```text
 1. 原生异步 LLM / 工具 SDK 调用
+2. K8s 真实集群 smoke test 执行 / 生产化部署验证
+3. Qdrant cron / Kubernetes CronJob 长期调度证据
+```
+
+<!-- roadmap-update-2026-07-01-native-async-llm -->
+
+## 2026-07-01 路线同步：原生异步 LLM SDK 调用已完成
+
+本阶段把 `async_chat_with_llm()` 从 `asyncio.to_thread(chat_with_llm)` 线程隔离包装，升级为直接使用 OpenAI-compatible SDK 的 `AsyncOpenAI`。
+
+已完成：
+
+- [x] `get_async_llm_client()`
+- [x] `async_chat_with_llm()` 直接 `await client.chat.completions.create(...)`
+- [x] 同步 `chat_with_llm()` 保留，兼容现有同步调用方
+- [x] 测试覆盖异步 client 参数传递和返回内容
+
+当前边界：
+
+```text
+LLM chat 已使用原生异步 SDK。
+stream_chat_with_llm() 仍是同步流式接口。
+工具调用 async 边界仍通过线程隔离同步工具函数，尚未改成原生 async tool function。
+```
+
+下一步学习：
+
+```text
+1. 原生异步工具 SDK / async tool function 支持
 2. K8s 真实集群 smoke test 执行 / 生产化部署验证
 3. Qdrant cron / Kubernetes CronJob 长期调度证据
 ```

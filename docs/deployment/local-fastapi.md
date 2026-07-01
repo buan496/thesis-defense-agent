@@ -368,7 +368,7 @@ POST /tasks
 - 后台任务状态和幂等索引会写入 `ASYNC_TASK_STORE_PATH`。
 - 进程重启后可以查询历史任务状态。
 - 重启前仍在 pending / running / cancelling 的任务会恢复为 `TaskInterruptedError`，不会继续执行原 coroutine。
-- 当前 `execute-async` 只是把同步 DefenseTask 执行放到后台线程，不代表底层 LLM / 工具调用已经原生异步。
+- 当前 `execute-async` 会把 DefenseTask 执行放到后台任务中；LLM chat 已使用原生异步 SDK，工具调用仍通过线程隔离同步工具函数。
 - 日志、metrics、Docker、Compose、K8s manifest 已有本机学习版配置，但仍未完成生产级鉴权、配额和多实例队列治理。
 
 后续生产化仍需补齐：
@@ -376,6 +376,6 @@ POST /tasks
 ```text
 鉴权 / 用户隔离
 多实例任务调度
-异步 LLM / 工具调用
+原生异步工具调用
 服务器长期运行证据
 ```
