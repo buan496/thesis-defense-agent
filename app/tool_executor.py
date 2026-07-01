@@ -1,12 +1,14 @@
 from concurrent.futures import ThreadPoolExecutor, TimeoutError
+import asyncio
+import inspect
 import json
 
+from app.async_boundary import run_sync_in_thread
 from app.config import (
     TOOL_MAX_RETRIES,
     TOOL_RESULT_MAX_CHARACTERS,
     TOOL_TIMEOUT_SECONDS,
 )
-from app.async_boundary import run_sync_in_thread
 from app.tool_registry import (
     REGISTERED_TOOLS,
     ToolMetadata,
@@ -151,11 +153,40 @@ def execute_tool_function_with_retry(
     raise last_error
 
 
+async def execute_tool_function_async_with_retry(
+    tool_function,
+    arguments: dict,
+    max_retries: int,
+    timeout_seconds: float | None = None,
+):
+    if max_retries < 0:
+        raise ValueError("max_retries must be greater than or equal to 0")
+
+    last_error = None
+
+    for _ in range(max_retries + 1):
+        try:
+            return await execute_tool_function_async_with_timeout(
+                tool_function,
+                arguments,
+                timeout_seconds=timeout_seconds,
+            )
+        except Exception as error:
+            last_error = error
+
+    raise last_error
+
+
 def execute_tool_function_with_timeout(
     tool_function,
     arguments: dict,
     timeout_seconds: float | None,
 ):
+    if inspect.iscoroutinefunction(tool_function):
+        raise TypeError(
+            "async tool function requires execute_tool_call_async"
+        )
+
     if timeout_seconds is None:
         return tool_function(**arguments)
 
@@ -176,14 +207,64 @@ def execute_tool_function_with_timeout(
         executor.shutdown(wait=False, cancel_futures=True)
 
 
+async def execute_tool_function_async_with_timeout(
+    tool_function,
+    arguments: dict,
+    timeout_seconds: float | None,
+):
+    if timeout_seconds is not None and timeout_seconds <= 0:
+        raise ValueError("timeout_seconds must be greater than 0")
+
+    if inspect.iscoroutinefunction(tool_function):
+        coroutine = tool_function(**arguments)
+
+        if timeout_seconds is None:
+            return await coroutine
+
+        try:
+            return await asyncio.wait_for(
+                coroutine,
+                timeout=timeout_seconds,
+            )
+        except asyncio.TimeoutError as error:
+            raise TimeoutError(
+                f"tool execution timed out after {timeout_seconds} seconds"
+            ) from error
+
+    return await run_sync_in_thread(
+        execute_tool_function_with_timeout,
+        tool_function,
+        arguments,
+        timeout_seconds,
+    )
+
+
+def parse_tool_arguments(tool_call) -> dict:
+    try:
+        return json.loads(tool_call.function.arguments)
+    except json.JSONDecodeError as error:
+        raise ValueError("工具参数不是合法 JSON") from error
+
+
+def serialize_tool_result(
+    result,
+    result_max_characters: int,
+) -> str:
+    result_text = json.dumps(
+        result,
+        ensure_ascii=False,
+    )
+
+    return limit_tool_result_text(
+        result_text,
+        max_characters=result_max_characters,
+    )
+
+
 def execute_tool_call(tool_call) -> str:
     tool_name = tool_call.function.name
     execution_config = resolve_tool_execution_config(tool_name)
-
-    try:
-        arguments = json.loads(tool_call.function.arguments)
-    except json.JSONDecodeError as error:
-        raise ValueError("工具参数不是合法 JSON") from error
+    arguments = parse_tool_arguments(tool_call)
 
     result = execute_tool_function_with_retry(
         execution_config["function"],
@@ -192,14 +273,9 @@ def execute_tool_call(tool_call) -> str:
         timeout_seconds=execution_config["timeout_seconds"],
     )
 
-    result_text = json.dumps(
+    return serialize_tool_result(
         result,
-        ensure_ascii=False,
-    )
-
-    return limit_tool_result_text(
-        result_text,
-        max_characters=execution_config["result_max_characters"],
+        result_max_characters=execution_config["result_max_characters"],
     )
 
 
@@ -220,14 +296,34 @@ def execute_tool_call_safely(tool_call) -> str:
 
 
 async def execute_tool_call_async(tool_call) -> str:
-    return await run_sync_in_thread(
-        execute_tool_call,
-        tool_call,
+    tool_name = tool_call.function.name
+    execution_config = resolve_tool_execution_config(tool_name)
+    arguments = parse_tool_arguments(tool_call)
+
+    result = await execute_tool_function_async_with_retry(
+        execution_config["function"],
+        arguments,
+        max_retries=execution_config["max_retries"],
+        timeout_seconds=execution_config["timeout_seconds"],
+    )
+
+    return serialize_tool_result(
+        result,
+        result_max_characters=execution_config["result_max_characters"],
     )
 
 
 async def execute_tool_call_safely_async(tool_call) -> str:
-    return await run_sync_in_thread(
-        execute_tool_call_safely,
-        tool_call,
+    tool_name = getattr(
+        getattr(tool_call, "function", None),
+        "name",
+        None,
     )
+
+    try:
+        return await execute_tool_call_async(tool_call)
+    except Exception as error:
+        return build_tool_error_result(
+            error,
+            tool_name=tool_name,
+        )

@@ -208,7 +208,7 @@ updated: 2026-07-01
 - [x] `async` / `await`
 - [x] 异步 LLM / 工具调用边界
 - [x] 原生异步 LLM SDK 调用
-- [ ] 原生异步工具 SDK 调用
+- [x] async tool function 执行支持
 - [x] 并发限制
 - [x] 超时和取消
 - [x] 后台任务基础 runner
@@ -821,11 +821,11 @@ PostgreSQL runtime smoke test。
 
 ## 下一步学习重点
 
-当前已经完成本机 Agent Harness、RAG、Tool Calling、Memory、Trace、Sub-Agent、LangGraph 旁路迁移、FastAPI / Web / Docker / Prometheus / PostgreSQL / Qdrant / Milvus 基础治理、Qdrant Windows Task Scheduler 本机实验，以及 AsyncTaskRunner / FastAPI 后台任务 / DefenseTask 当前步骤后台执行 / 异步 LLM 与工具调用边界 / 原生异步 LLM SDK / 后台任务幂等请求 / 后台任务持久化状态恢复。下一阶段按异步与长任务服务化继续补齐：
+当前已经完成本机 Agent Harness、RAG、Tool Calling、Memory、Trace、Sub-Agent、LangGraph 旁路迁移、FastAPI / Web / Docker / Prometheus / PostgreSQL / Qdrant / Milvus 基础治理、Qdrant Windows Task Scheduler 本机实验，以及 AsyncTaskRunner / FastAPI 后台任务 / DefenseTask 当前步骤后台执行 / 异步 LLM 与工具调用边界 / 原生异步 LLM SDK / async tool function 执行支持 / 后台任务幂等请求 / 后台任务持久化状态恢复。下一阶段进入生产化部署验证：
 
-1. 原生异步工具 SDK 调用
-2. K8s 真实集群 smoke test 执行 / 生产化部署验证
-3. Qdrant cron / Kubernetes CronJob 长期调度证据
+1. K8s 真实集群 smoke test 执行 / 生产化部署验证
+2. Qdrant cron / Kubernetes CronJob 长期调度证据
+3. 服务器长期运行验证
 
 ## 最终简历能力目标
 
@@ -2932,7 +2932,7 @@ Milvus 只作为未来对比候选，尚未实现 MilvusVectorStoreRepository。
 ```text
 LLM chat 已使用原生异步 SDK。
 stream_chat_with_llm() 仍是同步流式接口。
-工具调用 async 边界仍通过线程隔离同步工具函数，尚未改成原生 async tool function。
+本阶段工具调用 async 边界仍通过线程隔离同步工具函数，尚未改成原生 async tool function。
 ```
 
 下一步学习：
@@ -2941,6 +2941,39 @@ stream_chat_with_llm() 仍是同步流式接口。
 1. 原生异步工具 SDK / async tool function 支持
 2. K8s 真实集群 smoke test 执行 / 生产化部署验证
 3. Qdrant cron / Kubernetes CronJob 长期调度证据
+```
+
+<!-- roadmap-update-2026-07-01-async-tool-functions -->
+
+## 2026-07-01 路线同步：async tool function 执行支持已完成
+
+本阶段把工具执行器从“所有工具都通过线程隔离执行”推进到“async 工具直接 await，同步工具继续线程隔离”的混合执行模型。
+
+已完成：
+
+- [x] `execute_tool_function_async_with_timeout()`
+- [x] `execute_tool_function_async_with_retry()`
+- [x] `execute_tool_call_async()` 可直接 await `async def` 工具函数
+- [x] 同步工具在 async 入口中继续通过 `run_sync_in_thread()` 隔离
+- [x] 同步 `execute_tool_call()` 明确拒绝 async 工具函数
+- [x] async 工具超时使用 `asyncio.wait_for`
+- [x] async safe wrapper 保留标准错误 JSON
+- [x] 测试覆盖 async 工具成功、超时、错误包装和同步入口保护
+
+当前边界：
+
+```text
+工具执行器已支持 async tool function。
+现有业务工具是否真正异步，取决于它们内部依赖的 SDK / IO 库是否提供 async API。
+没有强制把所有现有工具重写为 async，避免为“异步”而异步。
+```
+
+下一步学习：
+
+```text
+1. K8s 真实集群 smoke test 执行 / 生产化部署验证
+2. Qdrant cron / Kubernetes CronJob 长期调度证据
+3. 服务器长期运行验证
 ```
 
 <!-- roadmap-update-2026-07-01-qdrant-snapshot-drill-plan -->
