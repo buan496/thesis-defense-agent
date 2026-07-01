@@ -38,6 +38,7 @@ from app.config import (
     BENCHMARK_CANDIDATE_DIRECTORY,
     LONG_TERM_MEMORY_PATH,
     MILVUS_COLLECTION,
+    MILVUS_BACKUP_DIR,
     MILVUS_METRIC_TYPE,
     MILVUS_TOKEN,
     MILVUS_URI,
@@ -172,6 +173,11 @@ from app.qdrant_snapshot_smoke_plan import (
     build_qdrant_snapshot_smoke_plan,
     render_qdrant_snapshot_smoke_plan,
     render_qdrant_snapshot_smoke_report_template,
+)
+from app.milvus_backup_restore_plan import (
+    build_milvus_backup_restore_plan,
+    render_milvus_backup_restore_plan,
+    render_milvus_restore_report_template,
 )
 from app.qdrant_snapshot_client import QdrantSnapshotClient
 from app.qdrant_snapshot_scheduler import (
@@ -2211,6 +2217,128 @@ def main():
         "--token",
         default=None,
         help="Optional Milvus token. Defaults to MILVUS_TOKEN.",
+    )
+
+    milvus_backup_restore_plan_parser = subparsers.add_parser(
+        "milvus-backup-restore-plan",
+        help="Generate a Milvus backup and restore smoke-test plan",
+    )
+    milvus_backup_restore_plan_parser.add_argument(
+        "--uri",
+        default=MILVUS_URI,
+        help="Milvus URI",
+    )
+    milvus_backup_restore_plan_parser.add_argument(
+        "--collection",
+        default=MILVUS_COLLECTION,
+        help="Source Milvus collection name",
+    )
+    milvus_backup_restore_plan_parser.add_argument(
+        "--restore-collection",
+        default=f"{MILVUS_COLLECTION}_restore",
+        help="Disposable Milvus collection name used for restore smoke tests",
+    )
+    milvus_backup_restore_plan_parser.add_argument(
+        "--source",
+        default=RAG_VECTOR_STORE_PATH,
+        help="Local JSON vector store baseline path",
+    )
+    milvus_backup_restore_plan_parser.add_argument(
+        "--backup-dir",
+        default=MILVUS_BACKUP_DIR,
+        help="Local backup directory for Milvus backup artifacts",
+    )
+    milvus_backup_restore_plan_parser.add_argument(
+        "--vector-size",
+        type=int,
+        default=MILVUS_VECTOR_SIZE,
+        help="Milvus vector size",
+    )
+    milvus_backup_restore_plan_parser.add_argument(
+        "--metric-type",
+        default=MILVUS_METRIC_TYPE,
+        help="Milvus metric type",
+    )
+    milvus_backup_restore_plan_parser.add_argument(
+        "--volume-name",
+        default="thesis-defense-agent_milvus_data",
+        help="Docker volume name used by the local Milvus standalone service",
+    )
+    milvus_backup_restore_plan_parser.add_argument(
+        "--backup-file-name",
+        default="milvus_data_backup.tar.gz",
+        help="File name used in the optional local volume backup command",
+    )
+    milvus_backup_restore_plan_parser.add_argument(
+        "--output",
+        default=None,
+        help="Optional Markdown output path for the Milvus backup/restore plan",
+    )
+
+    milvus_restore_report_parser = subparsers.add_parser(
+        "milvus-restore-report-template",
+        help="Generate a Milvus backup and restore execution report template",
+    )
+    milvus_restore_report_parser.add_argument(
+        "--uri",
+        default=MILVUS_URI,
+        help="Milvus URI",
+    )
+    milvus_restore_report_parser.add_argument(
+        "--collection",
+        default=MILVUS_COLLECTION,
+        help="Source Milvus collection name",
+    )
+    milvus_restore_report_parser.add_argument(
+        "--restore-collection",
+        default=f"{MILVUS_COLLECTION}_restore",
+        help="Disposable Milvus collection name used for restore smoke tests",
+    )
+    milvus_restore_report_parser.add_argument(
+        "--source",
+        default=RAG_VECTOR_STORE_PATH,
+        help="Local JSON vector store baseline path",
+    )
+    milvus_restore_report_parser.add_argument(
+        "--backup-dir",
+        default=MILVUS_BACKUP_DIR,
+        help="Local backup directory for Milvus backup artifacts",
+    )
+    milvus_restore_report_parser.add_argument(
+        "--vector-size",
+        type=int,
+        default=MILVUS_VECTOR_SIZE,
+        help="Milvus vector size",
+    )
+    milvus_restore_report_parser.add_argument(
+        "--metric-type",
+        default=MILVUS_METRIC_TYPE,
+        help="Milvus metric type",
+    )
+    milvus_restore_report_parser.add_argument(
+        "--volume-name",
+        default="thesis-defense-agent_milvus_data",
+        help="Docker volume name used by the local Milvus standalone service",
+    )
+    milvus_restore_report_parser.add_argument(
+        "--backup-file-name",
+        default="milvus_data_backup.tar.gz",
+        help="File name used in the optional local volume backup command",
+    )
+    milvus_restore_report_parser.add_argument(
+        "--environment",
+        default="local-milvus",
+        help="Environment label written into the restore report",
+    )
+    milvus_restore_report_parser.add_argument(
+        "--operator",
+        default="",
+        help="Operator name written into the restore report",
+    )
+    milvus_restore_report_parser.add_argument(
+        "--output",
+        default=None,
+        help="Optional Markdown output path for the Milvus restore report template",
     )
 
     compare_vector_store_backends_parser = subparsers.add_parser(
@@ -5803,6 +5931,58 @@ def main():
         print("VECTOR SIZE:", args.vector_size)
         print("METRIC TYPE:", args.metric_type)
         print("IMPORTED COUNT:", len(store))
+
+    elif args.command == "milvus-backup-restore-plan":
+        try:
+            plan = build_milvus_backup_restore_plan(
+                uri=args.uri,
+                collection=args.collection,
+                restore_collection=args.restore_collection,
+                source=args.source,
+                backup_dir=args.backup_dir,
+                vector_size=args.vector_size,
+                metric_type=args.metric_type,
+                volume_name=args.volume_name,
+                backup_file_name=args.backup_file_name,
+            )
+        except ValueError as error:
+            print(f"MILVUS BACKUP RESTORE PLAN ERROR: {error}")
+            raise SystemExit(2) from error
+
+        markdown = render_milvus_backup_restore_plan(plan)
+        print(markdown, end="")
+
+        if args.output is not None:
+            save_text_output(args.output, markdown)
+            print("OUTPUT:", args.output)
+
+    elif args.command == "milvus-restore-report-template":
+        try:
+            plan = build_milvus_backup_restore_plan(
+                uri=args.uri,
+                collection=args.collection,
+                restore_collection=args.restore_collection,
+                source=args.source,
+                backup_dir=args.backup_dir,
+                vector_size=args.vector_size,
+                metric_type=args.metric_type,
+                volume_name=args.volume_name,
+                backup_file_name=args.backup_file_name,
+            )
+            markdown = render_milvus_restore_report_template(
+                plan,
+                environment=args.environment,
+                operator=args.operator,
+            )
+        except ValueError as error:
+            print(f"MILVUS RESTORE REPORT ERROR: {error}")
+            raise SystemExit(2) from error
+
+        print(markdown, end="")
+
+        if args.output is not None:
+            save_text_output(args.output, markdown)
+            print("OUTPUT:", args.output)
 
     elif args.command == "compare-vector-store-backends":
         top_k = args.top_k if args.top_k is not None else RAG_TOP_K

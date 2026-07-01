@@ -56,6 +56,7 @@ PDF / TXT 论文
 → MilvusVectorStoreRepository skeleton
 → Milvus Compose service / import CLI / optional benchmark entry
 → Milvus runtime benchmark
+→ Milvus backup / restore SOP
 → K8s manifests / smoke plan / report template
 ```
 
@@ -649,10 +650,10 @@ retrieve_context
 
 ## 暂缓范围
 
-当前已经完成本机 FastAPI 服务化、静态 Web 前端增强、Docker Compose、Prometheus 本地验证、GHCR 镜像发布流程、PostgreSQL runtime smoke、Qdrant 最小后端、Vector DB 生产化治理报告、Qdrant 备份保留策略和 Qdrant snapshot 手动 API runner。以下内容暂缓到后续阶段：
+当前已经完成本机 FastAPI 服务化、静态 Web 前端增强、Docker Compose、Prometheus 本地验证、GHCR 镜像发布流程、PostgreSQL runtime smoke、Qdrant 最小后端、Vector DB 生产化治理报告、Qdrant 备份保留策略、Qdrant snapshot 手动 API runner 和 Milvus backup / restore SOP。以下内容暂缓到后续阶段：
 
 - Qdrant 定时备份任务 / restore drill 自动调度
-- Milvus backup / restore SOP
+- Milvus Backup Tool / 集群级 restore drill
 - K8s 真实集群 smoke test / 生产化部署验证
 - 服务器长期运行验证
 - 真实 Feishu / WeCom / email 通知提供方
@@ -744,6 +745,7 @@ MILVUS_TOKEN=
 MILVUS_COLLECTION=thesis_chunks
 MILVUS_VECTOR_SIZE=1024
 MILVUS_METRIC_TYPE=COSINE
+MILVUS_BACKUP_DIR=data/milvus_backups
 MILVUS_PORT=19530
 MILVUS_METRICS_PORT=9091
 QUERY_EMBEDDING_CACHE_PATH=data/query_embedding_cache.json
@@ -1581,13 +1583,28 @@ JSON average duration: about 79 ms
 Milvus average duration: about 1231 ms, dominated by first-query warm-up
 ```
 
+生成 Milvus 备份 / 恢复计划：
+
+```powershell
+uv run python -m app.cli milvus-backup-restore-plan
+```
+
+生成 Milvus 恢复执行记录模板：
+
+```powershell
+uv run python -m app.cli milvus-restore-report-template `
+  --environment local-milvus `
+  --operator "<your-name>"
+```
+
 当前边界：
 
 ```text
 Milvus repository 和 CLI 入口已完成。
 Compose 服务用于本机 smoke，不代表生产部署形态。
 完整 benchmark JSON 报告保存在 data/reports/，默认不提交到 Git。
-Milvus backup / restore SOP 尚未完成。
+Milvus backup / restore SOP 已完成。
+milvus-backup-restore-plan 和 milvus-restore-report-template 已接入 CLI。
 ```
 
 当前边界：
@@ -1640,7 +1657,7 @@ Milvus repository 已实现，仍作为后续 runtime benchmark 对比候选。
 
 ```text
 Qdrant 已有手动 snapshot API runner，还缺定时 snapshot / restore drill 自动调度。
-Milvus 还缺 backup / restore SOP 和运维治理证据。
+Milvus 已有本机 backup / restore SOP，仍缺 Milvus Backup Tool 集成和集群级 restore drill。
 ```
 
 ## 2026-06-30 Update: Qdrant Backup Retention
