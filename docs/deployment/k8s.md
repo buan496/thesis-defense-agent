@@ -341,6 +341,36 @@ Check effective pod resources and probes:
 kubectl describe pod -l app.kubernetes.io/name=thesis-defense-agent-api -n thesis-defense-agent
 ```
 
+
+## Local Kind Smoke Evidence
+
+Verified on 2026-07-01 with local `kind-thesis-defense-agent` context.
+The raw smoke report is stored under `data/reports/` and is intentionally not committed.
+
+Validation summary:
+
+```text
+uv run python -m app.cli k8s-smoke-run --apply-cluster --output data/reports/k8s_smoke_run.md
+
+Overall status: passed
+thesis-defense-agent-api: successfully rolled out
+thesis-defense-agent-prometheus: successfully rolled out
+thesis-defense-agent-alertmanager: successfully rolled out
+api pod: 1/1 Running, restarts 0
+prometheus pod: 1/1 Running, restarts 0
+alertmanager pod: 1/1 Running, restarts 0
+```
+
+Service checks:
+
+```text
+GET /health -> {"status":"ok","service":"thesis-defense-agent"}
+Prometheus /-/ready -> ready
+Prometheus target http://api:8000/metrics/prometheus -> up
+Alertmanager /-/ready -> OK
+Alertmanager status -> ready
+```
+
 ## Local Container Smoke Test
 
 Validate that the Docker image starts as the non-root app user:
@@ -381,6 +411,7 @@ k8s-smoke-report-template CLI
 k8s-smoke-run CLI
 automated offline / optional cluster smoke runner
 offline manifest tests
+local kind real-cluster smoke execution evidence
 ```
 
 Not completed:
@@ -395,5 +426,4 @@ PostgreSQL StatefulSet
 Qdrant StatefulSet
 production Secret management
 Helm chart / Kustomize overlays
-real cluster smoke execution evidence
 ```
