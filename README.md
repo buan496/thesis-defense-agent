@@ -49,6 +49,7 @@ PDF / TXT 论文
 → Qdrant snapshot drill runner
 → Qdrant snapshot schedule config
 → Qdrant snapshot schedule install plan
+→ Qdrant snapshot schedule verification plan
 → K8s manifests / smoke plan / report template
 ```
 
@@ -120,6 +121,41 @@ uv run python -m app.cli qdrant-snapshot-schedule-install-plan `
 --apply 必须配合 --confirm-task-name。
 --apply 不能用于 --platform all。
 CLI 只渲染安装命令，不直接执行系统修改。
+```
+
+<!-- docs-update-2026-07-01-qdrant-snapshot-schedule-verification-plan -->
+
+## 2026-07-01 Update: Qdrant Snapshot Schedule Verification Plan
+
+项目新增 Qdrant snapshot drill 调度验证计划生成器：
+
+```text
+qdrant-snapshot-schedule-verify-plan
+```
+
+生成 cron 验证计划：
+
+```powershell
+uv run python -m app.cli qdrant-snapshot-schedule-verify-plan `
+  --platform cron
+```
+
+生成 Kubernetes CronJob 验证计划：
+
+```powershell
+uv run python -m app.cli qdrant-snapshot-schedule-verify-plan `
+  --platform kubernetes_cronjob `
+  --task-name thesis-defense-qdrant-snapshot-drill `
+  --namespace thesis-defense
+```
+
+当前边界：
+
+```text
+该命令生成状态检查、日志检查和回滚命令。
+不会直接查询系统调度器或 Kubernetes。
+不会执行回滚。
+真实安装后的证据采集仍需人工执行命令并记录。
 ```
 
 <!-- docs-update-2026-06-29-postgres-compose -->
@@ -370,7 +406,7 @@ JSON remains the default session backend.
 最新本地测试基线：
 
 ```text
-1072 passed, 1 warning
+1079 passed, 1 warning
 ```
 
 本机学习版阶段已完成，阶段总复盘见：

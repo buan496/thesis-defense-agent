@@ -114,6 +114,7 @@ qdrant-snapshot-drill-plan CLI
 qdrant-snapshot-drill-run CLI
 qdrant-snapshot-schedule-config CLI
 qdrant-snapshot-schedule-install-plan CLI
+qdrant-snapshot-schedule-verify-plan CLI
 ```
 
 Not completed:
@@ -123,6 +124,7 @@ Automated scheduled Qdrant backup job
 Automated scheduled Qdrant snapshot creation
 Automated scheduled restore smoke drill
 Actual cron / Windows Task Scheduler / Kubernetes CronJob installation
+Actual scheduled run evidence collection
 MilvusVectorStoreRepository
 Milvus runtime benchmark
 ```
@@ -605,6 +607,53 @@ Dry-run is the default.
 --apply cannot be used with --platform all.
 The CLI renders install commands; it does not execute them.
 Review commands before running them in a shell or cluster.
+```
+
+## Snapshot Schedule Verification Plan
+
+After installing a scheduler manually, generate a verification plan for the
+specific platform. The plan includes status checks, log checks, and rollback
+commands.
+
+Generate a cron verification plan:
+
+```powershell
+uv run python -m app.cli qdrant-snapshot-schedule-verify-plan `
+  --platform cron
+```
+
+Generate a Windows Task Scheduler verification plan:
+
+```powershell
+uv run python -m app.cli qdrant-snapshot-schedule-verify-plan `
+  --platform windows_task_scheduler `
+  --task-name thesis-defense-qdrant-snapshot-drill
+```
+
+Generate a Kubernetes CronJob verification plan:
+
+```powershell
+uv run python -m app.cli qdrant-snapshot-schedule-verify-plan `
+  --platform kubernetes_cronjob `
+  --task-name thesis-defense-qdrant-snapshot-drill `
+  --namespace thesis-defense
+```
+
+Save the verification plan:
+
+```powershell
+uv run python -m app.cli qdrant-snapshot-schedule-verify-plan `
+  --platform cron `
+  --output data/reports/qdrant_snapshot_schedule_verify_plan.md
+```
+
+Verification scope:
+
+```text
+The CLI generates status, log, and rollback commands.
+It does not query cron, Windows Task Scheduler, or Kubernetes directly.
+It does not execute rollback commands.
+Run the generated commands manually and save evidence before enabling long-term automation.
 ```
 
 ## Snapshot Smoke Plan

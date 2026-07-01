@@ -69,6 +69,20 @@ class QdrantSnapshotScheduleInstallPlan:
 
 
 @dataclass(frozen=True)
+class QdrantSnapshotScheduleVerificationCommand:
+    platform: str
+    purpose: str
+    command: str
+    destructive: bool
+
+
+@dataclass(frozen=True)
+class QdrantSnapshotScheduleVerificationPlan:
+    config: QdrantSnapshotScheduleConfig
+    commands: list[QdrantSnapshotScheduleVerificationCommand]
+
+
+@dataclass(frozen=True)
 class QdrantSnapshotDrillStepResult:
     name: str
     status: str
@@ -429,6 +443,76 @@ def render_qdrant_snapshot_schedule_install_plan(
     return "\n".join(lines).rstrip() + "\n"
 
 
+def build_qdrant_snapshot_schedule_verification_plan(
+    config: QdrantSnapshotScheduleConfig,
+) -> QdrantSnapshotScheduleVerificationPlan:
+    if config.platform == "all":
+        raise ValueError("platform must not be all for verification plan")
+
+    commands = []
+
+    if config.platform == "cron":
+        commands.extend(_build_cron_verification_commands(config))
+    elif config.platform == "windows_task_scheduler":
+        commands.extend(_build_windows_verification_commands(config))
+    elif config.platform == "kubernetes_cronjob":
+        commands.extend(_build_kubernetes_verification_commands(config))
+    else:
+        raise ValueError(
+            "platform must be one of: cron, windows_task_scheduler, kubernetes_cronjob"
+        )
+
+    return QdrantSnapshotScheduleVerificationPlan(
+        config=config,
+        commands=commands,
+    )
+
+
+def render_qdrant_snapshot_schedule_verification_plan(
+    plan: QdrantSnapshotScheduleVerificationPlan,
+) -> str:
+    lines = [
+        "# Qdrant Snapshot Schedule Verification Plan",
+        "",
+        f"- Platform: `{plan.config.platform}`",
+        f"- Task name: `{plan.config.task_name}`",
+        f"- Log path: `{plan.config.log_path}`",
+        f"- Namespace: `{plan.config.namespace}`",
+        "",
+        "Use this plan after installing the scheduler. It separates status checks, log checks, and rollback commands.",
+        "",
+    ]
+
+    for command in plan.commands:
+        lines.extend(
+            [
+                f"## {command.purpose}",
+                "",
+                f"- Platform: `{command.platform}`",
+                f"- Destructive: `{command.destructive}`",
+                "",
+                "```powershell",
+                command.command,
+                "```",
+                "",
+            ]
+        )
+
+    lines.extend(
+        [
+            "## Verification Rules",
+            "",
+            "- Confirm the schedule exists before waiting for a timed run.",
+            "- Confirm logs are written after the first scheduled run.",
+            "- Confirm restore still targets a disposable collection.",
+            "- Keep rollback commands ready before enabling apply mode.",
+            "",
+        ]
+    )
+
+    return "\n".join(lines).rstrip() + "\n"
+
+
 def execute_qdrant_snapshot_drill(
     plan: QdrantSnapshotDrillPlan,
     snapshot_client: QdrantSnapshotDrillClient,
@@ -762,6 +846,101 @@ def _build_kubernetes_install_command(
         ),
         applies_system_change=apply,
     )
+
+
+def _build_cron_verification_commands(
+    config: QdrantSnapshotScheduleConfig,
+) -> list[QdrantSnapshotScheduleVerificationCommand]:
+    escaped_runner = config.runner_command.replace("/", "\\/")
+    return [
+        QdrantSnapshotScheduleVerificationCommand(
+            platform="cron",
+            purpose="Check scheduled command",
+            command=f"crontab -l | Select-String \"{config.runner_command}\"",
+            destructive=False,
+        ),
+        QdrantSnapshotScheduleVerificationCommand(
+            platform="cron",
+            purpose="Check scheduler log",
+            command=f"Get-Content {config.log_path} -Tail 80",
+            destructive=False,
+        ),
+        QdrantSnapshotScheduleVerificationCommand(
+            platform="cron",
+            purpose="Rollback scheduled command",
+            command=f"crontab -l | sed '/{escaped_runner}/d' | crontab -",
+            destructive=True,
+        ),
+    ]
+
+
+def _build_windows_verification_commands(
+    config: QdrantSnapshotScheduleConfig,
+) -> list[QdrantSnapshotScheduleVerificationCommand]:
+    return [
+        QdrantSnapshotScheduleVerificationCommand(
+            platform="windows_task_scheduler",
+            purpose="Check scheduled task",
+            command=f'schtasks /Query /TN "{config.task_name}" /V /FO LIST',
+            destructive=False,
+        ),
+        QdrantSnapshotScheduleVerificationCommand(
+            platform="windows_task_scheduler",
+            purpose="Check scheduler log",
+            command=f"Get-Content {config.log_path} -Tail 80",
+            destructive=False,
+        ),
+        QdrantSnapshotScheduleVerificationCommand(
+            platform="windows_task_scheduler",
+            purpose="Rollback scheduled task",
+            command=f'schtasks /Delete /TN "{config.task_name}" /F',
+            destructive=True,
+        ),
+    ]
+
+
+def _build_kubernetes_verification_commands(
+    config: QdrantSnapshotScheduleConfig,
+) -> list[QdrantSnapshotScheduleVerificationCommand]:
+    return [
+        QdrantSnapshotScheduleVerificationCommand(
+            platform="kubernetes_cronjob",
+            purpose="Check CronJob",
+            command=(
+                "kubectl get cronjob "
+                f"{config.task_name} -n {config.namespace} -o wide"
+            ),
+            destructive=False,
+        ),
+        QdrantSnapshotScheduleVerificationCommand(
+            platform="kubernetes_cronjob",
+            purpose="Check recent Jobs",
+            command=(
+                "kubectl get jobs -n "
+                f"{config.namespace} --sort-by=.metadata.creationTimestamp"
+            ),
+            destructive=False,
+        ),
+        QdrantSnapshotScheduleVerificationCommand(
+            platform="kubernetes_cronjob",
+            purpose="Check scheduler logs",
+            command=(
+                "kubectl logs -n "
+                f"{config.namespace} "
+                f"-l job-name={config.task_name} --tail=80"
+            ),
+            destructive=False,
+        ),
+        QdrantSnapshotScheduleVerificationCommand(
+            platform="kubernetes_cronjob",
+            purpose="Rollback CronJob",
+            command=(
+                "kubectl delete cronjob "
+                f"{config.task_name} -n {config.namespace}"
+            ),
+            destructive=True,
+        ),
+    ]
 
 
 def _validate_cron_schedule(cron_schedule: str) -> None:

@@ -82,6 +82,7 @@ updated: 2026-07-01
 - [x] Qdrant snapshot drill one-time runner
 - [x] Qdrant snapshot schedule config
 - [x] Qdrant snapshot schedule install plan
+- [x] Qdrant snapshot schedule verification plan
 - [ ] Qdrant 定时 snapshot / restore drill 自动调度
 - [ ] MilvusVectorStoreRepository / Milvus runtime benchmark
 
@@ -318,6 +319,7 @@ updated: 2026-07-01
 - [x] Qdrant snapshot drill one-time runner
 - [x] Qdrant snapshot schedule config
 - [x] Qdrant snapshot schedule install plan
+- [x] Qdrant snapshot schedule verification plan
 - [ ] Qdrant 定时 snapshot / restore drill 自动调度
 - [ ] MilvusVectorStoreRepository / Milvus runtime benchmark
 - [x] K8s 基础 manifests
@@ -2843,6 +2845,43 @@ CLI 不直接执行安装命令。
 
 ```text
 1. Qdrant 定时 snapshot / restore drill 真实安装验证
+2. MilvusVectorStoreRepository / Milvus runtime benchmark
+3. K8s 真实集群 smoke test 执行 / 生产化部署验证
+```
+
+<!-- roadmap-update-2026-07-01-qdrant-snapshot-schedule-verification-plan -->
+
+## 2026-07-01 路线同步：Qdrant Snapshot Schedule Verification Plan 已完成
+
+本阶段继续推进 Qdrant 定时 snapshot / restore drill 自动调度，但仍不直接查询或修改系统调度器。
+本阶段目标是为真实安装后的验证和回滚准备可审查命令。
+
+已完成：
+
+- [x] `QdrantSnapshotScheduleVerificationCommand`
+- [x] `QdrantSnapshotScheduleVerificationPlan`
+- [x] `build_qdrant_snapshot_schedule_verification_plan()`
+- [x] `render_qdrant_snapshot_schedule_verification_plan()`
+- [x] `qdrant-snapshot-schedule-verify-plan` CLI
+- [x] cron status / log / rollback 命令生成
+- [x] Windows Task Scheduler status / log / rollback 命令生成
+- [x] Kubernetes CronJob status / job / log / rollback 命令生成
+- [x] 禁止 `--platform all` 生成验证计划
+- [x] 单元测试覆盖 builder、renderer 和 CLI
+
+当前边界：
+
+```text
+这是验证计划和回滚命令生成器。
+CLI 不直接查询调度器。
+CLI 不直接执行回滚。
+真实调度安装后的 evidence collection 仍需人工执行命令并记录。
+```
+
+下一步学习：
+
+```text
+1. Qdrant 定时 snapshot / restore drill 真实安装证据记录模板
 2. MilvusVectorStoreRepository / Milvus runtime benchmark
 3. K8s 真实集群 smoke test 执行 / 生产化部署验证
 ```
