@@ -1,4 +1,5 @@
 import time
+import threading
 
 from fastapi.testclient import TestClient
 
@@ -252,6 +253,14 @@ def test_execute_task_step_async_creates_background_task(
             },
         )
         task_id = create_response.json()["task"]["task_id"]
+        client.post(
+            f"/tasks/{task_id}/steps/start",
+            json={
+                "input": {
+                    "topic": "系统架构",
+                },
+            },
+        )
 
         response = client.post(f"/tasks/{task_id}/steps/execute-async")
         async_task_id = response.json()["async_task"]["task_id"]
@@ -279,6 +288,93 @@ def test_execute_task_step_async_creates_background_task(
     assert completed_task["result"]["step"]["output"] == {
         "context": "系统架构上下文",
     }
+
+
+def test_execute_task_step_async_is_idempotent_for_current_step(
+    monkeypatch,
+    tmp_path,
+):
+    runner = AsyncTaskRunner()
+    release = threading.Event()
+    calls = []
+    app.dependency_overrides[tasks.get_task_directory] = lambda: tmp_path
+    app.dependency_overrides[
+        tasks.get_async_task_runner
+    ] = lambda: runner
+    app.dependency_overrides[
+        async_tasks.get_async_task_runner
+    ] = lambda: runner
+
+    def fake_execute_task_step_service(
+        task_id,
+        directory,
+        correlation_id=None,
+    ):
+        calls.append(task_id)
+        release.wait(timeout=1)
+
+        fake_task = DefenseTask(
+            topic="系统架构",
+            task_id=task_id,
+            status="running",
+        )
+        fake_step = TaskStep(
+            step_type="retrieve_context",
+            status="completed",
+            output={
+                "context": "系统架构上下文",
+            },
+        )
+        fake_task.add_step(fake_step)
+        return fake_task, fake_step, tmp_path / f"{task_id}.json"
+
+    monkeypatch.setattr(
+        tasks,
+        "execute_task_step_service",
+        fake_execute_task_step_service,
+    )
+
+    try:
+        create_response = client.post(
+            "/tasks",
+            json={
+                "topic": "系统架构",
+            },
+        )
+        task_id = create_response.json()["task"]["task_id"]
+        client.post(
+            f"/tasks/{task_id}/steps/start",
+            json={
+                "input": {
+                    "topic": "系统架构",
+                },
+            },
+        )
+
+        first_response = client.post(
+            f"/tasks/{task_id}/steps/execute-async",
+        )
+        second_response = client.post(
+            f"/tasks/{task_id}/steps/execute-async",
+        )
+    finally:
+        release.set()
+        clear_overrides()
+
+    assert first_response.status_code == 200
+    assert second_response.status_code == 200
+
+    first_async_task = first_response.json()["async_task"]
+    second_async_task = second_response.json()["async_task"]
+
+    assert first_async_task["task_id"] == second_async_task["task_id"]
+    assert first_async_task["idempotency_key"] == (
+        second_async_task["idempotency_key"]
+    )
+    assert first_async_task["idempotency_key"].startswith(
+        f"execute_task_step:{task_id}:"
+    )
+    assert len(calls) == 1
 
 
 def test_execute_task_step_async_records_background_failure(
@@ -315,6 +411,14 @@ def test_execute_task_step_async_records_background_failure(
             },
         )
         task_id = create_response.json()["task"]["task_id"]
+        client.post(
+            f"/tasks/{task_id}/steps/start",
+            json={
+                "input": {
+                    "topic": "系统架构",
+                },
+            },
+        )
 
         response = client.post(f"/tasks/{task_id}/steps/execute-async")
         async_task_id = response.json()["async_task"]["task_id"]

@@ -15,6 +15,7 @@ class AsyncTaskRecord:
     name: str
     status: str
     created_at: float
+    idempotency_key: str | None = None
     started_at: float | None = None
     finished_at: float | None = None
     result: Any = None
@@ -35,6 +36,7 @@ class AsyncTaskRecord:
             "task_id": self.task_id,
             "name": self.name,
             "status": self.status,
+            "idempotency_key": self.idempotency_key,
             "created_at": self.created_at,
             "started_at": self.started_at,
             "finished_at": self.finished_at,
@@ -66,6 +68,7 @@ class AsyncTaskRunner:
         name: str,
         coroutine_factory: AsyncCallable,
         *args: Any,
+        idempotency_key: str | None = None,
         **kwargs: Any,
     ) -> AsyncTaskRecord:
         normalized_name = name.strip()
@@ -76,11 +79,24 @@ class AsyncTaskRunner:
         if not callable(coroutine_factory):
             raise TypeError("coroutine_factory must be callable")
 
+        normalized_idempotency_key = self._normalize_idempotency_key(
+            idempotency_key,
+        )
+
+        if normalized_idempotency_key is not None:
+            existing_record = self.get_task_by_idempotency_key(
+                normalized_idempotency_key,
+            )
+
+            if existing_record is not None:
+                return existing_record
+
         task_id = uuid.uuid4().hex
         record = AsyncTaskRecord(
             task_id=task_id,
             name=normalized_name,
             status="pending",
+            idempotency_key=normalized_idempotency_key,
             created_at=time.monotonic(),
         )
         record.task = asyncio.create_task(
@@ -141,6 +157,35 @@ class AsyncTaskRunner:
             record.to_dict()
             for record in self._records.values()
         ]
+
+    def get_task_by_idempotency_key(
+        self,
+        idempotency_key: str,
+    ) -> AsyncTaskRecord | None:
+        normalized_key = self._normalize_idempotency_key(idempotency_key)
+
+        if normalized_key is None:
+            return None
+
+        for record in self._records.values():
+            if record.idempotency_key == normalized_key:
+                return record
+
+        return None
+
+    def _normalize_idempotency_key(
+        self,
+        idempotency_key: str | None,
+    ) -> str | None:
+        if idempotency_key is None:
+            return None
+
+        normalized_key = idempotency_key.strip()
+
+        if not normalized_key:
+            raise ValueError("idempotency_key must not be empty")
+
+        return normalized_key
 
     def _get_record(self, task_id: str) -> AsyncTaskRecord:
         try:

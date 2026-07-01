@@ -185,6 +185,81 @@ def test_async_task_runner_can_cancel_pending_limited_task():
     asyncio.run(scenario())
 
 
+def test_async_task_runner_reuses_active_idempotent_task():
+    async def scenario():
+        runner = AsyncTaskRunner()
+        release = asyncio.Event()
+
+        async def blocking_job() -> str:
+            await release.wait()
+            return "done"
+
+        first = runner.create_task(
+            "first",
+            blocking_job,
+            idempotency_key="same-key",
+        )
+        second = runner.create_task(
+            "second",
+            blocking_job,
+            idempotency_key="same-key",
+        )
+
+        assert second is first
+        assert runner.list_task_statuses() == [first.to_dict()]
+
+        release.set()
+        final_status = await runner.await_task(first.task_id)
+
+        assert final_status["status"] == "completed"
+
+    asyncio.run(scenario())
+
+
+def test_async_task_runner_reuses_finished_idempotent_task():
+    async def scenario():
+        runner = AsyncTaskRunner()
+
+        first = runner.create_task(
+            "first",
+            successful_job,
+            "x",
+            idempotency_key="same-key",
+        )
+        first_status = await runner.await_task(first.task_id)
+
+        second = runner.create_task(
+            "second",
+            successful_job,
+            "y",
+            idempotency_key="same-key",
+        )
+        second_status = await runner.await_task(second.task_id)
+
+        assert first.task_id == second.task_id
+        assert second is first
+        assert first_status["status"] == "completed"
+        assert second_status["status"] == "completed"
+        assert second_status["result"] == "done:x"
+
+    asyncio.run(scenario())
+
+
+def test_async_task_runner_rejects_empty_idempotency_key():
+    async def scenario():
+        runner = AsyncTaskRunner()
+
+        with pytest.raises(ValueError, match="idempotency_key"):
+            runner.create_task(
+                "demo",
+                successful_job,
+                "x",
+                idempotency_key=" ",
+            )
+
+    asyncio.run(scenario())
+
+
 def test_async_task_runner_rejects_empty_name():
     async def scenario():
         runner = AsyncTaskRunner()

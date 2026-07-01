@@ -351,6 +351,7 @@ POST /tasks
 - `steps/start` 只创建下一步，不执行。
 - `steps/execute` 只执行当前自动步骤。
 - `steps/execute-async` 会创建后台任务，步骤结果需要通过 `/async-tasks/{async_task_id}` 查询。
+- `steps/execute-async` 对同一个 `task_id + current_step_id` 是幂等的，重复请求返回同一个后台任务。
 - 人工输入步骤必须通过 `answer` 或 `follow-up-answer` 提交。
 - 如果当前步骤类型不匹配，接口会返回 `400`。
 
@@ -363,6 +364,7 @@ POST /tasks
 - 默认仍使用 JSON 本地存储，PostgreSQL 需要显式配置。
 - 默认 RAG 仍使用本地向量库，Qdrant / Milvus 需要显式配置和导入。
 - 后台任务状态保存在进程内存中，进程重启后会丢失。
+- 后台任务幂等索引也保存在进程内存中，进程重启后会丢失。
 - 当前 `execute-async` 只是把同步 DefenseTask 执行放到后台线程，不代表底层 LLM / 工具调用已经原生异步。
 - 日志、metrics、Docker、Compose、K8s manifest 已有本机学习版配置，但仍未完成生产级鉴权、配额和多实例队列治理。
 
