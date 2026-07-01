@@ -14,6 +14,7 @@ data/traces/
 data/task_reports/
 data/notifications/
 data/uploads/
+data/async_tasks/
 data/qdrant_backups/
 docs/.obsidian/
 docs/.trash/

@@ -216,6 +216,7 @@ updated: 2026-07-01
 - [x] 向量库构建 checkpoint
 - [x] 向量库构建断点恢复
 - [x] 幂等性
+- [x] 后台任务持久化状态恢复
 - [x] Agent 任务恢复
 
 基础知识：
@@ -819,11 +820,11 @@ PostgreSQL runtime smoke test。
 
 ## 下一步学习重点
 
-当前已经完成本机 Agent Harness、RAG、Tool Calling、Memory、Trace、Sub-Agent、LangGraph 旁路迁移、FastAPI / Web / Docker / Prometheus / PostgreSQL / Qdrant / Milvus 基础治理、Qdrant Windows Task Scheduler 本机实验，以及 AsyncTaskRunner / FastAPI 后台任务 / DefenseTask 当前步骤后台执行 / 异步 LLM 与工具调用边界 / 后台任务幂等请求。下一阶段按异步与长任务服务化继续补齐：
+当前已经完成本机 Agent Harness、RAG、Tool Calling、Memory、Trace、Sub-Agent、LangGraph 旁路迁移、FastAPI / Web / Docker / Prometheus / PostgreSQL / Qdrant / Milvus 基础治理、Qdrant Windows Task Scheduler 本机实验，以及 AsyncTaskRunner / FastAPI 后台任务 / DefenseTask 当前步骤后台执行 / 异步 LLM 与工具调用边界 / 后台任务幂等请求 / 后台任务持久化状态恢复。下一阶段按异步与长任务服务化继续补齐：
 
-1. 后台任务持久化恢复
-2. 原生异步 LLM / 工具 SDK 调用
-3. K8s 真实集群 smoke test 执行 / 生产化部署验证
+1. 原生异步 LLM / 工具 SDK 调用
+2. K8s 真实集群 smoke test 执行 / 生产化部署验证
+3. Qdrant cron / Kubernetes CronJob 长期调度证据
 
 ## 最终简历能力目标
 
@@ -2864,8 +2865,8 @@ Milvus 只作为未来对比候选，尚未实现 MilvusVectorStoreRepository。
 当前边界：
 
 ```text
-幂等记录仍保存在进程内存中。
-服务进程重启后，async task 记录和幂等索引都会丢失。
+幂等记录在本阶段仍保存在进程内存中。
+服务进程重启后，async task 记录和幂等索引在本阶段仍会丢失。
 失败任务重复请求也会返回同一个失败记录；显式重试策略后续单独设计。
 ```
 
@@ -2875,6 +2876,41 @@ Milvus 只作为未来对比候选，尚未实现 MilvusVectorStoreRepository。
 1. 后台任务持久化恢复
 2. 原生异步 LLM / 工具 SDK 调用
 3. K8s 真实集群 smoke test 执行 / 生产化部署验证
+```
+
+<!-- roadmap-update-2026-07-01-async-task-persistence -->
+
+## 2026-07-01 路线同步：后台任务持久化状态恢复已完成
+
+本阶段解决 FastAPI 后台任务记录只存在进程内存中的问题。现在后台任务状态会写入本地 JSON 文件，服务进程重启后仍可查询历史任务状态和幂等索引。
+
+已完成：
+
+- [x] `AsyncTaskRunner(storage_path=...)`
+- [x] `AsyncTaskRecord.from_dict()`
+- [x] 后台任务记录 JSON 落盘
+- [x] completed / failed / cancelled 历史任务重启后可查询
+- [x] `idempotency_key` 重启后可恢复查询
+- [x] pending / running / cancelling 任务重启后恢复为 `failed`
+- [x] 中断任务错误类型统一为 `TaskInterruptedError`
+- [x] FastAPI 默认 runner 接入 `ASYNC_TASK_STORE_PATH`
+- [x] `data/async_tasks/` 加入 `.gitignore`
+- [x] 测试覆盖 completed、failed 和 interrupted 恢复语义
+
+当前边界：
+
+```text
+恢复的是后台任务记录和审计状态，不恢复重启前正在运行的 coroutine。
+本机学习版使用 JSON 文件存储，不是多实例分布式队列。
+多进程或多副本部署仍需要 Redis / Postgres / Celery / Arq / Dramatiq 这类队列或任务表设计。
+```
+
+下一步学习：
+
+```text
+1. 原生异步 LLM / 工具 SDK 调用
+2. K8s 真实集群 smoke test 执行 / 生产化部署验证
+3. Qdrant cron / Kubernetes CronJob 长期调度证据
 ```
 
 <!-- roadmap-update-2026-07-01-qdrant-snapshot-drill-plan -->

@@ -157,7 +157,7 @@ Current scope:
 
 ### Async Task API
 
-当前已暴露内存型后台任务 API，用于验证长任务生命周期：
+当前已暴露后台任务 API，用于验证长任务生命周期：
 
 ```text
 POST   /async-tasks
@@ -187,11 +187,13 @@ curl.exe -X DELETE http://127.0.0.1:8000/async-tasks/<TASK_ID>
 
 Current scope:
 
-- uses the in-memory `AsyncTaskRunner`
+- uses `AsyncTaskRunner`
 - limits concurrently running tasks with `ASYNC_TASK_MAX_CONCURRENT_TASKS`
+- persists task records to `ASYNC_TASK_STORE_PATH`
 - demo job only sleeps and returns a configured result
 - validates task creation, status query, completion and cancellation
-- does not persist task state across process restarts
+- restores completed / failed / cancelled task records after process restart
+- marks unfinished tasks as `TaskInterruptedError` after process restart
 - does not execute real `DefenseTask` steps yet
 - does not implement cross-process queue sharing or idempotency yet
 
@@ -363,8 +365,9 @@ POST /tasks
 - 未实现用户 / Workspace 隔离。
 - 默认仍使用 JSON 本地存储，PostgreSQL 需要显式配置。
 - 默认 RAG 仍使用本地向量库，Qdrant / Milvus 需要显式配置和导入。
-- 后台任务状态保存在进程内存中，进程重启后会丢失。
-- 后台任务幂等索引也保存在进程内存中，进程重启后会丢失。
+- 后台任务状态和幂等索引会写入 `ASYNC_TASK_STORE_PATH`。
+- 进程重启后可以查询历史任务状态。
+- 重启前仍在 pending / running / cancelling 的任务会恢复为 `TaskInterruptedError`，不会继续执行原 coroutine。
 - 当前 `execute-async` 只是把同步 DefenseTask 执行放到后台线程，不代表底层 LLM / 工具调用已经原生异步。
 - 日志、metrics、Docker、Compose、K8s manifest 已有本机学习版配置，但仍未完成生产级鉴权、配额和多实例队列治理。
 
@@ -372,7 +375,6 @@ POST /tasks
 
 ```text
 鉴权 / 用户隔离
-后台任务持久化队列
 多实例任务调度
 异步 LLM / 工具调用
 服务器长期运行证据

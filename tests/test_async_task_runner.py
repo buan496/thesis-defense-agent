@@ -260,6 +260,86 @@ def test_async_task_runner_rejects_empty_idempotency_key():
     asyncio.run(scenario())
 
 
+def test_async_task_runner_persists_completed_task(tmp_path):
+    async def scenario():
+        storage_path = tmp_path / "async_tasks.json"
+        runner = AsyncTaskRunner(storage_path=storage_path)
+
+        record = runner.create_task(
+            "persistent",
+            successful_job,
+            "x",
+            idempotency_key="persist-key",
+        )
+        completed_status = await runner.await_task(record.task_id)
+
+        restored_runner = AsyncTaskRunner(storage_path=storage_path)
+        restored_status = restored_runner.get_task_status(record.task_id)
+        restored_record = restored_runner.get_task_by_idempotency_key(
+            "persist-key",
+        )
+
+        assert completed_status["status"] == "completed"
+        assert restored_status["status"] == "completed"
+        assert restored_status["result"] == "done:x"
+        assert restored_status["idempotency_key"] == "persist-key"
+        assert restored_record is not None
+        assert restored_record.task_id == record.task_id
+
+    asyncio.run(scenario())
+
+
+def test_async_task_runner_persists_failed_task(tmp_path):
+    async def scenario():
+        storage_path = tmp_path / "async_tasks.json"
+        runner = AsyncTaskRunner(storage_path=storage_path)
+
+        record = runner.create_task("failure", failing_job)
+        failed_status = await runner.await_task(record.task_id)
+
+        restored_runner = AsyncTaskRunner(storage_path=storage_path)
+        restored_status = restored_runner.get_task_status(record.task_id)
+
+        assert failed_status["status"] == "failed"
+        assert restored_status["status"] == "failed"
+        assert restored_status["error_type"] == "ValueError"
+        assert restored_status["error_message"] == "boom"
+
+    asyncio.run(scenario())
+
+
+def test_async_task_runner_marks_unfinished_persisted_task_as_interrupted(
+    tmp_path,
+):
+    async def scenario():
+        storage_path = tmp_path / "async_tasks.json"
+        runner = AsyncTaskRunner(storage_path=storage_path)
+        release = asyncio.Event()
+
+        async def blocking_job() -> str:
+            await release.wait()
+            return "done"
+
+        record = runner.create_task("blocking", blocking_job)
+
+        await asyncio.sleep(0)
+
+        restored_runner = AsyncTaskRunner(storage_path=storage_path)
+        restored_status = restored_runner.get_task_status(record.task_id)
+
+        assert restored_status["status"] == "failed"
+        assert restored_status["error_type"] == "TaskInterruptedError"
+        assert restored_status["error_message"] == (
+            "task was interrupted before completion"
+        )
+        assert restored_status["duration_ms"] >= 0
+
+        release.set()
+        await runner.await_task(record.task_id)
+
+    asyncio.run(scenario())
+
+
 def test_async_task_runner_rejects_empty_name():
     async def scenario():
         runner = AsyncTaskRunner()
