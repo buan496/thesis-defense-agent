@@ -50,6 +50,7 @@ PDF / TXT 论文
 → Qdrant snapshot schedule config
 → Qdrant snapshot schedule install plan
 → Qdrant snapshot schedule verification plan
+→ Qdrant snapshot schedule evidence template
 → K8s manifests / smoke plan / report template
 ```
 
@@ -156,6 +157,43 @@ uv run python -m app.cli qdrant-snapshot-schedule-verify-plan `
 不会直接查询系统调度器或 Kubernetes。
 不会执行回滚。
 真实安装后的证据采集仍需人工执行命令并记录。
+```
+
+<!-- docs-update-2026-07-01-qdrant-snapshot-schedule-evidence-template -->
+
+## 2026-07-01 Update: Qdrant Snapshot Schedule Evidence Template
+
+项目新增 Qdrant snapshot drill 调度证据记录模板：
+
+```text
+qdrant-snapshot-schedule-evidence-template
+```
+
+生成 cron 证据模板：
+
+```powershell
+uv run python -m app.cli qdrant-snapshot-schedule-evidence-template `
+  --platform cron `
+  --environment local-cron `
+  --operator "<your-name>"
+```
+
+保存 Markdown：
+
+```powershell
+uv run python -m app.cli qdrant-snapshot-schedule-evidence-template `
+  --platform cron `
+  --output data/reports/qdrant_snapshot_schedule_evidence.md
+```
+
+当前边界：
+
+```text
+该命令只生成证据记录模板。
+不会安装调度任务。
+不会查询调度器。
+不会验证粘贴的证据内容。
+真实命令输出需要人工脱敏后写入模板。
 ```
 
 <!-- docs-update-2026-06-29-postgres-compose -->
@@ -406,7 +444,7 @@ JSON remains the default session backend.
 最新本地测试基线：
 
 ```text
-1079 passed, 1 warning
+1086 passed, 1 warning
 ```
 
 本机学习版阶段已完成，阶段总复盘见：

@@ -83,6 +83,7 @@ updated: 2026-07-01
 - [x] Qdrant snapshot schedule config
 - [x] Qdrant snapshot schedule install plan
 - [x] Qdrant snapshot schedule verification plan
+- [x] Qdrant snapshot schedule evidence template
 - [ ] Qdrant 定时 snapshot / restore drill 自动调度
 - [ ] MilvusVectorStoreRepository / Milvus runtime benchmark
 
@@ -320,6 +321,7 @@ updated: 2026-07-01
 - [x] Qdrant snapshot schedule config
 - [x] Qdrant snapshot schedule install plan
 - [x] Qdrant snapshot schedule verification plan
+- [x] Qdrant snapshot schedule evidence template
 - [ ] Qdrant 定时 snapshot / restore drill 自动调度
 - [ ] MilvusVectorStoreRepository / Milvus runtime benchmark
 - [x] K8s 基础 manifests
@@ -2882,6 +2884,45 @@ CLI 不直接执行回滚。
 
 ```text
 1. Qdrant 定时 snapshot / restore drill 真实安装证据记录模板
+2. MilvusVectorStoreRepository / Milvus runtime benchmark
+3. K8s 真实集群 smoke test 执行 / 生产化部署验证
+```
+
+<!-- roadmap-update-2026-07-01-qdrant-snapshot-schedule-evidence-template -->
+
+## 2026-07-01 路线同步：Qdrant Snapshot Schedule Evidence Template 已完成
+
+本阶段继续推进 Qdrant 定时 snapshot / restore drill 自动调度，但仍不直接安装或查询系统调度器。
+本阶段目标是为真实安装后的证据采集提供固定 Markdown 模板。
+
+已完成：
+
+- [x] `render_qdrant_snapshot_schedule_evidence_template()`
+- [x] `qdrant-snapshot-schedule-evidence-template` CLI
+- [x] pre-install manual drill 证据区
+- [x] install command 证据区
+- [x] status check 证据区
+- [x] log check 证据区
+- [x] rollback command 证据区
+- [x] final decision 区
+- [x] safety checklist
+- [x] 禁止 `--platform all` 生成证据模板
+- [x] 单元测试覆盖 renderer 和 CLI
+
+当前边界：
+
+```text
+这是证据记录模板生成器。
+CLI 不安装调度任务。
+CLI 不查询调度器。
+CLI 不验证粘贴的证据内容。
+真实 evidence collection 仍需人工执行命令并脱敏记录。
+```
+
+下一步学习：
+
+```text
+1. Qdrant 定时 snapshot / restore drill 真实安装执行
 2. MilvusVectorStoreRepository / Milvus runtime benchmark
 3. K8s 真实集群 smoke test 执行 / 生产化部署验证
 ```

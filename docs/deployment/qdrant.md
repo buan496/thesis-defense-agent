@@ -115,6 +115,7 @@ qdrant-snapshot-drill-run CLI
 qdrant-snapshot-schedule-config CLI
 qdrant-snapshot-schedule-install-plan CLI
 qdrant-snapshot-schedule-verify-plan CLI
+qdrant-snapshot-schedule-evidence-template CLI
 ```
 
 Not completed:
@@ -654,6 +655,60 @@ The CLI generates status, log, and rollback commands.
 It does not query cron, Windows Task Scheduler, or Kubernetes directly.
 It does not execute rollback commands.
 Run the generated commands manually and save evidence before enabling long-term automation.
+```
+
+## Snapshot Schedule Evidence Template
+
+Use the evidence template to record a real scheduler install and verification
+run. The template captures the manual drill, install command, status check, log
+check, rollback command, final decision, and safety checklist.
+
+Generate a cron evidence template:
+
+```powershell
+uv run python -m app.cli qdrant-snapshot-schedule-evidence-template `
+  --platform cron `
+  --environment local-cron `
+  --operator "<your-name>"
+```
+
+Generate a Windows Task Scheduler evidence template:
+
+```powershell
+uv run python -m app.cli qdrant-snapshot-schedule-evidence-template `
+  --platform windows_task_scheduler `
+  --task-name thesis-defense-qdrant-snapshot-drill `
+  --environment windows-local `
+  --operator "<your-name>"
+```
+
+Generate a Kubernetes CronJob evidence template:
+
+```powershell
+uv run python -m app.cli qdrant-snapshot-schedule-evidence-template `
+  --platform kubernetes_cronjob `
+  --task-name thesis-defense-qdrant-snapshot-drill `
+  --namespace thesis-defense `
+  --environment k8s-cluster `
+  --operator "<your-name>"
+```
+
+Save the evidence template:
+
+```powershell
+uv run python -m app.cli qdrant-snapshot-schedule-evidence-template `
+  --platform cron `
+  --output data/reports/qdrant_snapshot_schedule_evidence.md
+```
+
+Evidence scope:
+
+```text
+The CLI generates a Markdown evidence template only.
+It does not install schedules.
+It does not query schedulers.
+It does not validate pasted evidence.
+Operators must paste sanitized command outputs manually.
 ```
 
 ## Snapshot Smoke Plan
