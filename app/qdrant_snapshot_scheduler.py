@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from pathlib import Path
 import subprocess
+import tempfile
 from typing import Callable, Protocol
 
 from app.qdrant_backup_retention import (
@@ -486,6 +487,9 @@ def execute_qdrant_snapshot_schedule_install_plan(
     if timeout_seconds <= 0:
         raise ValueError("timeout_seconds must be greater than 0")
 
+    if plan.config.platform == "windows_task_scheduler":
+        _write_windows_task_script(plan.config)
+
     runner = command_runner or run_schedule_install_command
     result = runner(command.command, timeout_seconds)
 
@@ -952,11 +956,7 @@ def _render_cron_config(
 def _render_windows_task_scheduler_config(
     config: QdrantSnapshotScheduleConfig,
 ) -> list[str]:
-    command = (
-        "powershell -NoProfile -ExecutionPolicy Bypass "
-        f"-Command \"Set-Location '{config.working_directory}'; "
-        f"{config.runner_command} *> '{config.log_path}'\""
-    )
+    command = _build_windows_task_action(config)
 
     return [
         "## Windows Task Scheduler",
@@ -1038,11 +1038,7 @@ def _build_windows_install_command(
     config: QdrantSnapshotScheduleConfig,
     apply: bool,
 ) -> QdrantSnapshotScheduleInstallCommand:
-    task_command = (
-        "powershell -NoProfile -ExecutionPolicy Bypass "
-        f"-Command \"Set-Location '{config.working_directory}'; "
-        f"{config.runner_command} *> '{config.log_path}'\""
-    )
+    task_command = _build_windows_task_action(config)
     command = (
         f'schtasks /Create /F /TN "{config.task_name}" '
         f"/SC DAILY /ST {config.windows_start_time} "
@@ -1058,6 +1054,67 @@ def _build_windows_install_command(
         description="Install a Windows Task Scheduler daily task.",
         applies_system_change=apply,
     )
+
+
+def _build_windows_task_action(
+    config: QdrantSnapshotScheduleConfig,
+) -> str:
+    script_path = _build_windows_task_script_path(config)
+    return (
+        "powershell.exe -NoProfile -ExecutionPolicy Bypass "
+        f"-File {script_path}"
+    )
+
+
+def _write_windows_task_script(
+    config: QdrantSnapshotScheduleConfig,
+) -> Path:
+    script_path = Path(_build_windows_task_script_path(config))
+    script_path.parent.mkdir(parents=True, exist_ok=True)
+    script_path.write_text(
+        _build_windows_task_script(config),
+        encoding="utf-8-sig",
+    )
+    return script_path
+
+
+def _build_windows_task_script_path(
+    config: QdrantSnapshotScheduleConfig,
+) -> str:
+    script_name = _sanitize_windows_task_name(config.task_name) + ".ps1"
+    return str(
+        Path(tempfile.gettempdir())
+        / "thesis-defense-agent"
+        / "scheduled_tasks"
+        / script_name
+    )
+
+
+def _build_windows_task_script(
+    config: QdrantSnapshotScheduleConfig,
+) -> str:
+    working_directory = _quote_powershell_single(config.working_directory)
+    log_path = _quote_powershell_single(config.log_path)
+    return "\n".join(
+        [
+            "$ErrorActionPreference = 'Stop'",
+            f"Set-Location -LiteralPath '{working_directory}'",
+            f"{config.runner_command} *> '{log_path}'",
+            "exit $LASTEXITCODE",
+            "",
+        ]
+    )
+
+
+def _sanitize_windows_task_name(task_name: str) -> str:
+    return "".join(
+        character if character.isalnum() or character in ("-", "_") else "_"
+        for character in task_name
+    )
+
+
+def _quote_powershell_single(value: str) -> str:
+    return value.replace("'", "''")
 
 
 def _build_kubernetes_install_command(

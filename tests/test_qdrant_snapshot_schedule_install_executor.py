@@ -1,4 +1,6 @@
 import pytest
+import tempfile
+from pathlib import Path
 
 from app import cli
 from app.qdrant_snapshot_scheduler import (
@@ -72,6 +74,51 @@ def test_execute_qdrant_snapshot_schedule_install_plan_records_failure():
     assert report.result.success is False
     assert report.result.return_code == 1
     assert report.result.stderr == "failed"
+
+
+def test_execute_qdrant_snapshot_schedule_install_plan_writes_windows_script(
+    tmp_path,
+):
+    config = build_qdrant_snapshot_schedule_config(
+        platform="windows_task_scheduler",
+        task_name="qdrant-drill",
+        working_directory=str(tmp_path),
+        log_path="data/reports/drill.log",
+    )
+    plan = build_qdrant_snapshot_schedule_install_plan(
+        config,
+        apply=True,
+        confirm_task_name=config.task_name,
+    )
+
+    def fake_runner(command: str, timeout_seconds: int):
+        return QdrantSnapshotScheduleInstallExecutionResult(
+            platform="windows_task_scheduler",
+            command=command,
+            return_code=0,
+            stdout="created",
+            stderr="",
+            success=True,
+        )
+
+    execute_qdrant_snapshot_schedule_install_plan(
+        plan,
+        command_runner=fake_runner,
+    )
+
+    script_path = (
+        Path(tempfile.gettempdir())
+        / "thesis-defense-agent"
+        / "scheduled_tasks"
+        / "qdrant-drill.ps1"
+    )
+    script = script_path.read_text(encoding="utf-8")
+
+    assert script_path.exists()
+    assert script_path.read_bytes().startswith(b"\xef\xbb\xbf")
+    assert "Set-Location -LiteralPath" in script
+    assert "qdrant-snapshot-drill-run" in script
+    assert "data/reports/drill.log" in script
 
 
 def test_execute_qdrant_snapshot_schedule_install_plan_rejects_dry_run():
