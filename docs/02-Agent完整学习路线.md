@@ -215,7 +215,7 @@ updated: 2026-07-01
 - [x] 异步 DefenseTask step execution API
 - [x] 向量库构建 checkpoint
 - [x] 向量库构建断点恢复
-- [ ] 幂等性
+- [x] 幂等性
 - [x] Agent 任务恢复
 
 基础知识：
@@ -819,12 +819,11 @@ PostgreSQL runtime smoke test。
 
 ## 下一步学习重点
 
-当前已经完成本机 Agent Harness、RAG、Tool Calling、Memory、Trace、Sub-Agent、LangGraph 旁路迁移、FastAPI / Web / Docker / Prometheus / PostgreSQL / Qdrant / Milvus 基础治理、Qdrant Windows Task Scheduler 本机实验，以及 AsyncTaskRunner / FastAPI 后台任务 / DefenseTask 当前步骤后台执行 / 异步 LLM 与工具调用边界。下一阶段按异步与长任务服务化继续补齐：
+当前已经完成本机 Agent Harness、RAG、Tool Calling、Memory、Trace、Sub-Agent、LangGraph 旁路迁移、FastAPI / Web / Docker / Prometheus / PostgreSQL / Qdrant / Milvus 基础治理、Qdrant Windows Task Scheduler 本机实验，以及 AsyncTaskRunner / FastAPI 后台任务 / DefenseTask 当前步骤后台执行 / 异步 LLM 与工具调用边界 / 后台任务幂等请求。下一阶段按异步与长任务服务化继续补齐：
 
-1. 后台任务幂等请求
-2. 后台任务持久化恢复
-3. 原生异步 LLM / 工具 SDK 调用
-4. K8s 真实集群 smoke test 执行 / 生产化部署验证
+1. 后台任务持久化恢复
+2. 原生异步 LLM / 工具 SDK 调用
+3. K8s 真实集群 smoke test 执行 / 生产化部署验证
 
 ## 最终简历能力目标
 
@@ -2845,6 +2844,37 @@ Milvus 只作为未来对比候选，尚未实现 MilvusVectorStoreRepository。
 1. 后台任务幂等请求
 2. 后台任务持久化恢复
 3. 原生异步 LLM / 工具 SDK 调用
+```
+
+<!-- roadmap-update-2026-07-01-async-task-idempotency -->
+
+## 2026-07-01 路线同步：后台任务幂等请求已完成
+
+本阶段解决重复点击、HTTP 重试或网络抖动导致同一个 `DefenseTask` 当前步骤被重复创建后台任务的问题。
+
+已完成：
+
+- [x] `AsyncTaskRecord.idempotency_key`
+- [x] `AsyncTaskRunner.create_task(..., idempotency_key=...)`
+- [x] 同一 `idempotency_key` 返回已有后台任务记录
+- [x] `POST /tasks/{task_id}/steps/execute-async` 使用 `task_id + current_step_id` 构造幂等 key
+- [x] 同一当前步骤重复 `execute-async` 返回同一个 `async_task_id`
+- [x] 测试覆盖 active / finished 幂等任务复用、空 key 拒绝和 API 重复请求
+
+当前边界：
+
+```text
+幂等记录仍保存在进程内存中。
+服务进程重启后，async task 记录和幂等索引都会丢失。
+失败任务重复请求也会返回同一个失败记录；显式重试策略后续单独设计。
+```
+
+下一步学习：
+
+```text
+1. 后台任务持久化恢复
+2. 原生异步 LLM / 工具 SDK 调用
+3. K8s 真实集群 smoke test 执行 / 生产化部署验证
 ```
 
 <!-- roadmap-update-2026-07-01-qdrant-snapshot-drill-plan -->

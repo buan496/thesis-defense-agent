@@ -330,7 +330,7 @@ async def execute_task_step_async(
     async_runner: AsyncTaskRunner = Depends(get_async_task_runner),
 ) -> AsyncTaskStepResponse:
     try:
-        get_task_service(
+        task = get_task_service(
             task_id=task_id,
             directory=directory,
         )
@@ -345,6 +345,18 @@ async def execute_task_step_async(
             detail=str(error),
         ) from error
 
+    current_step = task.get_current_step()
+
+    if current_step is None:
+        raise HTTPException(
+            status_code=400,
+            detail="current task has no executable step",
+        )
+
+    idempotency_key = (
+        f"execute_task_step:{task.task_id}:{current_step.step_id}"
+    )
+
     try:
         async_task = async_runner.create_task(
             name=f"execute_task_step:{task_id}",
@@ -352,6 +364,7 @@ async def execute_task_step_async(
             task_id=task_id,
             directory=directory,
             correlation_id=get_request_correlation_id(http_request),
+            idempotency_key=idempotency_key,
         )
     except (TypeError, ValueError) as error:
         raise HTTPException(

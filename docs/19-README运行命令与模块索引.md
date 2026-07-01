@@ -240,6 +240,8 @@ curl.exe -X DELETE http://127.0.0.1:8000/async-tasks/<TASK_ID>
 curl.exe -X POST http://127.0.0.1:8000/tasks/<TASK_ID>/steps/execute-async
 ```
 
+同一个 `task_id + current_step_id` 重复调用会返回同一个后台任务。
+
 查询后台执行结果：
 
 ```powershell
