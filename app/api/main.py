@@ -3,6 +3,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.api.middleware import log_request_middleware
 from app.api.routes.alerts import router as alerts_router
+from app.api.routes.async_tasks import router as async_tasks_router
 from app.api.routes.documents import router as documents_router
 from app.api.routes.frontend import STATIC_DIRECTORY
 from app.api.routes.frontend import router as frontend_router
@@ -23,6 +24,7 @@ app.middleware("http")(log_request_middleware)
 app.mount("/static", StaticFiles(directory=STATIC_DIRECTORY), name="static")
 app.include_router(frontend_router)
 app.include_router(alerts_router)
+app.include_router(async_tasks_router)
 app.include_router(documents_router)
 app.include_router(health_router)
 app.include_router(rag_router)

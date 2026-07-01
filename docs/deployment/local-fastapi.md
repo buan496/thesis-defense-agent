@@ -155,6 +155,45 @@ Current scope:
 - does not replace the HTTP Task API
 - does not include browser UI yet
 
+### Async Task API
+
+当前已暴露内存型后台任务 API，用于验证长任务生命周期：
+
+```text
+POST   /async-tasks
+GET    /async-tasks/{task_id}
+DELETE /async-tasks/{task_id}
+```
+
+创建后台任务：
+
+```powershell
+curl.exe -X POST http://127.0.0.1:8000/async-tasks `
+  -H "Content-Type: application/json" `
+  -d "{\"name\":\"demo\",\"delay_seconds\":1,\"result\":\"ok\"}"
+```
+
+查询后台任务：
+
+```powershell
+curl.exe http://127.0.0.1:8000/async-tasks/<TASK_ID>
+```
+
+取消后台任务：
+
+```powershell
+curl.exe -X DELETE http://127.0.0.1:8000/async-tasks/<TASK_ID>
+```
+
+Current scope:
+
+- uses the in-memory `AsyncTaskRunner`
+- demo job only sleeps and returns a configured result
+- validates task creation, status query, completion and cancellation
+- does not persist task state across process restarts
+- does not execute real `DefenseTask` steps yet
+- does not implement concurrency limits or idempotency yet
+
 ### RAG 状态与检索
 
 ```text

@@ -113,6 +113,14 @@ uv run python -m app.cli analyze-task --task-id <TASK_ID>
 uv run python -m app.cli export-task-markdown --task-id <TASK_ID>
 ```
 
+创建异步后台任务：
+
+```powershell
+curl.exe -X POST http://127.0.0.1:8000/async-tasks `
+  -H "Content-Type: application/json" `
+  -d "{\"name\":\"demo\",\"delay_seconds\":1,\"result\":\"ok\"}"
+```
+
 运行本地质量门禁：
 
 ```powershell
@@ -204,6 +212,7 @@ Agent 与 RAG：
 - Task State 可恢复任务流
 - Session / Memory / Trace / Feedback
 - AsyncTaskRunner 基础后台任务模型
+- AsyncTaskRunner FastAPI 后台任务 API
 - FastAPI / Docker / PostgreSQL / Qdrant / Milvus 本机验证
 - Milvus destructive operation guardrails
 - Prometheus / Alertmanager / K8s manifests 基础交付能力
@@ -211,7 +220,8 @@ Agent 与 RAG：
 仍待推进：
 
 - Qdrant cron / Kubernetes CronJob 长期调度证据
-- AsyncTaskRunner 接入 FastAPI 后台任务 API
+- 异步 DefenseTask 执行接入
+- 异步 LLM / 工具调用与并发限制
 - K8s 真实集群 smoke test
 - 真实 Feishu / WeCom / email 通知提供方
 - 服务器长期运行验证
