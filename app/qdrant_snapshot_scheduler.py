@@ -11,6 +11,14 @@ from app.qdrant_backup_retention import (
 from app.qdrant_snapshot_client import QdrantSnapshotInfo
 
 
+QDRANT_SNAPSHOT_SCHEDULE_PLATFORMS = [
+    "all",
+    "cron",
+    "windows_task_scheduler",
+    "kubernetes_cronjob",
+]
+
+
 @dataclass(frozen=True)
 class QdrantSnapshotDrillStep:
     name: str
@@ -30,6 +38,19 @@ class QdrantSnapshotDrillPlan:
     apply_retention: bool
     run_restore_drill: bool
     steps: list[QdrantSnapshotDrillStep]
+
+
+@dataclass(frozen=True)
+class QdrantSnapshotScheduleConfig:
+    platform: str
+    task_name: str
+    cron_schedule: str
+    windows_start_time: str
+    working_directory: str
+    log_path: str
+    namespace: str
+    image: str
+    runner_command: str
 
 
 @dataclass(frozen=True)
@@ -186,6 +207,132 @@ def build_qdrant_snapshot_drill_plan(
     )
 
 
+def build_qdrant_snapshot_schedule_config(
+    platform: str = "all",
+    task_name: str = "thesis-defense-qdrant-snapshot-drill",
+    cron_schedule: str = "0 3 * * *",
+    windows_start_time: str = "03:00",
+    working_directory: str = ".",
+    log_path: str = "data/reports/qdrant_snapshot_drill_scheduled.log",
+    namespace: str = "default",
+    image: str = "ghcr.io/buan496/thesis-defense-agent:latest",
+    collection: str = "thesis_chunks",
+    restore_collection: str = "thesis_chunks_restore",
+    backup_dir: str = "data/qdrant_backups",
+    keep_last: int = 5,
+    apply_retention: bool = False,
+    run_restore_drill: bool = True,
+    run_compare: bool = True,
+) -> QdrantSnapshotScheduleConfig:
+    normalized_platform = platform.strip()
+    normalized_task_name = task_name.strip()
+    normalized_cron_schedule = " ".join(cron_schedule.strip().split())
+    normalized_windows_start_time = windows_start_time.strip()
+    normalized_working_directory = working_directory.strip()
+    normalized_log_path = log_path.strip()
+    normalized_namespace = namespace.strip()
+    normalized_image = image.strip()
+
+    if normalized_platform not in QDRANT_SNAPSHOT_SCHEDULE_PLATFORMS:
+        raise ValueError(
+            "platform must be one of: "
+            + ", ".join(QDRANT_SNAPSHOT_SCHEDULE_PLATFORMS)
+        )
+
+    if not normalized_task_name:
+        raise ValueError("task_name must not be empty")
+
+    _validate_cron_schedule(normalized_cron_schedule)
+    _validate_windows_start_time(normalized_windows_start_time)
+
+    if not normalized_working_directory:
+        raise ValueError("working_directory must not be empty")
+
+    if not normalized_log_path:
+        raise ValueError("log_path must not be empty")
+
+    if not normalized_namespace:
+        raise ValueError("namespace must not be empty")
+
+    if not normalized_image:
+        raise ValueError("image must not be empty")
+
+    drill_plan = build_qdrant_snapshot_drill_plan(
+        collection=collection,
+        restore_collection=restore_collection,
+        backup_dir=backup_dir,
+        keep_last=keep_last,
+        apply_retention=apply_retention,
+        run_restore_drill=run_restore_drill,
+    )
+
+    runner_command = _build_qdrant_snapshot_drill_runner_command(
+        plan=drill_plan,
+        run_compare=run_compare,
+    )
+
+    return QdrantSnapshotScheduleConfig(
+        platform=normalized_platform,
+        task_name=normalized_task_name,
+        cron_schedule=normalized_cron_schedule,
+        windows_start_time=normalized_windows_start_time,
+        working_directory=normalized_working_directory,
+        log_path=normalized_log_path,
+        namespace=normalized_namespace,
+        image=normalized_image,
+        runner_command=runner_command,
+    )
+
+
+def render_qdrant_snapshot_schedule_config(
+    config: QdrantSnapshotScheduleConfig,
+) -> str:
+    lines = [
+        "# Qdrant Snapshot Schedule Config",
+        "",
+        f"- Platform: `{config.platform}`",
+        f"- Task name: `{config.task_name}`",
+        f"- Cron schedule: `{config.cron_schedule}`",
+        f"- Windows start time: `{config.windows_start_time}`",
+        f"- Working directory: `{config.working_directory}`",
+        f"- Log path: `{config.log_path}`",
+        f"- Namespace: `{config.namespace}`",
+        f"- Image: `{config.image}`",
+        "",
+        "This output is a schedule configuration preview. It does not install or apply a scheduled task.",
+        "",
+        "## Runner Command",
+        "",
+        "```powershell",
+        config.runner_command,
+        "```",
+        "",
+    ]
+
+    if config.platform in ("all", "cron"):
+        lines.extend(_render_cron_config(config))
+
+    if config.platform in ("all", "windows_task_scheduler"):
+        lines.extend(_render_windows_task_scheduler_config(config))
+
+    if config.platform in ("all", "kubernetes_cronjob"):
+        lines.extend(_render_kubernetes_cronjob_config(config))
+
+    lines.extend(
+        [
+            "## Safety Boundary",
+            "",
+            "- Review the generated command before installing it.",
+            "- Keep restore target as a disposable collection.",
+            "- Keep retention dry-run unless deletion is explicitly required.",
+            "- Do not paste API keys into generated Markdown.",
+            "",
+        ]
+    )
+
+    return "\n".join(lines).rstrip() + "\n"
+
+
 def execute_qdrant_snapshot_drill(
     plan: QdrantSnapshotDrillPlan,
     snapshot_client: QdrantSnapshotDrillClient,
@@ -327,6 +474,154 @@ def render_qdrant_snapshot_drill_plan(
         )
 
     return "\n".join(lines).rstrip() + "\n"
+
+
+def _build_qdrant_snapshot_drill_runner_command(
+    plan: QdrantSnapshotDrillPlan,
+    run_compare: bool,
+) -> str:
+    parts = [
+        "uv",
+        "run",
+        "python",
+        "-m",
+        "app.cli",
+        "qdrant-snapshot-drill-run",
+        "--collection",
+        plan.collection,
+        "--restore-collection",
+        plan.restore_collection,
+        "--backup-dir",
+        plan.backup_dir,
+        "--keep-last",
+        str(plan.keep_last),
+    ]
+
+    if plan.apply_retention:
+        parts.append("--apply-retention")
+
+    if plan.run_restore_drill:
+        parts.extend(
+            [
+                "--confirm-restore-collection",
+                plan.restore_collection,
+            ]
+        )
+    else:
+        parts.append("--skip-restore-drill")
+
+    if not run_compare:
+        parts.append("--skip-compare")
+
+    return " ".join(parts)
+
+
+def _render_cron_config(
+    config: QdrantSnapshotScheduleConfig,
+) -> list[str]:
+    return [
+        "## Cron",
+        "",
+        "Preview entry:",
+        "",
+        "```cron",
+        (
+            f"{config.cron_schedule} cd {config.working_directory} "
+            f"&& {config.runner_command} >> {config.log_path} 2>&1"
+        ),
+        "```",
+        "",
+    ]
+
+
+def _render_windows_task_scheduler_config(
+    config: QdrantSnapshotScheduleConfig,
+) -> list[str]:
+    command = (
+        "powershell -NoProfile -ExecutionPolicy Bypass "
+        f"-Command \"Set-Location '{config.working_directory}'; "
+        f"{config.runner_command} *> '{config.log_path}'\""
+    )
+
+    return [
+        "## Windows Task Scheduler",
+        "",
+        "Preview command:",
+        "",
+        "```powershell",
+        (
+            f'schtasks /Create /TN "{config.task_name}" '
+            f"/SC DAILY /ST {config.windows_start_time} "
+            f'/TR "{command}"'
+        ),
+        "```",
+        "",
+    ]
+
+
+def _render_kubernetes_cronjob_config(
+    config: QdrantSnapshotScheduleConfig,
+) -> list[str]:
+    args = config.runner_command.split()
+
+    lines = [
+        "## Kubernetes CronJob",
+        "",
+        "Preview manifest:",
+        "",
+        "```yaml",
+        "apiVersion: batch/v1",
+        "kind: CronJob",
+        "metadata:",
+        f"  name: {config.task_name}",
+        f"  namespace: {config.namespace}",
+        "spec:",
+        f"  schedule: \"{config.cron_schedule}\"",
+        "  concurrencyPolicy: Forbid",
+        "  successfulJobsHistoryLimit: 3",
+        "  failedJobsHistoryLimit: 3",
+        "  jobTemplate:",
+        "    spec:",
+        "      template:",
+        "        spec:",
+        "          restartPolicy: Never",
+        "          containers:",
+        "            - name: qdrant-snapshot-drill",
+        f"              image: {config.image}",
+        "              args:",
+    ]
+
+    for arg in args:
+        lines.append(f"                - {arg}")
+
+    lines.extend(["```", ""])
+    return lines
+
+
+def _validate_cron_schedule(cron_schedule: str) -> None:
+    if not cron_schedule:
+        raise ValueError("cron_schedule must not be empty")
+
+    if len(cron_schedule.split()) != 5:
+        raise ValueError("cron_schedule must contain exactly 5 fields")
+
+
+def _validate_windows_start_time(windows_start_time: str) -> None:
+    parts = windows_start_time.split(":")
+
+    if len(parts) != 2:
+        raise ValueError("windows_start_time must use HH:MM format")
+
+    hour_text, minute_text = parts
+
+    if not hour_text.isdigit() or not minute_text.isdigit():
+        raise ValueError("windows_start_time must use HH:MM format")
+
+    hour = int(hour_text)
+    minute = int(minute_text)
+
+    if hour < 0 or hour > 23 or minute < 0 or minute > 59:
+        raise ValueError("windows_start_time must use HH:MM format")
 
 
 def render_qdrant_snapshot_drill_report(

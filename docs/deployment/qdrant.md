@@ -112,6 +112,7 @@ qdrant-snapshot-download CLI
 qdrant-snapshot-restore CLI with explicit confirmation
 qdrant-snapshot-drill-plan CLI
 qdrant-snapshot-drill-run CLI
+qdrant-snapshot-schedule-config CLI
 ```
 
 Not completed:
@@ -120,6 +121,7 @@ Not completed:
 Automated scheduled Qdrant backup job
 Automated scheduled Qdrant snapshot creation
 Automated scheduled restore smoke drill
+Actual cron / Windows Task Scheduler / Kubernetes CronJob installation
 MilvusVectorStoreRepository
 Milvus runtime benchmark
 ```
@@ -503,6 +505,57 @@ The runner is an explicit one-time command.
 It does not create cron, Windows Task Scheduler, or Kubernetes CronJob resources.
 Retention remains dry-run unless --apply-retention is passed.
 Restore must target a disposable collection.
+```
+
+## Snapshot Schedule Config
+
+The project provides a schedule configuration preview generator for the
+one-time snapshot drill runner. It renders scheduler snippets for local cron,
+Windows Task Scheduler, and Kubernetes CronJob, but it does not install or
+apply any scheduled task.
+
+Generate all supported schedule previews:
+
+```powershell
+uv run python -m app.cli qdrant-snapshot-schedule-config
+```
+
+Generate only a cron preview:
+
+```powershell
+uv run python -m app.cli qdrant-snapshot-schedule-config `
+  --platform cron `
+  --cron-schedule "0 3 * * *" `
+  --collection thesis_chunks `
+  --restore-collection thesis_chunks_restore
+```
+
+Save the generated Markdown:
+
+```powershell
+uv run python -m app.cli qdrant-snapshot-schedule-config `
+  --platform cron `
+  --output data/reports/qdrant_snapshot_schedule_config.md
+```
+
+Generate a Kubernetes CronJob preview:
+
+```powershell
+uv run python -m app.cli qdrant-snapshot-schedule-config `
+  --platform kubernetes_cronjob `
+  --namespace thesis-defense `
+  --image ghcr.io/buan496/thesis-defense-agent:latest
+```
+
+Current boundary:
+
+```text
+The schedule config generator is implemented.
+It renders cron, Windows Task Scheduler, and Kubernetes CronJob previews.
+It does not install cron entries.
+It does not create Windows scheduled tasks.
+It does not apply Kubernetes CronJob manifests.
+Review and run generated scheduler commands manually before enabling automation.
 ```
 
 ## Snapshot Smoke Plan

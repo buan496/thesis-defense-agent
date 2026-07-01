@@ -47,7 +47,43 @@ PDF / TXT 论文
 → Qdrant snapshot API runner
 → Qdrant snapshot drill plan
 → Qdrant snapshot drill runner
+→ Qdrant snapshot schedule config
 → K8s manifests / smoke plan / report template
+```
+
+<!-- docs-update-2026-07-01-qdrant-snapshot-schedule-config -->
+
+## 2026-07-01 Update: Qdrant Snapshot Schedule Config
+
+项目新增 Qdrant snapshot drill 的调度配置预览生成器：
+
+```text
+qdrant-snapshot-schedule-config
+```
+
+生成全部平台的调度预览：
+
+```powershell
+uv run python -m app.cli qdrant-snapshot-schedule-config
+```
+
+生成 Kubernetes CronJob 预览：
+
+```powershell
+uv run python -m app.cli qdrant-snapshot-schedule-config `
+  --platform kubernetes_cronjob `
+  --namespace thesis-defense `
+  --image ghcr.io/buan496/thesis-defense-agent:latest
+```
+
+当前边界：
+
+```text
+该命令只生成 cron、Windows Task Scheduler 和 Kubernetes CronJob 预览。
+不会安装 cron。
+不会创建 Windows scheduled task。
+不会 apply Kubernetes CronJob。
+真实定时任务安装仍是后续生产化验证内容。
 ```
 
 <!-- docs-update-2026-06-29-postgres-compose -->
@@ -298,7 +334,7 @@ JSON remains the default session backend.
 最新本地测试基线：
 
 ```text
-1058 passed, 1 warning
+1065 passed, 1 warning
 ```
 
 本机学习版阶段已完成，阶段总复盘见：
