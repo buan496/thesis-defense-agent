@@ -110,6 +110,7 @@ qdrant-snapshot-create CLI
 qdrant-snapshot-list CLI
 qdrant-snapshot-download CLI
 qdrant-snapshot-restore CLI with explicit confirmation
+qdrant-snapshot-drill-plan CLI
 ```
 
 Not completed:
@@ -403,6 +404,54 @@ uv run python -m app.cli qdrant-snapshot-restore `
 Restore requires `--confirm-restore-collection` to exactly match
 `--restore-collection`. This prevents accidental restore into the wrong
 collection. Do not restore over the active collection during smoke testing.
+
+## Snapshot Drill Plan
+
+The project also provides a scheduled-drill plan generator. It does not contact
+Qdrant. Its purpose is to make the future scheduled runner explicit before
+adding cron, Windows Task Scheduler, or Kubernetes CronJob integration.
+
+Generate the default drill plan:
+
+```powershell
+uv run python -m app.cli qdrant-snapshot-drill-plan
+```
+
+Generate a plan that previews retention only:
+
+```powershell
+uv run python -m app.cli qdrant-snapshot-drill-plan `
+  --collection thesis_chunks `
+  --restore-collection thesis_chunks_restore `
+  --backup-dir data/qdrant_backups `
+  --keep-last 5
+```
+
+Generate a plan that marks retention as an apply step:
+
+```powershell
+uv run python -m app.cli qdrant-snapshot-drill-plan `
+  --collection thesis_chunks `
+  --restore-collection thesis_chunks_restore `
+  --backup-dir data/qdrant_backups `
+  --keep-last 5 `
+  --apply-retention
+```
+
+Save the plan:
+
+```powershell
+uv run python -m app.cli qdrant-snapshot-drill-plan `
+  --output data/reports/qdrant_snapshot_drill_plan.md
+```
+
+Current boundary:
+
+```text
+The drill plan is implemented.
+The plan does not create snapshots, download files, restore collections, or delete files.
+Scheduled execution is not implemented yet.
+```
 
 ## Snapshot Smoke Plan
 

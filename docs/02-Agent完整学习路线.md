@@ -3,7 +3,7 @@ tags:
   - roadmap
   - agent-engineering
 status: active
-updated: 2026-06-30
+updated: 2026-07-01
 ---
 
 # Agent 完整学习路线
@@ -78,6 +78,7 @@ updated: 2026-06-30
 - [x] Qdrant backup retention policy CLI
 - [x] Qdrant snapshot smoke plan / report template
 - [x] Qdrant snapshot API runner
+- [x] Qdrant snapshot drill plan
 - [ ] Qdrant 定时 snapshot / restore drill 自动调度
 - [ ] MilvusVectorStoreRepository / Milvus runtime benchmark
 
@@ -310,6 +311,7 @@ updated: 2026-06-30
 - [x] Qdrant backup retention policy CLI
 - [x] Qdrant snapshot smoke plan / report template
 - [x] Qdrant snapshot API runner
+- [x] Qdrant snapshot drill plan
 - [ ] Qdrant 定时 snapshot / restore drill 自动调度
 - [ ] MilvusVectorStoreRepository / Milvus runtime benchmark
 - [x] K8s 基础 manifests
@@ -794,7 +796,7 @@ PostgreSQL runtime smoke test。
 
 当前已经完成本机 Agent Harness、RAG、Tool Calling、Memory、Trace、Sub-Agent、LangGraph 旁路迁移、FastAPI / Web / Docker / Prometheus / PostgreSQL / Qdrant 基础治理和 Qdrant snapshot 手动 API runner。下一阶段按交付治理补齐：
 
-1. Qdrant 定时 snapshot / restore drill 自动调度
+1. Qdrant snapshot drill 一次性 runner
 2. MilvusVectorStoreRepository / Milvus runtime benchmark
 3. K8s 真实集群 smoke test 执行 / 生产化部署验证
 
@@ -2685,6 +2687,41 @@ Milvus 只作为未来对比候选，尚未实现 MilvusVectorStoreRepository。
 1. Qdrant 定时 snapshot / restore drill 自动调度
 2. MilvusVectorStoreRepository / Milvus runtime benchmark
 3. K8s 真实集群 smoke test 执行 / 生产化部署验证
+```
+
+<!-- roadmap-update-2026-07-01-qdrant-snapshot-drill-plan -->
+
+## 2026-07-01 路线同步：Qdrant Snapshot Drill Plan 已完成
+
+本阶段开始把手动 snapshot API runner 组合成可调度的运维 drill。第一步只生成计划，不执行真实 API。
+
+已完成：
+
+- [x] `app/qdrant_snapshot_scheduler.py`
+- [x] `qdrant-snapshot-drill-plan` CLI
+- [x] drill step 建模：create snapshot、download snapshot、retention、restore drill、restored collection compare
+- [x] 支持 `--apply-retention`
+- [x] 支持 `--skip-restore-drill`
+- [x] 支持 Markdown 输出
+- [x] `tests/test_qdrant_snapshot_scheduler.py`
+- [x] `docs/deployment/qdrant.md` 更新 drill plan 操作说明
+
+当前边界：
+
+```text
+只生成 drill plan。
+不调用 Qdrant snapshot API。
+不下载 snapshot 文件。
+不 restore collection。
+不执行 retention 删除。
+```
+
+下一步学习：
+
+```text
+1. Qdrant snapshot drill 一次性 runner
+2. Qdrant 定时 snapshot / restore drill 自动调度
+3. MilvusVectorStoreRepository / Milvus runtime benchmark
 ```
 
 <!-- roadmap-update-2026-06-30-qdrant-snapshot-api-runner -->

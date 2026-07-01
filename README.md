@@ -45,6 +45,7 @@ PDF / TXT 论文
 → Qdrant backup retention policy
 → Qdrant snapshot smoke plan / report template
 → Qdrant snapshot API runner
+→ Qdrant snapshot drill plan
 → K8s manifests / smoke plan / report template
 ```
 
@@ -296,7 +297,7 @@ JSON remains the default session backend.
 最新本地测试基线：
 
 ```text
-1045 passed, 1 warning
+1052 passed, 1 warning
 ```
 
 本机学习版阶段已完成，阶段总复盘见：
@@ -1475,6 +1476,36 @@ uv run python -m app.cli qdrant-snapshot-restore `
 restore 必须显式确认目标 collection。
 snapshot 文件仍保存到 data/qdrant_backups/，不提交到 Git。
 尚未接入 cron、Windows Task Scheduler 或 Kubernetes CronJob。
+```
+
+## 2026-07-01 Update: Qdrant Snapshot Drill Plan
+
+项目新增 Qdrant snapshot drill 计划生成器：
+
+```text
+app/qdrant_snapshot_scheduler.py
+tests/test_qdrant_snapshot_scheduler.py
+```
+
+生成计划：
+
+```powershell
+uv run python -m app.cli qdrant-snapshot-drill-plan
+```
+
+保存计划：
+
+```powershell
+uv run python -m app.cli qdrant-snapshot-drill-plan `
+  --output data/reports/qdrant_snapshot_drill_plan.md
+```
+
+当前边界：
+
+```text
+该能力只生成计划，不调用 Qdrant API。
+不会创建 snapshot、下载文件、restore collection 或删除旧备份。
+下一步才实现一次性 runner，再考虑 cron / Task Scheduler / Kubernetes CronJob。
 ```
 
 ### LangGraph 旁路 Demo
