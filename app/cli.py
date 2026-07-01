@@ -166,6 +166,10 @@ from app.qdrant_snapshot_smoke_plan import (
     render_qdrant_snapshot_smoke_report_template,
 )
 from app.qdrant_snapshot_client import QdrantSnapshotClient
+from app.qdrant_snapshot_scheduler import (
+    build_qdrant_snapshot_drill_plan,
+    render_qdrant_snapshot_drill_plan,
+)
 from app.session_store import DEFAULT_SESSION_DIRECTORY
 from app.feedback_store import (
     create_feedback_record,
@@ -2380,6 +2384,52 @@ def main():
         "--output",
         default=None,
         help="Optional Markdown output path for the snapshot smoke report template",
+    )
+
+    qdrant_snapshot_drill_plan_parser = subparsers.add_parser(
+        "qdrant-snapshot-drill-plan",
+        help="Generate a scheduled Qdrant snapshot drill plan",
+    )
+    qdrant_snapshot_drill_plan_parser.add_argument(
+        "--url",
+        default=QDRANT_URL,
+        help="Qdrant URL",
+    )
+    qdrant_snapshot_drill_plan_parser.add_argument(
+        "--collection",
+        default=QDRANT_COLLECTION,
+        help="Source Qdrant collection name",
+    )
+    qdrant_snapshot_drill_plan_parser.add_argument(
+        "--restore-collection",
+        default=f"{QDRANT_COLLECTION}_restore",
+        help="Disposable Qdrant collection name used for restore drills",
+    )
+    qdrant_snapshot_drill_plan_parser.add_argument(
+        "--backup-dir",
+        default=QDRANT_BACKUP_DIR,
+        help="Local backup directory for downloaded snapshots",
+    )
+    qdrant_snapshot_drill_plan_parser.add_argument(
+        "--keep-last",
+        type=int,
+        default=5,
+        help="Number of newest backup files to retain",
+    )
+    qdrant_snapshot_drill_plan_parser.add_argument(
+        "--apply-retention",
+        action="store_true",
+        help="Plan retention as an apply step instead of dry-run preview",
+    )
+    qdrant_snapshot_drill_plan_parser.add_argument(
+        "--skip-restore-drill",
+        action="store_true",
+        help="Do not include restore and restored-collection comparison steps",
+    )
+    qdrant_snapshot_drill_plan_parser.add_argument(
+        "--output",
+        default=None,
+        help="Optional Markdown output path for the snapshot drill plan",
     )
 
     qdrant_snapshot_create_parser = subparsers.add_parser(
@@ -5274,6 +5324,28 @@ def main():
             print(f"QDRANT SNAPSHOT SMOKE REPORT ERROR: {error}")
             raise SystemExit(2) from error
 
+        print(markdown, end="")
+
+        if args.output is not None:
+            save_text_output(args.output, markdown)
+            print("OUTPUT:", args.output)
+
+    elif args.command == "qdrant-snapshot-drill-plan":
+        try:
+            plan = build_qdrant_snapshot_drill_plan(
+                url=args.url,
+                collection=args.collection,
+                restore_collection=args.restore_collection,
+                backup_dir=args.backup_dir,
+                keep_last=args.keep_last,
+                apply_retention=args.apply_retention,
+                run_restore_drill=not args.skip_restore_drill,
+            )
+        except ValueError as error:
+            print(f"QDRANT SNAPSHOT DRILL PLAN ERROR: {error}")
+            raise SystemExit(2) from error
+
+        markdown = render_qdrant_snapshot_drill_plan(plan)
         print(markdown, end="")
 
         if args.output is not None:
