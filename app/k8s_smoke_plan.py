@@ -69,6 +69,16 @@ def build_k8s_smoke_plan(
         ),
         K8sSmokeStep(
             phase="cluster",
+            name="rollout_qdrant",
+            command=(
+                "kubectl rollout status "
+                f"statefulset/qdrant -n {namespace}"
+            ),
+            requires_cluster=True,
+            description="Verify the Qdrant StatefulSet finishes rollout.",
+        ),
+        K8sSmokeStep(
+            phase="cluster",
             name="rollout_prometheus",
             command=(
                 "kubectl rollout status "
@@ -90,9 +100,9 @@ def build_k8s_smoke_plan(
         K8sSmokeStep(
             phase="cluster",
             name="inspect_workloads",
-            command=f"kubectl get pods,svc,pdb -n {namespace}",
+            command=f"kubectl get pods,svc,statefulset,pvc,pdb -n {namespace}",
             requires_cluster=True,
-            description="Inspect pods, services, and disruption budgets.",
+            description="Inspect pods, services, stateful workloads, persistent claims, and disruption budgets.",
         ),
         K8sSmokeStep(
             phase="cluster",

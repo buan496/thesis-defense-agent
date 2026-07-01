@@ -9,6 +9,7 @@ stateless runtime path:
 FastAPI API
 Prometheus
 Alertmanager
+Qdrant
 ```
 
 The goal is to translate the existing Docker Compose mental model into
@@ -34,6 +35,9 @@ k8s/base/api-secret.example.yaml
 k8s/base/api-deployment.yaml
 k8s/base/api-pod-disruption-budget.yaml
 k8s/base/api-service.yaml
+k8s/base/qdrant-statefulset.yaml
+k8s/base/qdrant-pod-disruption-budget.yaml
+k8s/base/qdrant-service.yaml
 k8s/base/prometheus-configmap.yaml
 k8s/base/prometheus-deployment.yaml
 k8s/base/prometheus-pod-disruption-budget.yaml
@@ -119,6 +123,39 @@ Alertmanager sends local webhook notifications to:
 ```text
 http://api:8000/alerts/alertmanager
 ```
+
+### Qdrant
+
+```text
+Docker Compose qdrant
+-> qdrant StatefulSet
+-> qdrant Service
+-> qdrant-pdb PodDisruptionBudget
+-> storage-qdrant-0 PersistentVolumeClaim
+```
+
+The in-cluster API configuration points to:
+
+```text
+QDRANT_URL=http://qdrant:6333
+```
+
+The service is `ClusterIP` only. It exposes:
+
+```text
+http: 6333
+grpc: 6334
+```
+
+The StatefulSet keeps one replica in this learning version and mounts:
+
+```text
+/qdrant/storage
+```
+
+through a `ReadWriteOnce` PVC. This is enough for local kind validation and
+future Qdrant CronJob smoke tests, but it is not yet a production HA Qdrant
+topology.
 
 ## Production-Basics Hardening
 
@@ -312,6 +349,7 @@ Watch rollout status:
 
 ```powershell
 kubectl rollout status deployment/thesis-defense-agent-api -n thesis-defense-agent
+kubectl rollout status statefulset/qdrant -n thesis-defense-agent
 kubectl rollout status deployment/thesis-defense-agent-prometheus -n thesis-defense-agent
 kubectl rollout status deployment/thesis-defense-agent-alertmanager -n thesis-defense-agent
 ```
@@ -339,6 +377,21 @@ Check effective pod resources and probes:
 
 ```powershell
 kubectl describe pod -l app.kubernetes.io/name=thesis-defense-agent-api -n thesis-defense-agent
+```
+
+Check Qdrant runtime state:
+
+```powershell
+kubectl get pod,svc,statefulset,pvc,pdb -n thesis-defense-agent -l app.kubernetes.io/name=qdrant
+kubectl get endpoints qdrant -n thesis-defense-agent
+kubectl describe statefulset qdrant -n thesis-defense-agent
+```
+
+Port-forward Qdrant readiness:
+
+```powershell
+kubectl port-forward service/qdrant 16333:6333 -n thesis-defense-agent
+Invoke-WebRequest -UseBasicParsing -Uri http://127.0.0.1:16333/readyz
 ```
 
 
@@ -369,6 +422,40 @@ Prometheus /-/ready -> ready
 Prometheus target http://api:8000/metrics/prometheus -> up
 Alertmanager /-/ready -> OK
 Alertmanager status -> ready
+```
+
+## Local Kind Qdrant Runtime Evidence
+
+Verified on 2026-07-01 with local `kind-thesis-defense-agent` context.
+The raw Qdrant smoke report is stored under `data/reports/` and is intentionally not committed.
+
+Validation summary:
+
+```text
+kubectl apply -k k8s/base
+kubectl rollout status statefulset/qdrant -n thesis-defense-agent
+uv run python -m app.cli k8s-smoke-run --apply-cluster --output data/reports/k8s_smoke_run_qdrant.md
+
+Overall status: passed
+qdrant-0: 1/1 Running
+qdrant StatefulSet: 1/1 ready
+storage-qdrant-0 PVC: Bound
+qdrant Service: ClusterIP
+qdrant endpoints: 6333 and 6334 populated
+GET /readyz through port-forward: 200
+```
+
+Local kind proxy note:
+
+```text
+The local Docker Desktop / kind node initially failed to pull qdrant/qdrant:v1.18.2
+because the node inherited HTTP_PROXY=http://127.0.0.1:10808. Inside the kind node,
+127.0.0.1 points to the node container, not the Windows host proxy.
+
+For this local validation only, the kind node proxy was changed to:
+HTTP_PROXY=http://host.docker.internal:10808
+
+This is local environment evidence, not a repository configuration requirement.
 ```
 
 ## Local Container Smoke Test
@@ -412,6 +499,7 @@ k8s-smoke-run CLI
 automated offline / optional cluster smoke runner
 offline manifest tests
 local kind real-cluster smoke execution evidence
+Qdrant StatefulSet / Service / PVC / PDB runtime validation
 ```
 
 Not completed:
@@ -423,7 +511,7 @@ HorizontalPodAutoscaler
 NetworkPolicy
 PersistentVolumeClaim for /app/data
 PostgreSQL StatefulSet
-Qdrant StatefulSet
 production Secret management
 Helm chart / Kustomize overlays
+Qdrant Kubernetes CronJob long-running schedule evidence
 ```

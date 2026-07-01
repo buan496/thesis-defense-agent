@@ -119,6 +119,7 @@ qdrant-snapshot-schedule-evidence-template CLI
 qdrant-snapshot-schedule-install-execute CLI
 qdrant-snapshot-cronjob-manifest CLI
 Kubernetes CronJob manifest client-side dry-run validation
+Kubernetes Qdrant StatefulSet / Service / PVC / PDB runtime validation
 ```
 
 Not completed:
@@ -129,7 +130,7 @@ Automated scheduled Qdrant snapshot creation
 Automated scheduled restore smoke drill
 Actual cron / Kubernetes CronJob installation
 Actual scheduled run evidence collection for cron / Kubernetes CronJob
-Kubernetes Qdrant StatefulSet / Service runtime validation
+Kubernetes CronJob long-running schedule evidence
 ```
 
 ## Production Governance Report
@@ -802,8 +803,60 @@ Runtime boundary:
 The manifest renderer is implemented.
 The generated manifest was validated with kubectl client-side dry-run.
 The CronJob has not been applied as a long-running cluster job.
-The current kind stack does not include a Qdrant StatefulSet or Service.
-Real scheduled evidence still requires Qdrant to be reachable inside the cluster.
+The current kind stack includes a Qdrant StatefulSet / Service / PVC / PDB.
+Real scheduled evidence still requires applying the CronJob, triggering a Job, and collecting sanitized logs.
+```
+
+## Kubernetes Qdrant Runtime Validation
+
+The Kubernetes base includes a Qdrant runtime path for local kind validation:
+
+```text
+k8s/base/qdrant-statefulset.yaml
+k8s/base/qdrant-service.yaml
+k8s/base/qdrant-pod-disruption-budget.yaml
+```
+
+The API ConfigMap uses the in-cluster Service DNS:
+
+```text
+QDRANT_URL=http://qdrant:6333
+```
+
+Validation commands:
+
+```powershell
+kubectl apply --dry-run=client --validate=false -k k8s/base
+kubectl apply -k k8s/base
+kubectl rollout status statefulset/qdrant -n thesis-defense-agent
+kubectl get pod,svc,statefulset,pvc,pdb -n thesis-defense-agent -l app.kubernetes.io/name=qdrant
+kubectl get endpoints qdrant -n thesis-defense-agent
+```
+
+Readiness can be checked with port-forward:
+
+```powershell
+kubectl port-forward service/qdrant 16333:6333 -n thesis-defense-agent
+Invoke-WebRequest -UseBasicParsing -Uri http://127.0.0.1:16333/readyz
+```
+
+Observed local kind result:
+
+```text
+qdrant-0: 1/1 Running
+StatefulSet qdrant: 1/1 ready
+storage-qdrant-0 PVC: Bound
+Service qdrant: ClusterIP, ports 6333 and 6334
+/readyz: 200
+k8s-smoke-run --apply-cluster: passed
+```
+
+Current boundary:
+
+```text
+This validates that Qdrant is reachable inside the cluster.
+It does not prove CronJob long-running scheduling, snapshot retention, or restore drill automation.
+Those require applying the CronJob, triggering a Job, collecting logs, and observing at least one scheduled run.
 ```
 
 ### Windows Task Scheduler Local Experiment

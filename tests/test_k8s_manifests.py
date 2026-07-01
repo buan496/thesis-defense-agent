@@ -13,6 +13,9 @@ EXPECTED_MANIFESTS = [
     "api-deployment.yaml",
     "api-pod-disruption-budget.yaml",
     "api-service.yaml",
+    "qdrant-statefulset.yaml",
+    "qdrant-pod-disruption-budget.yaml",
+    "qdrant-service.yaml",
     "prometheus-configmap.yaml",
     "prometheus-deployment.yaml",
     "prometheus-pod-disruption-budget.yaml",
@@ -110,6 +113,11 @@ def test_k8s_api_configmap_keeps_non_secret_runtime_config():
     assert "kind: ConfigMap" in text
     assert "STORAGE_BACKEND: \"json\"" in text
     assert "VECTOR_STORE_BACKEND: \"json\"" in text
+    assert "QDRANT_URL: \"http://qdrant:6333\"" in text
+    assert "QDRANT_COLLECTION: \"thesis_chunks\"" in text
+    assert "QDRANT_VECTOR_SIZE: \"1024\"" in text
+    assert "QDRANT_DISTANCE: \"Cosine\"" in text
+    assert "QDRANT_BACKUP_DIR: \"data/qdrant_backups\"" in text
     assert "RAG_VECTOR_STORE_PATH: \"data/vector_store.json\"" in text
     assert "DEEPSEEK_API_KEY" not in text
     assert "EMBEDDING_API_KEY" not in text
@@ -137,6 +145,56 @@ def test_k8s_prometheus_config_keeps_api_and_alertmanager_dns_names():
     assert "ThesisDefenseAgentApiDown" in text
     assert "ThesisDefenseAgentHigh5xxRate" in text
     assert "ThesisDefenseAgentHighAverageLatency" in text
+
+
+def test_k8s_qdrant_statefulset_uses_persistent_storage_and_probes():
+    text = read_manifest("qdrant-statefulset.yaml")
+
+    assert "kind: StatefulSet" in text
+    assert "name: qdrant" in text
+    assert "namespace: thesis-defense-agent" in text
+    assert "serviceName: qdrant" in text
+    assert "replicas: 1" in text
+    assert "image: qdrant/qdrant:v1.18.2" in text
+    assert "containerPort: 6333" in text
+    assert "containerPort: 6334" in text
+    assert "QDRANT__SERVICE__HTTP_PORT" in text
+    assert "QDRANT__SERVICE__GRPC_PORT" in text
+    assert "readinessProbe:" in text
+    assert "path: /readyz" in text
+    assert "livenessProbe:" in text
+    assert "path: /livez" in text
+    assert "volumeClaimTemplates:" in text
+    assert "mountPath: /qdrant/storage" in text
+    assert "storage: 1Gi" in text
+    assert "seccompProfile:" in text
+    assert "allowPrivilegeEscalation: false" in text
+    assert "drop:" in text
+    assert "- ALL" in text
+    assert "requests:" in text
+    assert "limits:" in text
+
+
+def test_k8s_qdrant_service_is_cluster_internal():
+    text = read_manifest("qdrant-service.yaml")
+
+    assert "kind: Service" in text
+    assert "name: qdrant" in text
+    assert "type: ClusterIP" in text
+    assert "port: 6333" in text
+    assert "targetPort: http" in text
+    assert "port: 6334" in text
+    assert "targetPort: grpc" in text
+
+
+def test_k8s_qdrant_pod_disruption_budget_targets_qdrant_pods():
+    text = read_manifest("qdrant-pod-disruption-budget.yaml")
+
+    assert "kind: PodDisruptionBudget" in text
+    assert "name: qdrant-pdb" in text
+    assert "namespace: thesis-defense-agent" in text
+    assert "minAvailable: 1" in text
+    assert "app.kubernetes.io/name: qdrant" in text
 
 
 def test_k8s_prometheus_deployment_and_service_are_cluster_internal():

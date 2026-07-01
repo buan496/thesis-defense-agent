@@ -1,0 +1,14 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: qdrant-pdb
+  namespace: thesis-defense-agent
+  labels:
+    app.kubernetes.io/name: qdrant
+    app.kubernetes.io/part-of: thesis-defense-agent
+    app.kubernetes.io/component: vector-store
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: qdrant

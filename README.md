@@ -37,7 +37,7 @@ PDF / TXT 论文
 -> FastAPI / SSE / WebSocket
 -> Docker / GHCR / Prometheus
 -> PostgreSQL / Qdrant / Milvus 后端验证
--> K8s manifests / smoke plan / report template
+-> K8s manifests / smoke plan / Qdrant StatefulSet runtime validation
 ```
 
 最新主线能力包括：
@@ -47,7 +47,7 @@ PDF / TXT 论文
 - Agent 治理：工具权限、超时、重试、错误标准化、trace 审计、Sub-Agent dry-run 和 replay
 - Memory 治理：长期记忆、薄弱点记录、训练总结沉淀、记忆注入和污染治理
 - 存储治理：JSON 默认后端、PostgreSQL runtime smoke、Qdrant benchmark 与 snapshot SOP、Milvus runtime benchmark 与 backup / restore SOP
-- 交付基础：FastAPI、静态 Web、Docker Compose、GHCR、Prometheus、Alertmanager、K8s manifests
+- 交付基础：FastAPI、静态 Web、Docker Compose、GHCR、Prometheus、Alertmanager、K8s manifests、Qdrant StatefulSet / Service / PVC / PDB
 
 当前测试基线见 [当前进度](docs/01-当前进度.md)。
 
@@ -241,6 +241,7 @@ Agent 与 RAG：
 - K8s smoke runner CLI
 - K8s 真实集群 smoke test 执行证据（kind 本机集群）
 - Qdrant Kubernetes CronJob manifest 生成与 client-side dry-run 验证
+- Qdrant Kubernetes StatefulSet / Service / PVC / PDB 本机 kind 运行验证
 
 仍待推进：
 

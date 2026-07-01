@@ -68,7 +68,8 @@ def test_execute_k8s_smoke_plan_runs_cluster_steps_when_enabled():
         "kubectl rollout status deployment/thesis-defense-agent-api "
         "-n test-ns"
     ) in commands
-    assert "kubectl get pods,svc,pdb -n test-ns" in commands
+    assert "kubectl rollout status statefulset/qdrant -n test-ns" in commands
+    assert "kubectl get pods,svc,statefulset,pvc,pdb -n test-ns" in commands
     assert "kubectl port-forward service/api 18000:8000 -n test-ns" not in commands
     assert "kubectl rollout undo deployment/thesis-defense-agent-api -n test-ns" not in commands
     assert report.overall_status == "passed"
