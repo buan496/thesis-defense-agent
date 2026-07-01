@@ -116,6 +116,7 @@ qdrant-snapshot-schedule-config CLI
 qdrant-snapshot-schedule-install-plan CLI
 qdrant-snapshot-schedule-verify-plan CLI
 qdrant-snapshot-schedule-evidence-template CLI
+qdrant-snapshot-schedule-install-execute CLI
 ```
 
 Not completed:
@@ -125,7 +126,7 @@ Automated scheduled Qdrant backup job
 Automated scheduled Qdrant snapshot creation
 Automated scheduled restore smoke drill
 Actual cron / Windows Task Scheduler / Kubernetes CronJob installation
-Actual scheduled run evidence collection
+Actual scheduled run evidence collection with pasted command output
 MilvusVectorStoreRepository
 Milvus runtime benchmark
 ```
@@ -709,6 +710,61 @@ It does not install schedules.
 It does not query schedulers.
 It does not validate pasted evidence.
 Operators must paste sanitized command outputs manually.
+```
+
+## Snapshot Schedule Install Execution
+
+The project includes a protected scheduler install executor. Unlike the plan
+and evidence commands, this command can execute the generated scheduler install
+command. Use it only after reviewing the install plan and running a manual
+snapshot drill successfully.
+
+Execute a cron scheduler install command:
+
+```powershell
+uv run python -m app.cli qdrant-snapshot-schedule-install-execute `
+  --platform cron `
+  --task-name thesis-defense-qdrant-snapshot-drill `
+  --confirm-task-name thesis-defense-qdrant-snapshot-drill
+```
+
+Execute a Windows Task Scheduler install command:
+
+```powershell
+uv run python -m app.cli qdrant-snapshot-schedule-install-execute `
+  --platform windows_task_scheduler `
+  --task-name thesis-defense-qdrant-snapshot-drill `
+  --confirm-task-name thesis-defense-qdrant-snapshot-drill
+```
+
+Execute a Kubernetes CronJob install command:
+
+```powershell
+uv run python -m app.cli qdrant-snapshot-schedule-install-execute `
+  --platform kubernetes_cronjob `
+  --task-name thesis-defense-qdrant-snapshot-drill `
+  --confirm-task-name thesis-defense-qdrant-snapshot-drill `
+  --namespace thesis-defense
+```
+
+Save the execution report:
+
+```powershell
+uv run python -m app.cli qdrant-snapshot-schedule-install-execute `
+  --platform cron `
+  --task-name thesis-defense-qdrant-snapshot-drill `
+  --confirm-task-name thesis-defense-qdrant-snapshot-drill `
+  --output data/reports/qdrant_snapshot_schedule_install_execution.md
+```
+
+Execution safeguards:
+
+```text
+--confirm-task-name must exactly match --task-name.
+--platform all is rejected by the underlying install plan.
+The command records return code, stdout, stderr, and success.
+Run qdrant-snapshot-schedule-verify-plan after execution.
+Paste sanitized evidence into qdrant-snapshot-schedule-evidence-template.
 ```
 
 ## Snapshot Smoke Plan

@@ -84,6 +84,7 @@ updated: 2026-07-01
 - [x] Qdrant snapshot schedule install plan
 - [x] Qdrant snapshot schedule verification plan
 - [x] Qdrant snapshot schedule evidence template
+- [x] Qdrant snapshot schedule install executor
 - [ ] Qdrant 定时 snapshot / restore drill 自动调度
 - [ ] MilvusVectorStoreRepository / Milvus runtime benchmark
 
@@ -322,6 +323,7 @@ updated: 2026-07-01
 - [x] Qdrant snapshot schedule install plan
 - [x] Qdrant snapshot schedule verification plan
 - [x] Qdrant snapshot schedule evidence template
+- [x] Qdrant snapshot schedule install executor
 - [ ] Qdrant 定时 snapshot / restore drill 自动调度
 - [ ] MilvusVectorStoreRepository / Milvus runtime benchmark
 - [x] K8s 基础 manifests
@@ -2923,6 +2925,44 @@ CLI 不验证粘贴的证据内容。
 
 ```text
 1. Qdrant 定时 snapshot / restore drill 真实安装执行
+2. MilvusVectorStoreRepository / Milvus runtime benchmark
+3. K8s 真实集群 smoke test 执行 / 生产化部署验证
+```
+
+<!-- roadmap-update-2026-07-01-qdrant-snapshot-schedule-install-executor -->
+
+## 2026-07-01 路线同步：Qdrant Snapshot Schedule Install Executor 已完成
+
+本阶段把调度安装从“命令预览”推进为“受保护的真实执行能力”。
+该能力可以执行单平台调度安装命令，但要求显式确认任务名，并保留执行报告。
+
+已完成：
+
+- [x] `QdrantSnapshotScheduleInstallExecutionResult`
+- [x] `QdrantSnapshotScheduleInstallExecutionReport`
+- [x] `execute_qdrant_snapshot_schedule_install_plan()`
+- [x] `run_schedule_install_command()`
+- [x] `render_qdrant_snapshot_schedule_install_execution_report()`
+- [x] `qdrant-snapshot-schedule-install-execute` CLI
+- [x] 拒绝 dry-run plan 执行
+- [x] 拒绝 `--platform all`
+- [x] 要求 `--confirm-task-name`
+- [x] 记录 return code / stdout / stderr / success
+- [x] timeout 失败报告
+- [x] fake runner 单元测试，不触碰真实系统调度器
+
+当前边界：
+
+```text
+执行器已经具备真实安装命令执行能力。
+测试不执行真实 cron / Task Scheduler / Kubernetes 修改。
+真实启用后仍需运行 verification plan 并填写 evidence template。
+```
+
+下一步学习：
+
+```text
+1. Qdrant 定时 snapshot / restore drill 真实运行证据采集
 2. MilvusVectorStoreRepository / Milvus runtime benchmark
 3. K8s 真实集群 smoke test 执行 / 生产化部署验证
 ```
