@@ -1,4 +1,4 @@
-﻿---
+---
 tags:
   - roadmap
   - agent-engineering
@@ -269,7 +269,7 @@ updated: 2026-07-01
 
 ## 阶段 10：服务化与界面
 
-> 当前机器已经完成 FastAPI 服务化、静态 Web 前端增强、stdio MCP Server、stdio MCP Client、MCP resource / prompt 能力、Docker Compose、Prometheus 本地验证、Alertmanager 本机路由、外部通知路由本地可审计版本、K8s 基础 manifests、生产化基础字段、smoke test 计划 CLI 与执行记录模板 CLI、Docker 镜像 CI 构建、GHCR 镜像发布、PostgreSQL runtime smoke、Qdrant 最小后端、Vector DB 生产化治理报告、Qdrant backup retention policy CLI、Qdrant snapshot API runner、Windows Task Scheduler 本机实验、Milvus runtime benchmark、Milvus backup / restore SOP 和 Milvus destructive operation guardrails。K8s 真实集群 smoke test 执行、cron / Kubernetes CronJob 调度证据、Qdrant 长期运行验证和服务器长期运行继续作为后续阶段。
+> 当前机器已经完成 FastAPI 服务化、静态 Web 前端增强、stdio MCP Server、stdio MCP Client、MCP resource / prompt 能力、Docker Compose、Prometheus 本地验证、Alertmanager 本机路由、外部通知路由本地可审计版本、K8s 基础 manifests、生产化基础字段、smoke test 计划 CLI 与执行记录模板 CLI、Docker 镜像 CI 构建、GHCR 镜像发布、PostgreSQL runtime smoke、Qdrant 最小后端、Vector DB 生产化治理报告、Qdrant backup retention policy CLI、Qdrant snapshot API runner、Windows Task Scheduler 本机实验、Milvus runtime benchmark、Milvus backup / restore SOP 和 Milvus destructive operation guardrails。K8s 真实集群 smoke test 执行证据已经在本机 kind 集群完成；cron / Kubernetes CronJob 调度证据、Qdrant 长期运行验证和服务器长期运行继续作为后续阶段。
 
 - [x] FastAPI
 - [x] Pydantic 请求模型
@@ -346,7 +346,7 @@ updated: 2026-07-01
 - [x] K8s smoke test 计划生成 CLI
 - [x] K8s smoke test 执行记录模板 CLI
 - [x] K8s smoke test runner CLI
-- [ ] K8s 真实集群 smoke test 执行证据
+- [x] K8s 真实集群 smoke test 执行证据（kind 本机集群）
 - [ ] 私有化配置和密钥管理
 
 ## 当前阶段：本机学习版 Agent Harness + 交付基础闭环
@@ -818,15 +818,14 @@ PostgreSQL runtime smoke test。
 
 - LangGraph 后续只做旁路迁移，不覆盖当前手写 Task State / Agent Harness 源码。
 - FastAPI、静态 Web 前端、stdio MCP Server、Dockerfile、docker-compose、Prometheus、Alertmanager 本机路由、外部通知路由本地可审计版本、K8s 基础 manifests、生产化基础字段、smoke test 计划 CLI 与执行记录模板 CLI、本机 PostgreSQL runtime smoke、Qdrant 最小后端、Vector DB 生产化治理报告、Qdrant backup retention policy CLI、Qdrant snapshot API runner 和 Windows Task Scheduler 本机实验已完成。
-- K8s 真实集群 smoke test 执行、cron / Kubernetes CronJob 调度证据、Qdrant 长期运行验证、私有化部署、服务器长期运行和真实 Feishu / WeCom / email 通知提供方继续作为后续阶段。Milvus repository、Compose 服务、导入 CLI、本机 runtime benchmark、backup / restore SOP 和 destructive operation guardrails 已完成。
+- K8s 真实集群 smoke test 执行证据已经完成；cron / Kubernetes CronJob 调度证据、Qdrant 长期运行验证、私有化部署、服务器长期运行和真实 Feishu / WeCom / email 通知提供方继续作为后续阶段。Milvus repository、Compose 服务、导入 CLI、本机 runtime benchmark、backup / restore SOP 和 destructive operation guardrails 已完成。
 
 ## 下一步学习重点
 
-当前已经完成本机 Agent Harness、RAG、Tool Calling、Memory、Trace、Sub-Agent、LangGraph 旁路迁移、FastAPI / Web / Docker / Prometheus / PostgreSQL / Qdrant / Milvus 基础治理、Qdrant Windows Task Scheduler 本机实验、K8s smoke runner CLI，以及 AsyncTaskRunner / FastAPI 后台任务 / DefenseTask 当前步骤后台执行 / 异步 LLM 与工具调用边界 / 原生异步 LLM SDK / async tool function 执行支持 / 后台任务幂等请求 / 后台任务持久化状态恢复。下一阶段进入生产化部署验证：
+当前已经完成本机 Agent Harness、RAG、Tool Calling、Memory、Trace、Sub-Agent、LangGraph 旁路迁移、FastAPI / Web / Docker / Prometheus / PostgreSQL / Qdrant / Milvus 基础治理、Qdrant Windows Task Scheduler 本机实验、K8s smoke runner CLI、K8s kind 本机真实集群 smoke 验证，以及 AsyncTaskRunner / FastAPI 后台任务 / DefenseTask 当前步骤后台执行 / 异步 LLM 与工具调用边界 / 原生异步 LLM SDK / async tool function 执行支持 / 后台任务幂等请求 / 后台任务持久化状态恢复。下一阶段进入调度与长期运行验证：
 
-1. K8s 真实集群 smoke test 执行证据
-2. Qdrant cron / Kubernetes CronJob 长期调度证据
-3. 服务器长期运行验证
+1. Qdrant cron / Kubernetes CronJob 长期调度证据
+2. 服务器长期运行验证
 
 ## 最终简历能力目标
 
@@ -2598,7 +2597,7 @@ PostgreSQL repository、runtime integration 和本机 smoke test 已完成；默
 Qdrant 已有本地最小实现、benchmark 对比、backup / restore SOP 和生产化治理报告；Milvus 已完成本机 runtime benchmark，尚未做 Milvus backup / restore SOP。
 Prometheus 告警规则已完成；Alertmanager 本机路由已完成；外部通知路由本地可审计版本已完成；K8s 基础 manifests、生产化基础字段、smoke test 计划 CLI 与执行记录模板 CLI 已完成；静态 Web 前端已完成；stdio MCP Server 已完成；stdio MCP Client 已完成；MCP resource / prompt 能力已完成；日志保留与查询文档已完成；API request Correlation ID 已完成；request -> task -> tool call 全链路 Correlation ID 已完成。
 尚未提供真实 Feishu / WeCom / email 通知提供方。
-尚未提供 K8s 真实集群 smoke test 执行和生产化部署验证。
+K8s 真实集群 smoke test 执行和生产化部署验证已在本机 kind 集群完成。
 ```
 
 下一阶段建议顺序：
@@ -3602,4 +3601,37 @@ JSON 仍是本地 fallback 和 rebuild baseline。
 1. Qdrant 定时 snapshot / restore drill 自动调度
 2. MilvusVectorStoreRepository / Milvus runtime benchmark
 3. K8s 真实集群 smoke test 执行 / 生产化部署验证
+```
+<!-- roadmap-update-2026-07-01-k8s-kind-smoke-evidence -->
+
+## 2026-07-01 路线同步：K8s Kind Smoke Evidence 已完成
+
+本阶段使用本机 `kind-thesis-defense-agent` context 完成真实 Kubernetes 集群 smoke 验证。
+原始执行报告保存在 `data/reports/k8s_smoke_run.md`，该目录不提交到 Git。
+
+已验证：
+
+- [x] `kubectl kustomize k8s/base`
+- [x] `kubectl apply --dry-run=client --validate=false -k k8s/base`
+- [x] `kubectl apply -k k8s/base`
+- [x] API Deployment rollout 成功
+- [x] Prometheus Deployment rollout 成功
+- [x] Alertmanager Deployment rollout 成功
+- [x] API `/health` 返回 ok
+- [x] Prometheus target `http://api:8000/metrics/prometheus` 为 `up`
+- [x] Alertmanager ready/status 正常
+
+当前边界：
+
+```text
+这是本机 kind 集群验证，不代表服务器长期运行。
+没有提交原始 smoke report、kubeconfig、密钥或完整运行日志。
+下一阶段转向 cron / Kubernetes CronJob 调度证据和 Qdrant 长期运行验证。
+```
+
+下一步学习：
+
+```text
+1. Qdrant cron / Kubernetes CronJob 长期调度证据
+2. 服务器长期运行验证
 ```
