@@ -127,7 +127,6 @@ Automated scheduled Qdrant snapshot creation
 Automated scheduled restore smoke drill
 Actual cron / Windows Task Scheduler / Kubernetes CronJob installation
 Actual scheduled run evidence collection with pasted command output
-MilvusVectorStoreRepository
 Milvus runtime benchmark
 ```
 

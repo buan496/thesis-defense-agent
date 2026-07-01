@@ -53,6 +53,9 @@ PDF / TXT 论文
 → Qdrant snapshot schedule evidence template
 → Qdrant snapshot schedule install executor
 → Qdrant Windows Task Scheduler local experiment
+→ MilvusVectorStoreRepository skeleton
+→ Milvus Compose service / import CLI / optional benchmark entry
+→ Milvus runtime benchmark
 → K8s manifests / smoke plan / report template
 ```
 
@@ -508,7 +511,7 @@ JSON remains the default session backend.
 最新本地测试基线：
 
 ```text
-1095 passed, 1 warning
+1115 passed, 1 warning
 ```
 
 本机学习版阶段已完成，阶段总复盘见：
@@ -649,7 +652,7 @@ retrieve_context
 当前已经完成本机 FastAPI 服务化、静态 Web 前端增强、Docker Compose、Prometheus 本地验证、GHCR 镜像发布流程、PostgreSQL runtime smoke、Qdrant 最小后端、Vector DB 生产化治理报告、Qdrant 备份保留策略和 Qdrant snapshot 手动 API runner。以下内容暂缓到后续阶段：
 
 - Qdrant 定时备份任务 / restore drill 自动调度
-- MilvusVectorStoreRepository 与 Milvus runtime benchmark
+- Milvus backup / restore SOP
 - K8s 真实集群 smoke test / 生产化部署验证
 - 服务器长期运行验证
 - 真实 Feishu / WeCom / email 通知提供方
@@ -736,6 +739,13 @@ QDRANT_HTTP_PORT=6333
 QDRANT_GRPC_PORT=6334
 QDRANT_API_KEY=
 QDRANT_BACKUP_DIR=data/qdrant_backups
+MILVUS_URI=http://127.0.0.1:19530
+MILVUS_TOKEN=
+MILVUS_COLLECTION=thesis_chunks
+MILVUS_VECTOR_SIZE=1024
+MILVUS_METRIC_TYPE=COSINE
+MILVUS_PORT=19530
+MILVUS_METRICS_PORT=9091
 QUERY_EMBEDDING_CACHE_PATH=data/query_embedding_cache.json
 
 AGENT_TRACE_PATH=data/traces/agent_trace.jsonl
@@ -982,7 +992,7 @@ retrieve_context
 
 1. 服务器长期运行验证：在服务器拉取 main，用 docker compose 运行 API 和 Prometheus。
 2. 对 README 和学习路线做周期性同步，避免文档落后于代码。
-3. 后续继续推进 K8s 真实集群 smoke test、真实通知提供方、Qdrant 定时备份 / restore drill 自动调度和 Milvus runtime benchmark。
+3. 后续继续推进 K8s 真实集群 smoke test、真实通知提供方、Qdrant 定时备份 / restore drill 自动调度和 Milvus backup / restore SOP。
 
 ## 2026-06-30 Update: External Notification Routing
 
@@ -1398,7 +1408,7 @@ RAG 向量库现在开始从“直接读写 JSON 文件”过渡到 repository �
 ```text
 VECTOR_STORE_BACKEND=json -> JsonVectorStoreRepository
 VECTOR_STORE_BACKEND=qdrant -> QdrantVectorStoreRepository
-VECTOR_STORE_BACKEND=milvus -> reserved backend name, not implemented yet
+VECTOR_STORE_BACKEND=milvus -> MilvusVectorStoreRepository
 ```
 
 已接入路径：
@@ -1414,7 +1424,7 @@ Retrieval evaluator load path
 ```text
 JSON 仍是默认向量库后端。
 Qdrant 已有最小 repository 实现和 benchmark 对比入口。
-Milvus 只预留 backend 名称，尚未接真实服务。
+Milvus 已有 repository、Compose 服务、导入 CLI、可选 benchmark 入口和本机 runtime benchmark 结果。
 ```
 
 ## 2026-06-29 Update: Qdrant Compose Service
@@ -1515,6 +1525,71 @@ Qdrant snapshot 备份与恢复流程已文档化：
 docs/deployment/qdrant.md
 ```
 
+## 2026-07-01 Update: Milvus Vector Store Runtime Entry
+
+项目新增 Milvus 本机验证入口：
+
+```text
+docker-compose.yml -> milvus service
+MilvusVectorStoreRepository
+import-vector-store-to-milvus CLI
+compare-vector-store-backends --include-milvus
+```
+
+本机启动 Milvus：
+
+```powershell
+docker compose up -d milvus
+docker compose ps milvus
+```
+
+导入现有 JSON 向量库：
+
+```powershell
+uv run python -m app.cli import-vector-store-to-milvus `
+  --source data/vector_store.json `
+  --uri http://127.0.0.1:19530 `
+  --collection thesis_chunks `
+  --vector-size 1024 `
+  --metric-type COSINE
+```
+
+对比 JSON、Qdrant 和 Milvus：
+
+```powershell
+docker compose up -d qdrant milvus
+
+uv run python -m app.cli compare-vector-store-backends `
+  --source data/vector_store.json `
+  --url http://127.0.0.1:6333 `
+  --collection thesis_chunks `
+  --include-milvus `
+  --milvus-uri http://127.0.0.1:19530 `
+  --milvus-collection thesis_chunks `
+  --output data/reports/vector_store_backend_comparison_with_milvus.json
+```
+
+本机 benchmark 结果：
+
+```text
+JSON average score: 1.0
+Qdrant average score: 1.0
+Milvus average score: 1.0
+Best repository: qdrant
+Qdrant average duration: about 49 ms
+JSON average duration: about 79 ms
+Milvus average duration: about 1231 ms, dominated by first-query warm-up
+```
+
+当前边界：
+
+```text
+Milvus repository 和 CLI 入口已完成。
+Compose 服务用于本机 smoke，不代表生产部署形态。
+完整 benchmark JSON 报告保存在 data/reports/，默认不提交到 Git。
+Milvus backup / restore SOP 尚未完成。
+```
+
 当前边界：
 
 ```text
@@ -1558,14 +1633,14 @@ uv run python -m app.cli vector-db-governance-report `
 ```text
 JSON 仍作为本地 fallback 和 rebuild baseline。
 Qdrant 是当前项目的主生产候选。
-Milvus 只作为后续对比候选，尚未实现 MilvusVectorStoreRepository。
+Milvus repository 已实现，仍作为后续 runtime benchmark 对比候选。
 ```
 
 下一步边界：
 
 ```text
 Qdrant 已有手动 snapshot API runner，还缺定时 snapshot / restore drill 自动调度。
-Milvus 还缺本地环境、repository 实现和同 benchmark 对比。
+Milvus 还缺 backup / restore SOP 和运维治理证据。
 ```
 
 ## 2026-06-30 Update: Qdrant Backup Retention

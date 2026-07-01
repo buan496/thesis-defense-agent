@@ -3,6 +3,11 @@ from pathlib import Path
 from typing import Protocol
 
 from app.config import (
+    MILVUS_COLLECTION,
+    MILVUS_METRIC_TYPE,
+    MILVUS_TOKEN,
+    MILVUS_URI,
+    MILVUS_VECTOR_SIZE,
     QDRANT_API_KEY,
     QDRANT_COLLECTION,
     QDRANT_DISTANCE,
@@ -182,6 +187,140 @@ class QdrantVectorStoreRepository:
         }
 
 
+class MilvusVectorStoreRepository:
+    def __init__(
+        self,
+        uri: str = MILVUS_URI,
+        collection_name: str = MILVUS_COLLECTION,
+        vector_size: int = MILVUS_VECTOR_SIZE,
+        metric_type: str = MILVUS_METRIC_TYPE,
+        token: str = MILVUS_TOKEN,
+        client=None,
+    ):
+        if not collection_name.strip():
+            raise ValueError("collection_name is required")
+
+        if vector_size <= 0:
+            raise ValueError("vector_size must be greater than 0")
+
+        self.uri = uri
+        self.collection_name = collection_name
+        self.vector_size = vector_size
+        self.metric_type = parse_milvus_metric_type(metric_type)
+        self.token = token
+        self.client = client
+
+    def save(self, store: list[dict]) -> str:
+        self.ensure_collection()
+
+        if not store:
+            return self.collection_name
+
+        self._client().insert(
+            collection_name=self.collection_name,
+            data=[
+                self._build_entity(item)
+                for item in store
+            ],
+        )
+
+        return self.collection_name
+
+    def load(self) -> list[dict]:
+        raise NotImplementedError(
+            "MilvusVectorStoreRepository does not support full load(). "
+            "Use search() for retrieval."
+        )
+
+    def search(
+        self,
+        query: str,
+        top_k: int,
+        embedding_fn: Callable[[str], list[float]],
+    ) -> list[dict]:
+        self.ensure_collection()
+        query_embedding = embedding_fn(query)
+        response = self._client().search(
+            collection_name=self.collection_name,
+            data=[query_embedding],
+            limit=top_k,
+            output_fields=["id", "text", "source", "length"],
+        )
+
+        hits = response[0] if response else []
+        return [
+            self._hit_to_result(hit)
+            for hit in hits
+        ]
+
+    def ensure_collection(self) -> None:
+        if self.collection_exists():
+            return
+
+        self._client().create_collection(
+            collection_name=self.collection_name,
+            dimension=self.vector_size,
+            metric_type=self.metric_type,
+        )
+
+    def collection_exists(self) -> bool:
+        return self._client().has_collection(self.collection_name)
+
+    def delete_collection(self) -> bool:
+        if not self.collection_exists():
+            return False
+
+        self._client().drop_collection(
+            collection_name=self.collection_name,
+        )
+        return True
+
+    def _client(self):
+        if self.client is None:
+            self.client = create_milvus_client(
+                uri=self.uri,
+                token=self.token,
+            )
+
+        return self.client
+
+    def _build_entity(self, item: dict) -> dict:
+        embedding = item.get("embedding")
+
+        if not isinstance(embedding, list):
+            raise ValueError("vector store item embedding must be a list")
+
+        entity = {
+            "id": item["id"],
+            "vector": embedding,
+            "text": item["text"],
+            "source": item["source"],
+        }
+
+        if "length" in item:
+            entity["length"] = item["length"]
+
+        return entity
+
+    def _hit_to_result(self, hit) -> dict:
+        if isinstance(hit, dict):
+            entity = hit.get("entity") or {}
+            return {
+                "id": entity.get("id", hit.get("id")),
+                "text": entity.get("text", ""),
+                "source": entity.get("source", ""),
+                "score": hit.get("distance", hit.get("score", 0.0)),
+            }
+
+        entity = getattr(hit, "entity", None) or {}
+        return {
+            "id": entity.get("id", getattr(hit, "id", None)),
+            "text": entity.get("text", ""),
+            "source": entity.get("source", ""),
+            "score": getattr(hit, "distance", getattr(hit, "score", 0.0)),
+        }
+
+
 def create_qdrant_client(
     url: str = QDRANT_URL,
     api_key: str = QDRANT_API_KEY,
@@ -227,6 +366,37 @@ def parse_qdrant_distance(distance: str):
     return mapping[normalized_distance]
 
 
+def create_milvus_client(
+    uri: str = MILVUS_URI,
+    token: str = MILVUS_TOKEN,
+):
+    try:
+        from pymilvus import MilvusClient
+    except ImportError as error:
+        raise RuntimeError(
+            "pymilvus is required when using VECTOR_STORE_BACKEND=milvus. "
+            "Install pymilvus before running a real Milvus backend."
+        ) from error
+
+    return MilvusClient(
+        uri=uri,
+        token=token or None,
+    )
+
+
+def parse_milvus_metric_type(metric_type: str) -> str:
+    normalized_metric_type = metric_type.strip().upper()
+    supported_metric_types = {"COSINE", "IP", "L2"}
+
+    if normalized_metric_type not in supported_metric_types:
+        raise ValueError(
+            "Unsupported MILVUS_METRIC_TYPE. Expected COSINE, IP, or L2, "
+            f"got: {metric_type}"
+        )
+
+    return normalized_metric_type
+
+
 def create_vector_store_repository(
     backend: str,
     vector_store_path: str | Path,
@@ -240,9 +410,7 @@ def create_vector_store_repository(
         return QdrantVectorStoreRepository()
 
     if normalized_backend == "milvus":
-        raise NotImplementedError(
-            f"{normalized_backend} vector store repository is not implemented"
-        )
+        return MilvusVectorStoreRepository()
 
     raise ValueError(
         "Unsupported VECTOR_STORE_BACKEND. Expected 'json', 'qdrant', "
