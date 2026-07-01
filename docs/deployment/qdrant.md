@@ -113,6 +113,7 @@ qdrant-snapshot-restore CLI with explicit confirmation
 qdrant-snapshot-drill-plan CLI
 qdrant-snapshot-drill-run CLI
 qdrant-snapshot-schedule-config CLI
+qdrant-snapshot-schedule-install-plan CLI
 ```
 
 Not completed:
@@ -556,6 +557,54 @@ It does not install cron entries.
 It does not create Windows scheduled tasks.
 It does not apply Kubernetes CronJob manifests.
 Review and run generated scheduler commands manually before enabling automation.
+```
+
+## Snapshot Schedule Install Plan
+
+The project also provides a schedule install plan generator. It converts the
+schedule config preview into explicit install commands, while preserving safety
+guards.
+
+Generate dry-run install commands for all supported platforms:
+
+```powershell
+uv run python -m app.cli qdrant-snapshot-schedule-install-plan
+```
+
+Generate a dry-run Windows Task Scheduler install command:
+
+```powershell
+uv run python -m app.cli qdrant-snapshot-schedule-install-plan `
+  --platform windows_task_scheduler `
+  --task-name thesis-defense-qdrant-snapshot-drill
+```
+
+Generate a real cron install command preview with explicit confirmation:
+
+```powershell
+uv run python -m app.cli qdrant-snapshot-schedule-install-plan `
+  --platform cron `
+  --task-name thesis-defense-qdrant-snapshot-drill `
+  --confirm-task-name thesis-defense-qdrant-snapshot-drill `
+  --apply
+```
+
+Save the install plan:
+
+```powershell
+uv run python -m app.cli qdrant-snapshot-schedule-install-plan `
+  --platform cron `
+  --output data/reports/qdrant_snapshot_schedule_install_plan.md
+```
+
+Safety rules:
+
+```text
+Dry-run is the default.
+--apply requires --confirm-task-name to match --task-name.
+--apply cannot be used with --platform all.
+The CLI renders install commands; it does not execute them.
+Review commands before running them in a shell or cluster.
 ```
 
 ## Snapshot Smoke Plan

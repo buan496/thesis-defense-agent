@@ -48,6 +48,7 @@ PDF / TXT 论文
 → Qdrant snapshot drill plan
 → Qdrant snapshot drill runner
 → Qdrant snapshot schedule config
+→ Qdrant snapshot schedule install plan
 → K8s manifests / smoke plan / report template
 ```
 
@@ -84,6 +85,41 @@ uv run python -m app.cli qdrant-snapshot-schedule-config `
 不会创建 Windows scheduled task。
 不会 apply Kubernetes CronJob。
 真实定时任务安装仍是后续生产化验证内容。
+```
+
+<!-- docs-update-2026-07-01-qdrant-snapshot-schedule-install-plan -->
+
+## 2026-07-01 Update: Qdrant Snapshot Schedule Install Plan
+
+项目新增 Qdrant snapshot drill 的调度安装计划生成器：
+
+```text
+qdrant-snapshot-schedule-install-plan
+```
+
+生成 dry-run 安装计划：
+
+```powershell
+uv run python -m app.cli qdrant-snapshot-schedule-install-plan
+```
+
+生成单平台 apply 模式安装命令预览：
+
+```powershell
+uv run python -m app.cli qdrant-snapshot-schedule-install-plan `
+  --platform cron `
+  --task-name thesis-defense-qdrant-snapshot-drill `
+  --confirm-task-name thesis-defense-qdrant-snapshot-drill `
+  --apply
+```
+
+当前边界：
+
+```text
+默认 dry-run。
+--apply 必须配合 --confirm-task-name。
+--apply 不能用于 --platform all。
+CLI 只渲染安装命令，不直接执行系统修改。
 ```
 
 <!-- docs-update-2026-06-29-postgres-compose -->
@@ -334,7 +370,7 @@ JSON remains the default session backend.
 最新本地测试基线：
 
 ```text
-1065 passed, 1 warning
+1072 passed, 1 warning
 ```
 
 本机学习版阶段已完成，阶段总复盘见：
