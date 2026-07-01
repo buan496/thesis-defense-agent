@@ -112,6 +112,79 @@ def test_async_task_runner_runs_multiple_tasks_concurrently():
     asyncio.run(scenario())
 
 
+def test_async_task_runner_rejects_invalid_concurrency_limit():
+    with pytest.raises(ValueError, match="max_concurrent_tasks"):
+        AsyncTaskRunner(max_concurrent_tasks=0)
+
+
+def test_async_task_runner_limits_concurrent_tasks():
+    async def scenario():
+        runner = AsyncTaskRunner(max_concurrent_tasks=1)
+        release = asyncio.Event()
+        started = []
+
+        async def blocking_job(name: str) -> str:
+            started.append(name)
+            await release.wait()
+            return name
+
+        first = runner.create_task("first", blocking_job, "first")
+        second = runner.create_task("second", blocking_job, "second")
+
+        await asyncio.sleep(0)
+
+        first_status = runner.get_task_status(first.task_id)
+        second_status = runner.get_task_status(second.task_id)
+
+        assert first_status["status"] == "running"
+        assert second_status["status"] == "pending"
+        assert started == ["first"]
+
+        release.set()
+
+        first_final, second_final = await asyncio.gather(
+            runner.await_task(first.task_id),
+            runner.await_task(second.task_id),
+        )
+
+        assert first_final["status"] == "completed"
+        assert second_final["status"] == "completed"
+        assert second_final["result"] == "second"
+        assert started == ["first", "second"]
+
+    asyncio.run(scenario())
+
+
+def test_async_task_runner_can_cancel_pending_limited_task():
+    async def scenario():
+        runner = AsyncTaskRunner(max_concurrent_tasks=1)
+        release = asyncio.Event()
+
+        async def blocking_job() -> str:
+            await release.wait()
+            return "done"
+
+        first = runner.create_task("first", blocking_job)
+        second = runner.create_task("second", blocking_job)
+
+        await asyncio.sleep(0)
+
+        assert runner.get_task_status(first.task_id)["status"] == "running"
+        assert runner.get_task_status(second.task_id)["status"] == "pending"
+
+        second_status = await runner.cancel_task(second.task_id)
+
+        assert second_status["status"] == "cancelled"
+        assert second_status["error_type"] == "CancelledError"
+
+        release.set()
+        first_status = await runner.await_task(first.task_id)
+
+        assert first_status["status"] == "completed"
+
+    asyncio.run(scenario())
+
+
 def test_async_task_runner_rejects_empty_name():
     async def scenario():
         runner = AsyncTaskRunner()

@@ -5,10 +5,13 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from app.async_task_runner import AsyncTaskRunner
+from app.config import ASYNC_TASK_MAX_CONCURRENT_TASKS
 
 
 router = APIRouter(prefix="/async-tasks", tags=["async-tasks"])
-_runner = AsyncTaskRunner()
+_runner = AsyncTaskRunner(
+    max_concurrent_tasks=ASYNC_TASK_MAX_CONCURRENT_TASKS,
+)
 
 
 class CreateAsyncTaskRequest(BaseModel):

@@ -207,7 +207,7 @@ updated: 2026-07-01
 
 - [x] `async` / `await`
 - [ ] 异步 LLM 和工具调用
-- [ ] 并发限制
+- [x] 并发限制
 - [x] 超时和取消
 - [x] 后台任务基础 runner
 - [x] FastAPI 后台任务 API：create / status / cancel
@@ -2734,7 +2734,7 @@ Milvus 只作为未来对比候选，尚未实现 MilvusVectorStoreRepository。
 当前只接入 fake long-running job。
 任务状态保存在进程内存中，进程重启后会丢失。
 尚未接入真实 DefenseTask 步骤执行。
-尚未实现并发限制、幂等请求和持久化恢复。
+尚未实现幂等请求和持久化恢复。
 ```
 
 下一步学习：
@@ -2743,6 +2743,39 @@ Milvus 只作为未来对比候选，尚未实现 MilvusVectorStoreRepository。
 1. AsyncTaskRunner 并发限制
 2. 异步 DefenseTask step execution API
 3. 异步 LLM / 工具调用边界
+```
+
+<!-- roadmap-update-2026-07-01-async-task-concurrency-limit -->
+
+## 2026-07-01 路线同步：AsyncTaskRunner 并发限制已完成
+
+本阶段给内存型后台任务 runner 增加并发上限，避免 API 层无限创建运行中任务。
+
+已完成：
+
+- [x] `AsyncTaskRunner(max_concurrent_tasks=...)`
+- [x] `asyncio.Semaphore` 控制同时运行任务数
+- [x] 超出上限的任务保持 `pending`
+- [x] 排队任务可取消并落到 `cancelled`
+- [x] `ASYNC_TASK_MAX_CONCURRENT_TASKS` 环境变量
+- [x] FastAPI 全局 runner 使用默认并发上限
+- [x] 单元测试覆盖非法上限、排队、排队取消
+
+当前边界：
+
+```text
+并发限制只作用于单进程内存型 AsyncTaskRunner。
+多进程部署时，每个进程都有自己的 runner 和并发上限。
+任务状态仍未持久化，进程重启会丢失。
+尚未接入真实 DefenseTask 步骤执行。
+```
+
+下一步学习：
+
+```text
+1. 异步 DefenseTask step execution API
+2. 异步 LLM / 工具调用边界
+3. 幂等请求和后台任务持久化恢复
 ```
 
 <!-- roadmap-update-2026-07-01-qdrant-snapshot-drill-plan -->

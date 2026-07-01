@@ -188,11 +188,12 @@ curl.exe -X DELETE http://127.0.0.1:8000/async-tasks/<TASK_ID>
 Current scope:
 
 - uses the in-memory `AsyncTaskRunner`
+- limits concurrently running tasks with `ASYNC_TASK_MAX_CONCURRENT_TASKS`
 - demo job only sleeps and returns a configured result
 - validates task creation, status query, completion and cancellation
 - does not persist task state across process restarts
 - does not execute real `DefenseTask` steps yet
-- does not implement concurrency limits or idempotency yet
+- does not implement cross-process queue sharing or idempotency yet
 
 ### RAG 状态与检索
 
