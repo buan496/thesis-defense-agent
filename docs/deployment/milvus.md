@@ -93,6 +93,21 @@ uv run python -m app.cli compare-vector-store-backends `
   --output data/reports/vector_store_backend_comparison_with_milvus.json
 ```
 
+Local benchmark summary:
+
+```text
+JSON average score: 1.0
+Qdrant average score: 1.0
+Milvus average score: 1.0
+Best repository: qdrant
+Qdrant average duration: about 49 ms
+JSON average duration: about 79 ms
+Milvus average duration: about 1231 ms
+```
+
+The Milvus average latency was dominated by first-query warm-up. Later Milvus
+queries were about 7-11 ms in the local smoke run.
+
 ## Current Boundary
 
 Completed:
@@ -108,14 +123,13 @@ Milvus search
 import-vector-store-to-milvus CLI
 compare-vector-store-backends --include-milvus
 fake-client unit tests
+local Milvus runtime smoke execution
+JSON / Qdrant / Milvus benchmark result report
 ```
 
 Not completed:
 
 ```text
-local Milvus runtime smoke execution
-JSON / Qdrant / Milvus benchmark result report
 Milvus backup / restore SOP
 Milvus production deployment topology
 ```
-

@@ -55,6 +55,7 @@ PDF / TXT 论文
 → Qdrant Windows Task Scheduler local experiment
 → MilvusVectorStoreRepository skeleton
 → Milvus Compose service / import CLI / optional benchmark entry
+→ Milvus runtime benchmark
 → K8s manifests / smoke plan / report template
 ```
 
@@ -651,7 +652,7 @@ retrieve_context
 当前已经完成本机 FastAPI 服务化、静态 Web 前端增强、Docker Compose、Prometheus 本地验证、GHCR 镜像发布流程、PostgreSQL runtime smoke、Qdrant 最小后端、Vector DB 生产化治理报告、Qdrant 备份保留策略和 Qdrant snapshot 手动 API runner。以下内容暂缓到后续阶段：
 
 - Qdrant 定时备份任务 / restore drill 自动调度
-- Milvus runtime benchmark
+- Milvus backup / restore SOP
 - K8s 真实集群 smoke test / 生产化部署验证
 - 服务器长期运行验证
 - 真实 Feishu / WeCom / email 通知提供方
@@ -991,7 +992,7 @@ retrieve_context
 
 1. 服务器长期运行验证：在服务器拉取 main，用 docker compose 运行 API 和 Prometheus。
 2. 对 README 和学习路线做周期性同步，避免文档落后于代码。
-3. 后续继续推进 K8s 真实集群 smoke test、真实通知提供方、Qdrant 定时备份 / restore drill 自动调度和 Milvus runtime benchmark。
+3. 后续继续推进 K8s 真实集群 smoke test、真实通知提供方、Qdrant 定时备份 / restore drill 自动调度和 Milvus backup / restore SOP。
 
 ## 2026-06-30 Update: External Notification Routing
 
@@ -1423,7 +1424,7 @@ Retrieval evaluator load path
 ```text
 JSON 仍是默认向量库后端。
 Qdrant 已有最小 repository 实现和 benchmark 对比入口。
-Milvus 已有 repository、Compose 服务、导入 CLI 和可选 benchmark 入口；runtime benchmark 尚未完成。
+Milvus 已有 repository、Compose 服务、导入 CLI、可选 benchmark 入口和本机 runtime benchmark 结果。
 ```
 
 ## 2026-06-29 Update: Qdrant Compose Service
@@ -1568,12 +1569,25 @@ uv run python -m app.cli compare-vector-store-backends `
   --output data/reports/vector_store_backend_comparison_with_milvus.json
 ```
 
+本机 benchmark 结果：
+
+```text
+JSON average score: 1.0
+Qdrant average score: 1.0
+Milvus average score: 1.0
+Best repository: qdrant
+Qdrant average duration: about 49 ms
+JSON average duration: about 79 ms
+Milvus average duration: about 1231 ms, dominated by first-query warm-up
+```
+
 当前边界：
 
 ```text
 Milvus repository 和 CLI 入口已完成。
 Compose 服务用于本机 smoke，不代表生产部署形态。
-真实 JSON / Qdrant / Milvus benchmark 结果尚未沉淀。
+完整 benchmark JSON 报告保存在 data/reports/，默认不提交到 Git。
+Milvus backup / restore SOP 尚未完成。
 ```
 
 当前边界：
@@ -1626,7 +1640,7 @@ Milvus repository 已实现，仍作为后续 runtime benchmark 对比候选。
 
 ```text
 Qdrant 已有手动 snapshot API runner，还缺定时 snapshot / restore drill 自动调度。
-Milvus 还缺真实 runtime benchmark 结果和运维治理证据。
+Milvus 还缺 backup / restore SOP 和运维治理证据。
 ```
 
 ## 2026-06-30 Update: Qdrant Backup Retention
