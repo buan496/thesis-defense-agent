@@ -86,6 +86,7 @@ updated: 2026-07-01
 - [x] Qdrant snapshot schedule evidence template
 - [x] Qdrant snapshot schedule install executor
 - [x] Qdrant Windows Task Scheduler 本机定时 snapshot 实验
+- [x] Qdrant Kubernetes CronJob manifest / client-side dry-run
 - [ ] Qdrant cron / Kubernetes CronJob / 长期运行调度证据
 - [x] MilvusVectorStoreRepository skeleton
 - [x] Milvus Compose service / import CLI / optional benchmark entry
@@ -335,6 +336,7 @@ updated: 2026-07-01
 - [x] Qdrant snapshot schedule evidence template
 - [x] Qdrant snapshot schedule install executor
 - [x] Qdrant Windows Task Scheduler 本机定时 snapshot 实验
+- [x] Qdrant Kubernetes CronJob manifest / client-side dry-run
 - [ ] Qdrant cron / Kubernetes CronJob / 长期运行调度证据
 - [x] MilvusVectorStoreRepository skeleton
 - [x] Milvus Compose service / import CLI / optional benchmark entry
@@ -818,11 +820,11 @@ PostgreSQL runtime smoke test。
 
 - LangGraph 后续只做旁路迁移，不覆盖当前手写 Task State / Agent Harness 源码。
 - FastAPI、静态 Web 前端、stdio MCP Server、Dockerfile、docker-compose、Prometheus、Alertmanager 本机路由、外部通知路由本地可审计版本、K8s 基础 manifests、生产化基础字段、smoke test 计划 CLI 与执行记录模板 CLI、本机 PostgreSQL runtime smoke、Qdrant 最小后端、Vector DB 生产化治理报告、Qdrant backup retention policy CLI、Qdrant snapshot API runner 和 Windows Task Scheduler 本机实验已完成。
-- K8s 真实集群 smoke test 执行证据已经完成；cron / Kubernetes CronJob 调度证据、Qdrant 长期运行验证、私有化部署、服务器长期运行和真实 Feishu / WeCom / email 通知提供方继续作为后续阶段。Milvus repository、Compose 服务、导入 CLI、本机 runtime benchmark、backup / restore SOP 和 destructive operation guardrails 已完成。
+- K8s 真实集群 smoke test 执行证据已经完成；Qdrant Kubernetes CronJob manifest 生成和 client-side dry-run 已完成；cron / 实际 Kubernetes CronJob 长期调度证据、Qdrant 长期运行验证、私有化部署、服务器长期运行和真实 Feishu / WeCom / email 通知提供方继续作为后续阶段。Milvus repository、Compose 服务、导入 CLI、本机 runtime benchmark、backup / restore SOP 和 destructive operation guardrails 已完成。
 
 ## 下一步学习重点
 
-当前已经完成本机 Agent Harness、RAG、Tool Calling、Memory、Trace、Sub-Agent、LangGraph 旁路迁移、FastAPI / Web / Docker / Prometheus / PostgreSQL / Qdrant / Milvus 基础治理、Qdrant Windows Task Scheduler 本机实验、K8s smoke runner CLI、K8s kind 本机真实集群 smoke 验证，以及 AsyncTaskRunner / FastAPI 后台任务 / DefenseTask 当前步骤后台执行 / 异步 LLM 与工具调用边界 / 原生异步 LLM SDK / async tool function 执行支持 / 后台任务幂等请求 / 后台任务持久化状态恢复。下一阶段进入调度与长期运行验证：
+当前已经完成本机 Agent Harness、RAG、Tool Calling、Memory、Trace、Sub-Agent、LangGraph 旁路迁移、FastAPI / Web / Docker / Prometheus / PostgreSQL / Qdrant / Milvus 基础治理、Qdrant Windows Task Scheduler 本机实验、Qdrant Kubernetes CronJob manifest dry-run、K8s smoke runner CLI、K8s kind 本机真实集群 smoke 验证，以及 AsyncTaskRunner / FastAPI 后台任务 / DefenseTask 当前步骤后台执行 / 异步 LLM 与工具调用边界 / 原生异步 LLM SDK / async tool function 执行支持 / 后台任务幂等请求 / 后台任务持久化状态恢复。下一阶段进入调度与长期运行验证：
 
 1. Qdrant cron / Kubernetes CronJob 长期调度证据
 2. 服务器长期运行验证
@@ -3634,4 +3636,48 @@ JSON 仍是本地 fallback 和 rebuild baseline。
 ```text
 1. Qdrant cron / Kubernetes CronJob 长期调度证据
 2. 服务器长期运行验证
+```
+
+<!-- roadmap-update-2026-07-01-qdrant-kubernetes-cronjob-manifest -->
+
+## 2026-07-01 路线同步：Qdrant Kubernetes CronJob Manifest 已完成
+
+本阶段把 Qdrant snapshot drill 的 Kubernetes 调度从 Markdown 预览推进到可直接交给 `kubectl` 的 CronJob YAML manifest。
+该阶段验证的是 manifest 生成和 Kubernetes client-side dry-run，不代表 CronJob 已经在集群内长期运行。
+
+已完成：
+
+- [x] `app/qdrant_snapshot_cronjob_manifest.py`
+- [x] `qdrant-snapshot-cronjob-manifest` CLI
+- [x] ConfigMap / Secret envFrom 引用可配置
+- [x] CronJob `concurrencyPolicy: Forbid`
+- [x] Job history / deadline / backoff / TTL 字段
+- [x] non-root `securityContext`
+- [x] container resources request / limit
+- [x] `kubectl apply --dry-run=client --validate=false -f data/reports/qdrant_snapshot_cronjob.yaml`
+- [x] 单元测试覆盖 manifest 渲染、CLI 输出、文件写入和参数校验
+
+验证结果：
+
+```text
+cronjob.batch/thesis-defense-qdrant-snapshot-drill created (dry run)
+uv run pytest -q: 1182 passed, 1 warning
+```
+
+当前边界：
+
+```text
+这是 manifest 渲染和 client-side dry-run 验证。
+当前 kind 集群没有 Qdrant StatefulSet / Service。
+CronJob 尚未作为长期任务 apply 到集群。
+真实调度证据仍需 Qdrant 在集群内可达后再采集。
+```
+
+下一步学习：
+
+```text
+1. 为 kind / K8s 环境补齐 Qdrant 服务可达性方案
+2. 将 CronJob apply 到测试 namespace 并手动触发 Job
+3. 采集 Job 状态、日志、snapshot 产物和失败可见性证据
+4. 再进入长期周期运行观察
 ```

@@ -184,6 +184,9 @@ from app.milvus_backup_restore_plan import (
     render_milvus_restore_report_template,
 )
 from app.qdrant_snapshot_client import QdrantSnapshotClient
+from app.qdrant_snapshot_cronjob_manifest import (
+    render_qdrant_snapshot_cronjob_manifest,
+)
 from app.qdrant_snapshot_scheduler import (
     build_qdrant_snapshot_drill_plan,
     build_qdrant_snapshot_schedule_config,
@@ -2911,6 +2914,82 @@ def main():
         "--output",
         default=None,
         help="Optional Markdown output path for the schedule config preview",
+    )
+
+    qdrant_snapshot_cronjob_manifest_parser = subparsers.add_parser(
+        "qdrant-snapshot-cronjob-manifest",
+        help="Render a Kubernetes CronJob manifest for the Qdrant snapshot drill runner",
+    )
+    qdrant_snapshot_cronjob_manifest_parser.add_argument(
+        "--task-name",
+        default="thesis-defense-qdrant-snapshot-drill",
+        help="CronJob name",
+    )
+    qdrant_snapshot_cronjob_manifest_parser.add_argument(
+        "--cron-schedule",
+        default="0 3 * * *",
+        help="Five-field cron schedule",
+    )
+    qdrant_snapshot_cronjob_manifest_parser.add_argument(
+        "--namespace",
+        default="default",
+        help="Kubernetes namespace used by the generated CronJob",
+    )
+    qdrant_snapshot_cronjob_manifest_parser.add_argument(
+        "--image",
+        default="ghcr.io/buan496/thesis-defense-agent:latest",
+        help="Container image used by the generated CronJob",
+    )
+    qdrant_snapshot_cronjob_manifest_parser.add_argument(
+        "--config-map-name",
+        default="thesis-defense-agent-api-config",
+        help="ConfigMap used as envFrom source",
+    )
+    qdrant_snapshot_cronjob_manifest_parser.add_argument(
+        "--secret-name",
+        default="thesis-defense-agent-api-secret",
+        help="Secret used as optional envFrom source",
+    )
+    qdrant_snapshot_cronjob_manifest_parser.add_argument(
+        "--collection",
+        default=QDRANT_COLLECTION,
+        help="Source Qdrant collection name",
+    )
+    qdrant_snapshot_cronjob_manifest_parser.add_argument(
+        "--restore-collection",
+        default=f"{QDRANT_COLLECTION}_restore",
+        help="Disposable Qdrant collection name used for restore drills",
+    )
+    qdrant_snapshot_cronjob_manifest_parser.add_argument(
+        "--backup-dir",
+        default=QDRANT_BACKUP_DIR,
+        help="Container backup directory for downloaded snapshots",
+    )
+    qdrant_snapshot_cronjob_manifest_parser.add_argument(
+        "--keep-last",
+        type=int,
+        default=5,
+        help="Number of newest backup files to retain",
+    )
+    qdrant_snapshot_cronjob_manifest_parser.add_argument(
+        "--apply-retention",
+        action="store_true",
+        help="Configure retention as an apply step instead of dry-run preview",
+    )
+    qdrant_snapshot_cronjob_manifest_parser.add_argument(
+        "--skip-restore-drill",
+        action="store_true",
+        help="Do not include restore in the scheduled runner command",
+    )
+    qdrant_snapshot_cronjob_manifest_parser.add_argument(
+        "--skip-compare",
+        action="store_true",
+        help="Do not include restored-collection comparison in the runner command",
+    )
+    qdrant_snapshot_cronjob_manifest_parser.add_argument(
+        "--output",
+        default=None,
+        help="Optional YAML output path for the CronJob manifest",
     )
 
     qdrant_snapshot_schedule_install_plan_parser = subparsers.add_parser(
@@ -6383,6 +6462,37 @@ def main():
 
         if args.output is not None:
             save_text_output(args.output, markdown)
+            print("OUTPUT:", args.output)
+
+    elif args.command == "qdrant-snapshot-cronjob-manifest":
+        try:
+            config = build_qdrant_snapshot_schedule_config(
+                platform="kubernetes_cronjob",
+                task_name=args.task_name,
+                cron_schedule=args.cron_schedule,
+                namespace=args.namespace,
+                image=args.image,
+                collection=args.collection,
+                restore_collection=args.restore_collection,
+                backup_dir=args.backup_dir,
+                keep_last=args.keep_last,
+                apply_retention=args.apply_retention,
+                run_restore_drill=not args.skip_restore_drill,
+                run_compare=not args.skip_compare,
+            )
+            yaml = render_qdrant_snapshot_cronjob_manifest(
+                config,
+                config_map_name=args.config_map_name,
+                secret_name=args.secret_name,
+            )
+        except ValueError as error:
+            print(f"QDRANT SNAPSHOT CRONJOB MANIFEST ERROR: {error}")
+            raise SystemExit(2) from error
+
+        print(yaml, end="")
+
+        if args.output is not None:
+            save_text_output(args.output, yaml)
             print("OUTPUT:", args.output)
 
     elif args.command == "qdrant-snapshot-schedule-install-plan":

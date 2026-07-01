@@ -27,6 +27,7 @@
 - 支持 RAG benchmark，统计 Top-K 召回关键字覆盖率
 - 支持 JSON 与 Qdrant 向量库后端 benchmark 对比，记录质量和延迟差异
 - 支持 Vector DB 生产化治理报告，明确 JSON / Qdrant / Milvus 的角色、风险和上线门禁
+- 支持 Qdrant Kubernetes CronJob manifest 生成和 client-side dry-run 验证
 - 支持 Milvus collection 删除显式确认保护
 - 支持 BM25 关键词检索、Vector 语义检索和 Hybrid 融合检索
 - 支持检索器对比和 Hybrid 权重扫描，用 benchmark 自动选择检索参数
@@ -246,6 +247,15 @@ curl.exe -X POST http://127.0.0.1:8000/tasks/<TASK_ID>/steps/execute-async
 
 ```powershell
 curl.exe http://127.0.0.1:8000/async-tasks/<ASYNC_TASK_ID>
+```
+
+生成 Qdrant Kubernetes CronJob manifest：
+
+```powershell
+uv run python -m app.cli qdrant-snapshot-cronjob-manifest `
+  --namespace thesis-defense-agent `
+  --cron-schedule "0 3 * * *" `
+  --output data/reports/qdrant_snapshot_cronjob.yaml
 ```
 
 上传论文文档：

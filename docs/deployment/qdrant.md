@@ -117,6 +117,8 @@ qdrant-snapshot-schedule-install-plan CLI
 qdrant-snapshot-schedule-verify-plan CLI
 qdrant-snapshot-schedule-evidence-template CLI
 qdrant-snapshot-schedule-install-execute CLI
+qdrant-snapshot-cronjob-manifest CLI
+Kubernetes CronJob manifest client-side dry-run validation
 ```
 
 Not completed:
@@ -125,9 +127,9 @@ Not completed:
 Automated scheduled Qdrant backup job
 Automated scheduled Qdrant snapshot creation
 Automated scheduled restore smoke drill
-Actual cron / Windows Task Scheduler / Kubernetes CronJob installation
-Actual scheduled run evidence collection with pasted command output
-Milvus runtime benchmark
+Actual cron / Kubernetes CronJob installation
+Actual scheduled run evidence collection for cron / Kubernetes CronJob
+Kubernetes Qdrant StatefulSet / Service runtime validation
 ```
 
 ## Production Governance Report
@@ -766,6 +768,44 @@ Run qdrant-snapshot-schedule-verify-plan after execution.
 Paste sanitized evidence into qdrant-snapshot-schedule-evidence-template.
 ```
 
+## Kubernetes CronJob Manifest Renderer
+
+The project can render a standalone Kubernetes CronJob manifest for the Qdrant
+snapshot drill runner. This is more directly applicable than the Markdown
+schedule preview because it produces YAML that can be passed to `kubectl`.
+
+Render the manifest:
+
+```powershell
+uv run python -m app.cli qdrant-snapshot-cronjob-manifest `
+  --namespace thesis-defense-agent `
+  --cron-schedule "0 3 * * *" `
+  --output data/reports/qdrant_snapshot_cronjob.yaml
+```
+
+Validate the generated YAML without applying it:
+
+```powershell
+kubectl apply --dry-run=client --validate=false `
+  -f data/reports/qdrant_snapshot_cronjob.yaml
+```
+
+The local dry-run validation completed with:
+
+```text
+cronjob.batch/thesis-defense-qdrant-snapshot-drill created (dry run)
+```
+
+Runtime boundary:
+
+```text
+The manifest renderer is implemented.
+The generated manifest was validated with kubectl client-side dry-run.
+The CronJob has not been applied as a long-running cluster job.
+The current kind stack does not include a Qdrant StatefulSet or Service.
+Real scheduled evidence still requires Qdrant to be reachable inside the cluster.
+```
+
 ### Windows Task Scheduler Local Experiment
 
 The local Windows Task Scheduler experiment was executed with a disposable test
@@ -942,7 +982,9 @@ Current boundary:
 ```text
 Retention execution is implemented for local downloaded backup files.
 Qdrant snapshot creation / list / download / restore can be run through manual CLI commands.
-No cron, Task Scheduler, or Kubernetes CronJob is created yet.
+Windows Task Scheduler local experiment has been validated.
+Kubernetes CronJob YAML can be rendered and client-side dry-run validated.
+No cron or Kubernetes CronJob has been installed as a long-running scheduler yet.
 ```
 
 ## Current Runtime Boundary

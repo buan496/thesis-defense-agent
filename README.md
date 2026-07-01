@@ -139,6 +139,15 @@ uv run python -m app.cli local-quality-gate
 uv run python -m app.cli milvus-backup-restore-plan
 ```
 
+生成 Qdrant Kubernetes CronJob manifest 并保存到本地报告目录：
+
+```powershell
+uv run python -m app.cli qdrant-snapshot-cronjob-manifest `
+  --namespace thesis-defense-agent `
+  --cron-schedule "0 3 * * *" `
+  --output data/reports/qdrant_snapshot_cronjob.yaml
+```
+
 完整命令列表和模块索引见 [README 运行命令与模块索引](docs/19-README运行命令与模块索引.md)。
 
 ## 技术栈
@@ -230,11 +239,12 @@ Agent 与 RAG：
 - Milvus destructive operation guardrails
 - Prometheus / Alertmanager / K8s manifests 基础交付能力
 - K8s smoke runner CLI
+- K8s 真实集群 smoke test 执行证据（kind 本机集群）
+- Qdrant Kubernetes CronJob manifest 生成与 client-side dry-run 验证
 
 仍待推进：
 
-- Qdrant cron / Kubernetes CronJob 长期调度证据
-- K8s 真实集群 smoke test 执行证据
+- Qdrant cron / Kubernetes CronJob 长期运行调度证据
 - 真实 Feishu / WeCom / email 通知提供方
 - 服务器长期运行验证
 - 用户认证和更完整的 Trace 查看器
