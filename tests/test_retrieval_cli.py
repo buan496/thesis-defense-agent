@@ -490,6 +490,17 @@ def test_compare_vector_store_backends_command(
             "Cosine",
             "--api-key",
             "secret",
+            "--include-milvus",
+            "--milvus-uri",
+            "http://127.0.0.1:19530",
+            "--milvus-collection",
+            "milvus_chunks",
+            "--milvus-vector-size",
+            "1024",
+            "--milvus-metric-type",
+            "COSINE",
+            "--milvus-token",
+            "milvus-secret",
             "--output",
             str(output_path),
         ],
@@ -506,6 +517,12 @@ def test_compare_vector_store_backends_command(
     assert captured["qdrant_vector_size"] == 1024
     assert captured["qdrant_distance"] == "Cosine"
     assert captured["qdrant_api_key"] == "secret"
+    assert captured["include_milvus"] is True
+    assert captured["milvus_uri"] == "http://127.0.0.1:19530"
+    assert captured["milvus_collection"] == "milvus_chunks"
+    assert captured["milvus_vector_size"] == 1024
+    assert captured["milvus_metric_type"] == "COSINE"
+    assert captured["milvus_token"] == "milvus-secret"
     assert "VECTOR STORE BACKEND COMPARISON" in output
     assert "BEST REPOSITORY: qdrant" in output
     assert "REPOSITORY: json" in output

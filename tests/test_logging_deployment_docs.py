@@ -2,7 +2,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-RUNTIME_SERVICE_COUNT = 5
+RUNTIME_SERVICE_COUNT = 6
 
 
 def test_docker_compose_configures_log_rotation_for_runtime_services():

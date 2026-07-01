@@ -664,6 +664,98 @@ def test_import_vector_store_to_qdrant_cli(
     ]
 
 
+def test_import_vector_store_to_milvus_cli(
+    monkeypatch,
+    capsys,
+    tmp_path,
+):
+    source_path = tmp_path / "vector_store.json"
+    JsonVectorStoreRepository(source_path).save(
+        [
+            {
+                "id": 1,
+                "text": "论文系统",
+                "source": "data/thesis.txt",
+                "embedding": [0.1, 0.2, 0.3],
+            }
+        ]
+    )
+    created_repositories = []
+
+    class FakeMilvusVectorStoreRepository:
+        def __init__(
+            self,
+            uri,
+            collection_name,
+            vector_size,
+            metric_type,
+            token,
+        ):
+            created_repositories.append(
+                {
+                    "uri": uri,
+                    "collection_name": collection_name,
+                    "vector_size": vector_size,
+                    "metric_type": metric_type,
+                    "token": token,
+                    "saved_store": None,
+                }
+            )
+
+        def save(self, store):
+            created_repositories[-1]["saved_store"] = store
+            return created_repositories[-1]["collection_name"]
+
+    monkeypatch.setattr(
+        cli,
+        "MilvusVectorStoreRepository",
+        FakeMilvusVectorStoreRepository,
+    )
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "app.cli",
+            "import-vector-store-to-milvus",
+            "--source",
+            str(source_path),
+            "--uri",
+            "http://127.0.0.1:19530",
+            "--collection",
+            "test_chunks",
+            "--vector-size",
+            "3",
+            "--metric-type",
+            "COSINE",
+            "--token",
+            "secret",
+        ],
+    )
+
+    cli.main()
+    output = capsys.readouterr().out
+
+    assert "MILVUS VECTOR STORE IMPORT" in output
+    assert "COLLECTION: test_chunks" in output
+    assert "IMPORTED COUNT: 1" in output
+    assert created_repositories == [
+        {
+            "uri": "http://127.0.0.1:19530",
+            "collection_name": "test_chunks",
+            "vector_size": 3,
+            "metric_type": "COSINE",
+            "token": "secret",
+            "saved_store": [
+                {
+                    "id": 1,
+                    "text": "论文系统",
+                    "source": "data/thesis.txt",
+                    "embedding": [0.1, 0.2, 0.3],
+                }
+            ],
+        }
+    ]
+
+
 def test_delete_qdrant_collection_cli(
     monkeypatch,
     capsys,

@@ -37,6 +37,11 @@ from app.config import (
     FEEDBACK_STORE_PATH,
     BENCHMARK_CANDIDATE_DIRECTORY,
     LONG_TERM_MEMORY_PATH,
+    MILVUS_COLLECTION,
+    MILVUS_METRIC_TYPE,
+    MILVUS_TOKEN,
+    MILVUS_URI,
+    MILVUS_VECTOR_SIZE,
     QDRANT_API_KEY,
     QDRANT_BACKUP_DIR,
     QDRANT_COLLECTION,
@@ -149,7 +154,10 @@ from app.k8s_smoke_plan import (
     render_k8s_smoke_report_template,
 )
 from app.vector_store_io import load_vector_store
-from app.vector_store_repository import QdrantVectorStoreRepository
+from app.vector_store_repository import (
+    MilvusVectorStoreRepository,
+    QdrantVectorStoreRepository,
+)
 from app.vector_db_governance import (
     build_vector_db_governance_report,
     render_vector_db_governance_report,
@@ -2169,6 +2177,42 @@ def main():
         help="Optional Qdrant API key. Defaults to QDRANT_API_KEY.",
     )
 
+    import_vector_store_to_milvus_parser = subparsers.add_parser(
+        "import-vector-store-to-milvus",
+        help="Import local JSON vector store items into Milvus",
+    )
+    import_vector_store_to_milvus_parser.add_argument(
+        "--source",
+        default=RAG_VECTOR_STORE_PATH,
+        help="Local JSON vector store path",
+    )
+    import_vector_store_to_milvus_parser.add_argument(
+        "--uri",
+        default=MILVUS_URI,
+        help="Milvus URI",
+    )
+    import_vector_store_to_milvus_parser.add_argument(
+        "--collection",
+        default=MILVUS_COLLECTION,
+        help="Milvus collection name",
+    )
+    import_vector_store_to_milvus_parser.add_argument(
+        "--vector-size",
+        type=int,
+        default=MILVUS_VECTOR_SIZE,
+        help="Milvus vector size",
+    )
+    import_vector_store_to_milvus_parser.add_argument(
+        "--metric-type",
+        default=MILVUS_METRIC_TYPE,
+        help="Milvus metric type",
+    )
+    import_vector_store_to_milvus_parser.add_argument(
+        "--token",
+        default=None,
+        help="Optional Milvus token. Defaults to MILVUS_TOKEN.",
+    )
+
     compare_vector_store_backends_parser = subparsers.add_parser(
         "compare-vector-store-backends",
         help="Compare local JSON vector store search with Qdrant search",
@@ -2209,6 +2253,37 @@ def main():
         "--api-key",
         default=None,
         help="Optional Qdrant API key. Defaults to QDRANT_API_KEY.",
+    )
+    compare_vector_store_backends_parser.add_argument(
+        "--include-milvus",
+        action="store_true",
+        help="Also include Milvus in the backend comparison",
+    )
+    compare_vector_store_backends_parser.add_argument(
+        "--milvus-uri",
+        default=MILVUS_URI,
+        help="Milvus URI",
+    )
+    compare_vector_store_backends_parser.add_argument(
+        "--milvus-collection",
+        default=MILVUS_COLLECTION,
+        help="Milvus collection name",
+    )
+    compare_vector_store_backends_parser.add_argument(
+        "--milvus-vector-size",
+        type=int,
+        default=MILVUS_VECTOR_SIZE,
+        help="Milvus vector size",
+    )
+    compare_vector_store_backends_parser.add_argument(
+        "--milvus-metric-type",
+        default=MILVUS_METRIC_TYPE,
+        help="Milvus metric type",
+    )
+    compare_vector_store_backends_parser.add_argument(
+        "--milvus-token",
+        default=None,
+        help="Optional Milvus token. Defaults to MILVUS_TOKEN.",
     )
     compare_vector_store_backends_parser.add_argument(
         "--output",
@@ -5702,6 +5777,33 @@ def main():
         print("DISTANCE:", args.distance)
         print("IMPORTED COUNT:", len(store))
 
+    elif args.command == "import-vector-store-to-milvus":
+        try:
+            store = load_vector_store(args.source)
+            repository = MilvusVectorStoreRepository(
+                uri=args.uri,
+                collection_name=args.collection,
+                vector_size=args.vector_size,
+                metric_type=args.metric_type,
+                token=(
+                    args.token
+                    if args.token is not None
+                    else MILVUS_TOKEN
+                ),
+            )
+            saved_identifier = repository.save(store)
+        except (FileNotFoundError, ValueError, RuntimeError) as error:
+            print(f"MILVUS IMPORT ERROR: {error}")
+            raise SystemExit(1) from error
+
+        print("MILVUS VECTOR STORE IMPORT")
+        print("SOURCE:", args.source)
+        print("MILVUS URI:", args.uri)
+        print("COLLECTION:", saved_identifier)
+        print("VECTOR SIZE:", args.vector_size)
+        print("METRIC TYPE:", args.metric_type)
+        print("IMPORTED COUNT:", len(store))
+
     elif args.command == "compare-vector-store-backends":
         top_k = args.top_k if args.top_k is not None else RAG_TOP_K
 
@@ -5718,6 +5820,16 @@ def main():
                     args.api_key
                     if args.api_key is not None
                     else QDRANT_API_KEY
+                ),
+                include_milvus=args.include_milvus,
+                milvus_uri=args.milvus_uri,
+                milvus_collection=args.milvus_collection,
+                milvus_vector_size=args.milvus_vector_size,
+                milvus_metric_type=args.milvus_metric_type,
+                milvus_token=(
+                    args.milvus_token
+                    if args.milvus_token is not None
+                    else MILVUS_TOKEN
                 ),
             )
         except (FileNotFoundError, ValueError, RuntimeError) as error:

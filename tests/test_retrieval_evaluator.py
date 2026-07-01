@@ -257,6 +257,69 @@ def test_compare_vector_store_repositories_reports_deltas(tmp_path):
     ] == ["json", "qdrant"]
 
 
+def test_compare_vector_store_repositories_can_include_milvus(tmp_path):
+    benchmark_path = tmp_path / "benchmark.json"
+    cache_path = tmp_path / "cache.json"
+    benchmark = [
+        {
+            "query": "system modules",
+            "expected_keywords": ["feature", "milvus-only"],
+        }
+    ]
+    benchmark_path.write_text(
+        json.dumps(benchmark, ensure_ascii=False),
+        encoding="utf-8",
+    )
+    repositories = {
+        "json": FakeVectorStoreRepository(
+            [
+                {
+                    "id": 0,
+                    "text": "feature",
+                    "source": "test",
+                    "score": 0.8,
+                }
+            ]
+        ),
+        "qdrant": FakeVectorStoreRepository(
+            [
+                {
+                    "id": 1,
+                    "text": "feature",
+                    "source": "test",
+                    "score": 0.9,
+                }
+            ]
+        ),
+        "milvus": FakeVectorStoreRepository(
+            [
+                {
+                    "id": 2,
+                    "text": "feature milvus-only",
+                    "source": "test",
+                    "score": 0.95,
+                }
+            ]
+        ),
+    }
+
+    report = compare_vector_store_repositories(
+        benchmark_path=str(benchmark_path),
+        vector_store_path="vector_store.json",
+        top_k=1,
+        embedding_fn=lambda text: [1.0, 0.0],
+        embedding_cache_path=str(cache_path),
+        embedding_model="test-model",
+        repositories=repositories,
+    )
+
+    assert [
+        item["repository"]
+        for item in report["reports"]
+    ] == ["json", "qdrant", "milvus"]
+    assert report["best_repository"] == "milvus"
+
+
 def test_evaluate_retrieval_reuses_embedding_cache(tmp_path):
     benchmark_path = tmp_path / "benchmark.json"
     vector_store_path = tmp_path / "vector_store.json"

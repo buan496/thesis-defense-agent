@@ -5,6 +5,11 @@ from pathlib import Path
 
 from app.config import (
     EMBEDDING_MODEL,
+    MILVUS_COLLECTION,
+    MILVUS_METRIC_TYPE,
+    MILVUS_TOKEN,
+    MILVUS_URI,
+    MILVUS_VECTOR_SIZE,
     QDRANT_API_KEY,
     QDRANT_COLLECTION,
     QDRANT_DISTANCE,
@@ -25,6 +30,7 @@ from app.reranker import rerank_results
 from app.vector_store import search_vector_store
 from app.vector_store_repository import (
     JsonVectorStoreRepository,
+    MilvusVectorStoreRepository,
     QdrantVectorStoreRepository,
     VectorStoreRepository,
 )
@@ -643,17 +649,27 @@ def compare_vector_store_repositories(
     qdrant_vector_size: int = QDRANT_VECTOR_SIZE,
     qdrant_distance: str = QDRANT_DISTANCE,
     qdrant_api_key: str = QDRANT_API_KEY,
+    include_milvus: bool = False,
+    milvus_uri: str = MILVUS_URI,
+    milvus_collection: str = MILVUS_COLLECTION,
+    milvus_vector_size: int = MILVUS_VECTOR_SIZE,
+    milvus_metric_type: str = MILVUS_METRIC_TYPE,
+    milvus_token: str = MILVUS_TOKEN,
 ) -> dict:
-    selected_repositories = repositories or {
-        "json": JsonVectorStoreRepository(vector_store_path),
-        "qdrant": QdrantVectorStoreRepository(
-            url=qdrant_url,
-            collection_name=qdrant_collection,
-            vector_size=qdrant_vector_size,
-            distance=qdrant_distance,
-            api_key=qdrant_api_key,
-        ),
-    }
+    selected_repositories = repositories or _build_vector_store_repositories(
+        vector_store_path=vector_store_path,
+        qdrant_url=qdrant_url,
+        qdrant_collection=qdrant_collection,
+        qdrant_vector_size=qdrant_vector_size,
+        qdrant_distance=qdrant_distance,
+        qdrant_api_key=qdrant_api_key,
+        include_milvus=include_milvus,
+        milvus_uri=milvus_uri,
+        milvus_collection=milvus_collection,
+        milvus_vector_size=milvus_vector_size,
+        milvus_metric_type=milvus_metric_type,
+        milvus_token=milvus_token,
+    )
     reports = []
 
     for repository_name, repository in selected_repositories.items():
@@ -709,6 +725,43 @@ def compare_vector_store_repositories(
         "duration_delta_ms_qdrant_minus_json": duration_delta_ms,
         "reports": reports,
     }
+
+
+def _build_vector_store_repositories(
+    vector_store_path: str,
+    qdrant_url: str,
+    qdrant_collection: str,
+    qdrant_vector_size: int,
+    qdrant_distance: str,
+    qdrant_api_key: str,
+    include_milvus: bool,
+    milvus_uri: str,
+    milvus_collection: str,
+    milvus_vector_size: int,
+    milvus_metric_type: str,
+    milvus_token: str,
+) -> dict[str, VectorStoreRepository]:
+    selected_repositories: dict[str, VectorStoreRepository] = {
+        "json": JsonVectorStoreRepository(vector_store_path),
+        "qdrant": QdrantVectorStoreRepository(
+            url=qdrant_url,
+            collection_name=qdrant_collection,
+            vector_size=qdrant_vector_size,
+            distance=qdrant_distance,
+            api_key=qdrant_api_key,
+        ),
+    }
+
+    if include_milvus:
+        selected_repositories["milvus"] = MilvusVectorStoreRepository(
+            uri=milvus_uri,
+            collection_name=milvus_collection,
+            vector_size=milvus_vector_size,
+            metric_type=milvus_metric_type,
+            token=milvus_token,
+        )
+
+    return selected_repositories
 
 
 def search_retrieval_store(

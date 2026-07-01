@@ -88,7 +88,8 @@ updated: 2026-07-01
 - [x] Qdrant Windows Task Scheduler 本机定时 snapshot 实验
 - [ ] Qdrant cron / Kubernetes CronJob / 长期运行调度证据
 - [x] MilvusVectorStoreRepository skeleton
-- [ ] Milvus runtime benchmark
+- [x] Milvus Compose service / import CLI / optional benchmark entry
+- [ ] Milvus runtime benchmark report
 
 基础知识：
 
@@ -329,7 +330,8 @@ updated: 2026-07-01
 - [x] Qdrant Windows Task Scheduler 本机定时 snapshot 实验
 - [ ] Qdrant cron / Kubernetes CronJob / 长期运行调度证据
 - [x] MilvusVectorStoreRepository skeleton
-- [ ] Milvus runtime benchmark
+- [x] Milvus Compose service / import CLI / optional benchmark entry
+- [ ] Milvus runtime benchmark report
 - [x] K8s 基础 manifests
 - [x] K8s 生产化基础字段
 - [x] K8s smoke test 计划生成 CLI
@@ -806,14 +808,14 @@ PostgreSQL runtime smoke test。
 
 - LangGraph 后续只做旁路迁移，不覆盖当前手写 Task State / Agent Harness 源码。
 - FastAPI、静态 Web 前端、stdio MCP Server、Dockerfile、docker-compose、Prometheus、Alertmanager 本机路由、外部通知路由本地可审计版本、K8s 基础 manifests、生产化基础字段、smoke test 计划 CLI 与执行记录模板 CLI、本机 PostgreSQL runtime smoke、Qdrant 最小后端、Vector DB 生产化治理报告、Qdrant backup retention policy CLI、Qdrant snapshot API runner 和 Windows Task Scheduler 本机实验已完成。
-- K8s 真实集群 smoke test 执行、cron / Kubernetes CronJob 调度证据、Qdrant 长期运行验证、Milvus runtime benchmark、私有化部署、服务器长期运行和真实 Feishu / WeCom / email 通知提供方继续作为后续阶段。Milvus repository 骨架已完成，真实 runtime benchmark 尚未完成。
+- K8s 真实集群 smoke test 执行、cron / Kubernetes CronJob 调度证据、Qdrant 长期运行验证、Milvus runtime benchmark 报告、私有化部署、服务器长期运行和真实 Feishu / WeCom / email 通知提供方继续作为后续阶段。Milvus repository、Compose 服务和导入 CLI 已完成，真实 benchmark 结果尚未沉淀。
 
 ## 下一步学习重点
 
 当前已经完成本机 Agent Harness、RAG、Tool Calling、Memory、Trace、Sub-Agent、LangGraph 旁路迁移、FastAPI / Web / Docker / Prometheus / PostgreSQL / Qdrant 基础治理、Qdrant snapshot 手动 API runner 和 Windows Task Scheduler 本机实验。下一阶段按交付治理补齐：
 
 1. Qdrant cron / Kubernetes CronJob 调度证据或长期运行验证
-2. Milvus runtime benchmark
+2. Milvus runtime benchmark report
 3. K8s 真实集群 smoke test 执行 / 生产化部署验证
 
 ## 最终简历能力目标
@@ -3050,6 +3052,40 @@ Milvus repository 可以被实例化。
 1. Docker Compose Milvus 服务
 2. Milvus import-vector-store CLI 或 repository runtime smoke
 3. JSON / Qdrant / Milvus benchmark 对比报告
+```
+
+<!-- roadmap-update-2026-07-01-milvus-runtime-entry -->
+
+## 2026-07-01 路线同步：Milvus Runtime Entry 已完成
+
+本阶段把 Milvus 从 repository skeleton 推进到可本机 smoke 的运行入口。
+
+已完成：
+
+- [x] `docker-compose.yml` 新增 Milvus standalone 服务
+- [x] `.env.example` 新增 Milvus URI、collection、vector size、metric 和端口配置
+- [x] `pymilvus` 加入项目依赖锁
+- [x] `import-vector-store-to-milvus` CLI
+- [x] `compare-vector-store-backends --include-milvus`
+- [x] benchmark 对比函数支持可选 Milvus repository
+- [x] CLI 和 fake repository 单元测试
+
+当前边界：
+
+```text
+Milvus 可以通过 Docker Compose 在本机启动。
+Milvus 导入和三方 benchmark CLI 已接好。
+本阶段没有提交真实 Milvus benchmark 结果。
+Compose Milvus 用于本机 smoke，不代表生产部署拓扑。
+```
+
+下一步学习：
+
+```text
+1. 本机启动 Milvus
+2. 导入 data/vector_store.json 到 Milvus
+3. 运行 JSON / Qdrant / Milvus 三方 benchmark
+4. 将结果写入 data/reports/ 并把脱敏结论同步到文档
 ```
 
 <!-- roadmap-update-2026-06-30-qdrant-snapshot-api-runner -->
