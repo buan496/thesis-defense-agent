@@ -221,6 +221,7 @@ Agent 与 RAG：
 - AsyncTaskRunner FastAPI 后台任务 API
 - AsyncTaskRunner 并发限制
 - 异步 DefenseTask step execution API
+- 异步 LLM / 工具调用边界
 - FastAPI / Docker / PostgreSQL / Qdrant / Milvus 本机验证
 - Milvus destructive operation guardrails
 - Prometheus / Alertmanager / K8s manifests 基础交付能力
@@ -228,7 +229,7 @@ Agent 与 RAG：
 仍待推进：
 
 - Qdrant cron / Kubernetes CronJob 长期调度证据
-- 异步 LLM / 工具调用
+- 原生异步 LLM / 工具 SDK 调用
 - 后台任务幂等请求和持久化恢复
 - K8s 真实集群 smoke test
 - 真实 Feishu / WeCom / email 通知提供方
