@@ -23,6 +23,10 @@ TOOL_TIMEOUT_SECONDS = float(os.getenv("TOOL_TIMEOUT_SECONDS", "30"))
 ASYNC_TASK_MAX_CONCURRENT_TASKS = int(
     os.getenv("ASYNC_TASK_MAX_CONCURRENT_TASKS", "4")
 )
+ASYNC_TASK_STORE_PATH = os.getenv(
+    "ASYNC_TASK_STORE_PATH",
+    "data/async_tasks/tasks.json",
+)
 STORAGE_BACKEND = os.getenv("STORAGE_BACKEND", "json")
 DATABASE_URL = os.getenv("DATABASE_URL", "")
 VECTOR_STORE_BACKEND = os.getenv("VECTOR_STORE_BACKEND", "json")

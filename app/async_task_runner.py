@@ -1,8 +1,10 @@
 import asyncio
 import inspect
+import json
 import time
 import uuid
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, Awaitable, Callable
 
 
@@ -46,22 +48,44 @@ class AsyncTaskRecord:
             "error_message": self.error_message,
         }
 
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "AsyncTaskRecord":
+        return cls(
+            task_id=data["task_id"],
+            name=data["name"],
+            status=data["status"],
+            created_at=data["created_at"],
+            idempotency_key=data.get("idempotency_key"),
+            started_at=data.get("started_at"),
+            finished_at=data.get("finished_at"),
+            result=data.get("result"),
+            error_type=data.get("error_type"),
+            error_message=data.get("error_message"),
+        )
+
+    @property
+    def is_terminal(self) -> bool:
+        return self.status in {"completed", "failed", "cancelled"}
+
 
 class AsyncTaskRunner:
     def __init__(
         self,
         max_concurrent_tasks: int | None = None,
+        storage_path: str | Path | None = None,
     ) -> None:
         if max_concurrent_tasks is not None and max_concurrent_tasks <= 0:
             raise ValueError("max_concurrent_tasks must be greater than 0")
 
         self._records: dict[str, AsyncTaskRecord] = {}
         self.max_concurrent_tasks = max_concurrent_tasks
+        self.storage_path = Path(storage_path) if storage_path is not None else None
         self._semaphore = (
             asyncio.Semaphore(max_concurrent_tasks)
             if max_concurrent_tasks is not None
             else None
         )
+        self._load_records()
 
     def create_task(
         self,
@@ -108,6 +132,7 @@ class AsyncTaskRunner:
             )
         )
         self._records[task_id] = record
+        self._persist_records()
         return record
 
     def get_task_status(self, task_id: str) -> dict[str, Any]:
@@ -121,6 +146,9 @@ class AsyncTaskRunner:
         record = self._get_record(task_id)
 
         if record.task is None:
+            if record.is_terminal:
+                return record.to_dict()
+
             raise RuntimeError("task record has no asyncio task")
 
         try:
@@ -137,12 +165,16 @@ class AsyncTaskRunner:
         record = self._get_record(task_id)
 
         if record.task is None:
+            if record.is_terminal:
+                return record.to_dict()
+
             raise RuntimeError("task record has no asyncio task")
 
         if record.task.done():
             return record.to_dict()
 
         record.status = "cancelling"
+        self._persist_records()
         record.task.cancel()
 
         try:
@@ -223,6 +255,7 @@ class AsyncTaskRunner:
                 record.error_type = "CancelledError"
                 record.error_message = "task was cancelled"
                 record.finished_at = time.monotonic()
+                self._persist_records()
             raise
 
     async def _execute_record(
@@ -234,6 +267,7 @@ class AsyncTaskRunner:
     ) -> None:
         record.status = "running"
         record.started_at = time.monotonic()
+        self._persist_records()
 
         try:
             coroutine = coroutine_factory(*args, **kwargs)
@@ -254,3 +288,58 @@ class AsyncTaskRunner:
             record.error_message = str(error)
         finally:
             record.finished_at = time.monotonic()
+            self._persist_records()
+
+    def _load_records(self) -> None:
+        if self.storage_path is None or not self.storage_path.exists():
+            return
+
+        with self.storage_path.open(encoding="utf-8") as file:
+            data = json.loads(file.read())
+
+        if not isinstance(data, list):
+            raise ValueError("async task storage must contain a list")
+
+        for item in data:
+            record = AsyncTaskRecord.from_dict(item)
+            self._recover_interrupted_record(record)
+            self._records[record.task_id] = record
+
+        self._persist_records()
+
+    def _recover_interrupted_record(
+        self,
+        record: AsyncTaskRecord,
+    ) -> None:
+        if record.status in {"pending", "running", "cancelling"}:
+            record.status = "failed"
+            record.error_type = "TaskInterruptedError"
+            record.error_message = "task was interrupted before completion"
+            record.finished_at = (
+                record.finished_at
+                or record.started_at
+                or record.created_at
+            )
+
+    def _persist_records(self) -> None:
+        if self.storage_path is None:
+            return
+
+        self.storage_path.parent.mkdir(parents=True, exist_ok=True)
+        temporary_path = self.storage_path.with_suffix(
+            f"{self.storage_path.suffix}.tmp",
+        )
+        data = [
+            record.to_dict()
+            for record in self._records.values()
+        ]
+
+        with temporary_path.open("w", encoding="utf-8") as file:
+            json.dump(
+                data,
+                file,
+                ensure_ascii=False,
+                indent=2,
+            )
+
+        temporary_path.replace(self.storage_path)
