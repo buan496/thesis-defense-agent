@@ -111,6 +111,7 @@ qdrant-snapshot-list CLI
 qdrant-snapshot-download CLI
 qdrant-snapshot-restore CLI with explicit confirmation
 qdrant-snapshot-drill-plan CLI
+qdrant-snapshot-drill-run CLI
 ```
 
 Not completed:
@@ -449,8 +450,59 @@ Current boundary:
 
 ```text
 The drill plan is implemented.
-The plan does not create snapshots, download files, restore collections, or delete files.
+The one-time drill runner is implemented.
 Scheduled execution is not implemented yet.
+```
+
+## Snapshot Drill Runner
+
+The project provides a one-time Qdrant snapshot drill runner. It executes the
+manual runner steps as one command:
+
+```text
+create snapshot
+download snapshot
+run local retention policy
+optionally restore into a disposable collection
+optionally compare restored collection against JSON baseline
+```
+
+Run a drill without restored-collection comparison:
+
+```powershell
+uv run python -m app.cli qdrant-snapshot-drill-run `
+  --collection thesis_chunks `
+  --restore-collection thesis_chunks_restore `
+  --confirm-restore-collection thesis_chunks_restore `
+  --backup-dir data/qdrant_backups `
+  --keep-last 5 `
+  --skip-compare
+```
+
+Run a drill and save a Markdown report:
+
+```powershell
+uv run python -m app.cli qdrant-snapshot-drill-run `
+  --collection thesis_chunks `
+  --restore-collection thesis_chunks_restore `
+  --confirm-restore-collection thesis_chunks_restore `
+  --backup-dir data/qdrant_backups `
+  --keep-last 5 `
+  --skip-compare `
+  --output data/reports/qdrant_snapshot_drill_report.md
+```
+
+When restore drill is enabled, `--confirm-restore-collection` must exactly
+match `--restore-collection`. Use `--skip-restore-drill` to run only snapshot
+creation, download, and retention.
+
+Current boundary:
+
+```text
+The runner is an explicit one-time command.
+It does not create cron, Windows Task Scheduler, or Kubernetes CronJob resources.
+Retention remains dry-run unless --apply-retention is passed.
+Restore must target a disposable collection.
 ```
 
 ## Snapshot Smoke Plan

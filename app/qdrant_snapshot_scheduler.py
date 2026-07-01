@@ -1,4 +1,14 @@
 from dataclasses import dataclass
+from pathlib import Path
+from typing import Callable, Protocol
+
+from app.qdrant_backup_retention import (
+    QdrantBackupRetentionPlan,
+    QdrantBackupRetentionResult,
+    build_qdrant_backup_retention_plan,
+    execute_qdrant_backup_retention,
+)
+from app.qdrant_snapshot_client import QdrantSnapshotInfo
 
 
 @dataclass(frozen=True)
@@ -20,6 +30,55 @@ class QdrantSnapshotDrillPlan:
     apply_retention: bool
     run_restore_drill: bool
     steps: list[QdrantSnapshotDrillStep]
+
+
+@dataclass(frozen=True)
+class QdrantSnapshotDrillStepResult:
+    name: str
+    status: str
+    detail: str
+
+
+@dataclass(frozen=True)
+class QdrantSnapshotDrillReport:
+    plan: QdrantSnapshotDrillPlan
+    snapshot_name: str | None
+    snapshot_path: str | None
+    retention_result: QdrantBackupRetentionResult | None
+    restore_result: dict | None
+    compare_report: dict | None
+    steps: list[QdrantSnapshotDrillStepResult]
+
+
+class QdrantSnapshotDrillClient(Protocol):
+    def create_snapshot(self, collection: str) -> QdrantSnapshotInfo:
+        ...
+
+    def download_snapshot(
+        self,
+        collection: str,
+        snapshot_name: str,
+        output_path: str | Path,
+    ) -> str:
+        ...
+
+    def restore_snapshot(
+        self,
+        restore_collection: str,
+        snapshot_path: str | Path,
+    ) -> dict:
+        ...
+
+
+RetentionPlanBuilder = Callable[
+    [str, int],
+    QdrantBackupRetentionPlan,
+]
+RetentionExecutor = Callable[
+    [QdrantBackupRetentionPlan, bool],
+    QdrantBackupRetentionResult,
+]
+CompareRestoredCollection = Callable[[str], dict]
 
 
 def build_qdrant_snapshot_drill_plan(
@@ -127,6 +186,115 @@ def build_qdrant_snapshot_drill_plan(
     )
 
 
+def execute_qdrant_snapshot_drill(
+    plan: QdrantSnapshotDrillPlan,
+    snapshot_client: QdrantSnapshotDrillClient,
+    retention_plan_builder: RetentionPlanBuilder = build_qdrant_backup_retention_plan,
+    retention_executor: RetentionExecutor = execute_qdrant_backup_retention,
+    compare_restored_collection: CompareRestoredCollection | None = None,
+) -> QdrantSnapshotDrillReport:
+    step_results = []
+    backup_path = Path(plan.backup_dir)
+    backup_path.mkdir(parents=True, exist_ok=True)
+    step_results.append(
+        QdrantSnapshotDrillStepResult(
+            name="ensure_backup_dir",
+            status="completed",
+            detail=str(backup_path),
+        )
+    )
+
+    snapshot = snapshot_client.create_snapshot(plan.collection)
+    step_results.append(
+        QdrantSnapshotDrillStepResult(
+            name="create_snapshot",
+            status="completed",
+            detail=snapshot.name,
+        )
+    )
+
+    snapshot_path = backup_path / snapshot.name
+    saved_path = snapshot_client.download_snapshot(
+        collection=plan.collection,
+        snapshot_name=snapshot.name,
+        output_path=snapshot_path,
+    )
+    step_results.append(
+        QdrantSnapshotDrillStepResult(
+            name="download_snapshot",
+            status="completed",
+            detail=saved_path,
+        )
+    )
+
+    retention_plan = retention_plan_builder(
+        plan.backup_dir,
+        plan.keep_last,
+    )
+    retention_result = retention_executor(
+        retention_plan,
+        not plan.apply_retention,
+    )
+    step_results.append(
+        QdrantSnapshotDrillStepResult(
+            name="apply_retention",
+            status="completed",
+            detail=(
+                f"dry_run={retention_result.dry_run}, "
+                f"deleted={len(retention_result.deleted)}, "
+                f"skipped={len(retention_result.skipped)}"
+            ),
+        )
+    )
+
+    restore_result = None
+    compare_report = None
+
+    if plan.run_restore_drill:
+        restore_result = snapshot_client.restore_snapshot(
+            restore_collection=plan.restore_collection,
+            snapshot_path=saved_path,
+        )
+        step_results.append(
+            QdrantSnapshotDrillStepResult(
+                name="restore_to_disposable_collection",
+                status="completed",
+                detail=str(restore_result),
+            )
+        )
+
+        if compare_restored_collection is None:
+            step_results.append(
+                QdrantSnapshotDrillStepResult(
+                    name="compare_restored_collection",
+                    status="skipped",
+                    detail="compare_restored_collection was not provided",
+                )
+            )
+        else:
+            compare_report = compare_restored_collection(plan.restore_collection)
+            step_results.append(
+                QdrantSnapshotDrillStepResult(
+                    name="compare_restored_collection",
+                    status="completed",
+                    detail=(
+                        "best_repository="
+                        f"{compare_report.get('best_repository')}"
+                    ),
+                )
+            )
+
+    return QdrantSnapshotDrillReport(
+        plan=plan,
+        snapshot_name=snapshot.name,
+        snapshot_path=saved_path,
+        retention_result=retention_result,
+        restore_result=restore_result,
+        compare_report=compare_report,
+        steps=step_results,
+    )
+
+
 def render_qdrant_snapshot_drill_plan(
     plan: QdrantSnapshotDrillPlan,
 ) -> str:
@@ -155,6 +323,73 @@ def render_qdrant_snapshot_drill_plan(
                 f"- Action: {step.action}",
                 f"- Purpose: {step.description}",
                 "",
+            ]
+        )
+
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def render_qdrant_snapshot_drill_report(
+    report: QdrantSnapshotDrillReport,
+) -> str:
+    plan = report.plan
+    lines = [
+        "# Qdrant Snapshot Drill Report",
+        "",
+        f"- Qdrant URL: `{plan.url}`",
+        f"- Source collection: `{plan.collection}`",
+        f"- Restore collection: `{plan.restore_collection}`",
+        f"- Backup directory: `{plan.backup_dir}`",
+        f"- Keep last: `{plan.keep_last}`",
+        f"- Apply retention: `{plan.apply_retention}`",
+        f"- Run restore drill: `{plan.run_restore_drill}`",
+        f"- Snapshot name: `{report.snapshot_name or 'None'}`",
+        f"- Snapshot path: `{report.snapshot_path or 'None'}`",
+        "",
+        "## Steps",
+        "",
+    ]
+
+    for step in report.steps:
+        lines.append(
+            f"- `{step.name}`: `{step.status}` - {step.detail}"
+        )
+
+    lines.extend(["", "## Retention", ""])
+
+    if report.retention_result is None:
+        lines.append("- none")
+    else:
+        result = report.retention_result
+        lines.extend(
+            [
+                f"- Dry run: `{result.dry_run}`",
+                f"- Retained count: `{len(result.plan.retained)}`",
+                f"- Deletion candidate count: `{len(result.plan.deletion_candidates)}`",
+                f"- Deleted count: `{len(result.deleted)}`",
+                f"- Skipped count: `{len(result.skipped)}`",
+            ]
+        )
+
+    lines.extend(["", "## Restore", ""])
+    lines.append(f"- Result: `{report.restore_result or 'None'}`")
+
+    lines.extend(["", "## Compare Restored Collection", ""])
+
+    if report.compare_report is None:
+        lines.append("- none")
+    else:
+        lines.extend(
+            [
+                f"- Best repository: `{report.compare_report.get('best_repository')}`",
+                (
+                    "- Score delta Qdrant-JSON: "
+                    f"`{report.compare_report.get('score_delta_qdrant_minus_json')}`"
+                ),
+                (
+                    "- Duration delta ms Qdrant-JSON: "
+                    f"`{report.compare_report.get('duration_delta_ms_qdrant_minus_json')}`"
+                ),
             ]
         )
 

@@ -168,7 +168,9 @@ from app.qdrant_snapshot_smoke_plan import (
 from app.qdrant_snapshot_client import QdrantSnapshotClient
 from app.qdrant_snapshot_scheduler import (
     build_qdrant_snapshot_drill_plan,
+    execute_qdrant_snapshot_drill,
     render_qdrant_snapshot_drill_plan,
+    render_qdrant_snapshot_drill_report,
 )
 from app.session_store import DEFAULT_SESSION_DIRECTORY
 from app.feedback_store import (
@@ -2430,6 +2432,92 @@ def main():
         "--output",
         default=None,
         help="Optional Markdown output path for the snapshot drill plan",
+    )
+
+    qdrant_snapshot_drill_run_parser = subparsers.add_parser(
+        "qdrant-snapshot-drill-run",
+        help="Run a one-time Qdrant snapshot drill",
+    )
+    qdrant_snapshot_drill_run_parser.add_argument(
+        "--url",
+        default=QDRANT_URL,
+        help="Qdrant URL",
+    )
+    qdrant_snapshot_drill_run_parser.add_argument(
+        "--collection",
+        default=QDRANT_COLLECTION,
+        help="Source Qdrant collection name",
+    )
+    qdrant_snapshot_drill_run_parser.add_argument(
+        "--restore-collection",
+        default=f"{QDRANT_COLLECTION}_restore",
+        help="Disposable Qdrant collection name used for restore drills",
+    )
+    qdrant_snapshot_drill_run_parser.add_argument(
+        "--confirm-restore-collection",
+        default=None,
+        help=(
+            "Required when restore drill is enabled. "
+            "Must exactly match --restore-collection."
+        ),
+    )
+    qdrant_snapshot_drill_run_parser.add_argument(
+        "--backup-dir",
+        default=QDRANT_BACKUP_DIR,
+        help="Local backup directory for downloaded snapshots",
+    )
+    qdrant_snapshot_drill_run_parser.add_argument(
+        "--keep-last",
+        type=int,
+        default=5,
+        help="Number of newest backup files to retain",
+    )
+    qdrant_snapshot_drill_run_parser.add_argument(
+        "--apply-retention",
+        action="store_true",
+        help="Actually delete old local backup files during retention",
+    )
+    qdrant_snapshot_drill_run_parser.add_argument(
+        "--skip-restore-drill",
+        action="store_true",
+        help="Do not restore into the disposable collection",
+    )
+    qdrant_snapshot_drill_run_parser.add_argument(
+        "--skip-compare",
+        action="store_true",
+        help="Do not compare the restored collection against the JSON baseline",
+    )
+    qdrant_snapshot_drill_run_parser.add_argument(
+        "--source",
+        default=RAG_VECTOR_STORE_PATH,
+        help="Local JSON vector store path used for comparison",
+    )
+    qdrant_snapshot_drill_run_parser.add_argument(
+        "--top-k",
+        type=int,
+        default=None,
+        help="Number of chunks to retrieve during comparison",
+    )
+    qdrant_snapshot_drill_run_parser.add_argument(
+        "--vector-size",
+        type=int,
+        default=QDRANT_VECTOR_SIZE,
+        help="Qdrant vector size used during comparison",
+    )
+    qdrant_snapshot_drill_run_parser.add_argument(
+        "--distance",
+        default=QDRANT_DISTANCE,
+        help="Qdrant distance metric used during comparison",
+    )
+    qdrant_snapshot_drill_run_parser.add_argument(
+        "--api-key",
+        default=None,
+        help="Optional Qdrant API key. Defaults to QDRANT_API_KEY.",
+    )
+    qdrant_snapshot_drill_run_parser.add_argument(
+        "--output",
+        default=None,
+        help="Optional Markdown output path for the snapshot drill report",
     )
 
     qdrant_snapshot_create_parser = subparsers.add_parser(
@@ -5346,6 +5434,80 @@ def main():
             raise SystemExit(2) from error
 
         markdown = render_qdrant_snapshot_drill_plan(plan)
+        print(markdown, end="")
+
+        if args.output is not None:
+            save_text_output(args.output, markdown)
+            print("OUTPUT:", args.output)
+
+    elif args.command == "qdrant-snapshot-drill-run":
+        if (
+            not args.skip_restore_drill
+            and args.confirm_restore_collection != args.restore_collection
+        ):
+            print(
+                "QDRANT SNAPSHOT DRILL RUN ERROR: "
+                "--confirm-restore-collection must exactly match "
+                "--restore-collection when restore drill is enabled"
+            )
+            raise SystemExit(2)
+
+        try:
+            plan = build_qdrant_snapshot_drill_plan(
+                url=args.url,
+                collection=args.collection,
+                restore_collection=args.restore_collection,
+                backup_dir=args.backup_dir,
+                keep_last=args.keep_last,
+                apply_retention=args.apply_retention,
+                run_restore_drill=not args.skip_restore_drill,
+            )
+            client = QdrantSnapshotClient(
+                url=args.url,
+                api_key=(
+                    args.api_key
+                    if args.api_key is not None
+                    else QDRANT_API_KEY
+                ),
+            )
+            top_k = args.top_k if args.top_k is not None else RAG_TOP_K
+
+            def compare_restored_collection(collection: str) -> dict:
+                return compare_vector_store_repositories(
+                    benchmark_path=RAG_BENCHMARK_PATH,
+                    vector_store_path=args.source,
+                    top_k=top_k,
+                    qdrant_url=args.url,
+                    qdrant_collection=collection,
+                    qdrant_vector_size=args.vector_size,
+                    qdrant_distance=args.distance,
+                    qdrant_api_key=(
+                        args.api_key
+                        if args.api_key is not None
+                        else QDRANT_API_KEY
+                    ),
+                )
+
+            report = execute_qdrant_snapshot_drill(
+                plan=plan,
+                snapshot_client=client,
+                compare_restored_collection=(
+                    None
+                    if args.skip_compare
+                    else compare_restored_collection
+                ),
+            )
+        except (
+            FileNotFoundError,
+            NotADirectoryError,
+            OSError,
+            RuntimeError,
+            ValueError,
+        ) as error:
+            print(f"QDRANT SNAPSHOT DRILL RUN ERROR: {error}")
+            raise SystemExit(1) from error
+
+        markdown = render_qdrant_snapshot_drill_report(report)
         print(markdown, end="")
 
         if args.output is not None:
