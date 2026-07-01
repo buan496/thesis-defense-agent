@@ -30,6 +30,7 @@
 - 支持 Qdrant Kubernetes CronJob manifest 生成和 client-side dry-run 验证
 - 支持 Qdrant Kubernetes StatefulSet / Service / PVC / PDB 本机 kind 运行验证
 - 支持 Qdrant Kubernetes CronJob apply / manual Job smoke 运行验证
+- 支持 Qdrant Kubernetes CronJob natural schedule one-cycle 运行验证
 - 支持 Milvus collection 删除显式确认保护
 - 支持 BM25 关键词检索、Vector 语义检索和 Hybrid 融合检索
 - 支持检索器对比和 Hybrid 权重扫描，用 benchmark 自动选择检索参数
@@ -270,6 +271,18 @@ uv run python -m app.cli qdrant-k8s-cronjob-smoke-run `
   --cleanup-cronjob `
   --manifest-output data/reports/qdrant_k8s_cronjob_smoke.yaml `
   --output data/reports/qdrant_k8s_cronjob_smoke.md
+```
+
+观察 Qdrant Kubernetes CronJob 自然调度一周期：
+
+```powershell
+uv run python -m app.cli qdrant-k8s-cronjob-schedule-observe `
+  --namespace thesis-defense-agent `
+  --cron-schedule "* * * * *" `
+  --cleanup-job `
+  --cleanup-cronjob `
+  --manifest-output data/reports/qdrant_k8s_cronjob_schedule_observe.yaml `
+  --output data/reports/qdrant_k8s_cronjob_schedule_observe.md
 ```
 
 上传论文文档：

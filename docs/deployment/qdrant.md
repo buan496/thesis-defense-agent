@@ -122,6 +122,8 @@ Kubernetes CronJob manifest client-side dry-run validation
 Kubernetes Qdrant StatefulSet / Service / PVC / PDB runtime validation
 qdrant-k8s-cronjob-smoke-run CLI
 Kubernetes CronJob manual Job smoke evidence
+qdrant-k8s-cronjob-schedule-observe CLI
+Kubernetes CronJob natural schedule one-cycle evidence
 ```
 
 Not completed:
@@ -130,8 +132,7 @@ Not completed:
 Automated scheduled Qdrant backup job
 Automated scheduled Qdrant snapshot creation
 Automated scheduled restore smoke drill
-Actual Kubernetes CronJob periodic schedule evidence collection
-Kubernetes CronJob long-running schedule evidence
+Kubernetes CronJob multi-cycle long-running schedule evidence
 ```
 
 ## Production Governance Report
@@ -806,7 +807,8 @@ The generated manifest was validated with kubectl client-side dry-run.
 The CronJob has not been applied as a long-running cluster job.
 The current kind stack includes a Qdrant StatefulSet / Service / PVC / PDB.
 Manual Job smoke evidence has been collected.
-Real long-running evidence still requires observing a natural CronJob schedule and collecting sanitized logs.
+One natural CronJob schedule cycle has been observed.
+Real long-running evidence still requires observing multiple scheduled runs.
 ```
 
 ## Kubernetes CronJob Manual Job Smoke
@@ -881,6 +883,46 @@ This keeps the first Kubernetes smoke focused on snapshot create/download and
 failure visibility. Enable restore and compare only after preparing a
 disposable restore collection strategy and ensuring the image has any required
 baseline data.
+
+## Kubernetes CronJob Natural Schedule Observe
+
+The natural schedule observer applies the CronJob and waits for Kubernetes to
+create a Job from the schedule. It does not call `kubectl create job`.
+
+```powershell
+uv run python -m app.cli qdrant-k8s-cronjob-schedule-observe `
+  --namespace thesis-defense-agent `
+  --cron-schedule "* * * * *" `
+  --cleanup-job `
+  --cleanup-cronjob `
+  --manifest-output data/reports/qdrant_k8s_cronjob_schedule_observe.yaml `
+  --output data/reports/qdrant_k8s_cronjob_schedule_observe.md
+```
+
+Observed local kind result:
+
+```text
+Overall status: passed
+Scheduled Job: thesis-defense-qdrant-snapshot-drill-29715246
+CronJob scheduled timestamp: present
+Job condition complete: met
+Job Pod Completed
+Job logs include:
+  Snapshot name: thesis_chunks-...snapshot
+  create_snapshot completed
+  download_snapshot completed
+  apply_retention completed
+Scheduled Job deleted
+CronJob deleted
+```
+
+Current boundary:
+
+```text
+This validates one natural CronJob schedule cycle.
+It does not validate multi-cycle long-running behavior.
+It does not enable restore drill or JSON baseline compare by default.
+```
 
 ## Kubernetes Qdrant Runtime Validation
 
@@ -1113,7 +1155,8 @@ Qdrant snapshot creation / list / download / restore can be run through manual C
 Windows Task Scheduler local experiment has been validated.
 Kubernetes CronJob YAML can be rendered and client-side dry-run validated.
 Kubernetes CronJob manual Job smoke has been validated.
-No cron or Kubernetes CronJob has been observed as a long-running scheduler yet.
+Kubernetes CronJob natural schedule one-cycle evidence has been validated.
+No cron or Kubernetes CronJob has been observed as a multi-cycle long-running scheduler yet.
 ```
 
 ## Current Runtime Boundary

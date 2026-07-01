@@ -89,7 +89,8 @@ updated: 2026-07-01
 - [x] Qdrant Kubernetes CronJob manifest / client-side dry-run
 - [x] Qdrant Kubernetes StatefulSet / Service / PVC / PDB runtime validation
 - [x] Qdrant Kubernetes CronJob apply / manual Job smoke evidence
-- [ ] Qdrant cron / Kubernetes CronJob / 周期性长期运行调度证据
+- [x] Qdrant Kubernetes CronJob natural schedule one-cycle evidence
+- [ ] Qdrant cron / Kubernetes CronJob / 多周期长期运行调度证据
 - [x] MilvusVectorStoreRepository skeleton
 - [x] Milvus Compose service / import CLI / optional benchmark entry
 - [x] Milvus runtime benchmark report
@@ -341,7 +342,8 @@ updated: 2026-07-01
 - [x] Qdrant Kubernetes CronJob manifest / client-side dry-run
 - [x] Qdrant Kubernetes StatefulSet / Service / PVC / PDB runtime validation
 - [x] Qdrant Kubernetes CronJob apply / manual Job smoke evidence
-- [ ] Qdrant cron / Kubernetes CronJob / 周期性长期运行调度证据
+- [x] Qdrant Kubernetes CronJob natural schedule one-cycle evidence
+- [ ] Qdrant cron / Kubernetes CronJob / 多周期长期运行调度证据
 - [x] MilvusVectorStoreRepository skeleton
 - [x] Milvus Compose service / import CLI / optional benchmark entry
 - [x] Milvus runtime benchmark report
@@ -355,6 +357,7 @@ updated: 2026-07-01
 - [x] K8s 真实集群 smoke test 执行证据（kind 本机集群）
 - [x] Qdrant StatefulSet / Service / PVC / PDB 本机 kind 运行验证
 - [x] Qdrant Kubernetes CronJob apply / manual Job smoke evidence
+- [x] Qdrant Kubernetes CronJob natural schedule one-cycle evidence
 - [ ] 私有化配置和密钥管理
 
 ## 当前阶段：本机学习版 Agent Harness + 交付基础闭环
