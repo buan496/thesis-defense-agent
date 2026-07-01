@@ -41,11 +41,14 @@ def build_k8s_smoke_plan(
             description="Render Kustomize manifests without contacting a cluster.",
         ),
         K8sSmokeStep(
-            phase="offline",
+            phase="cluster",
             name="client_dry_run",
-            command=f"kubectl apply --dry-run=client -k {kustomize_dir}",
-            requires_cluster=False,
-            description="Run client-side schema validation for the manifest set.",
+            command=(
+                "kubectl apply --dry-run=client "
+                f"--validate=false -k {kustomize_dir}"
+            ),
+            requires_cluster=True,
+            description="Run client-side dry-run against the current Kubernetes API discovery context.",
         ),
         K8sSmokeStep(
             phase="cluster",

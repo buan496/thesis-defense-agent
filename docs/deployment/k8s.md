@@ -186,7 +186,13 @@ If `kubectl` is installed but no cluster is running, render manifests offline:
 kubectl kustomize k8s/base
 ```
 
-If a cluster is configured, run client-side validation:
+If a cluster context is configured, run client-side dry-run without server schema validation:
+
+```powershell
+kubectl apply --dry-run=client --validate=false -k k8s/base
+```
+
+If a cluster is configured, run client-side validation with server schema discovery:
 
 ```powershell
 kubectl apply --dry-run=client -k k8s/base
@@ -250,6 +256,45 @@ uv run python -m app.cli k8s-smoke-report-template `
 The report template is intentionally separate from the plan. The plan describes
 what to run; the report records sanitized evidence, PASS / FAIL status, skipped
 steps, and notes after running the commands.
+
+Run the smoke-test runner in offline mode:
+
+```powershell
+uv run python -m app.cli k8s-smoke-run
+```
+
+Offline mode runs only:
+
+```text
+kubectl kustomize k8s/base
+```
+
+Run cluster steps against the current `kubectl` context:
+
+```powershell
+uv run python -m app.cli k8s-smoke-run `
+  --apply-cluster `
+  --output data/reports/k8s_smoke_run.md
+```
+
+The cluster run applies manifests, waits for rollouts, and inspects workloads.
+It skips `port-forward`, API health check through localhost, and rollback unless
+explicitly requested:
+
+```powershell
+uv run python -m app.cli k8s-smoke-run `
+  --apply-cluster `
+  --include-port-forward `
+  --include-rollback `
+  --output data/reports/k8s_smoke_run_full.md
+```
+
+Use `--allow-fail` when collecting evidence from a partially available cluster
+without failing the command:
+
+```powershell
+uv run python -m app.cli k8s-smoke-run --apply-cluster --allow-fail
+```
 
 Render manifests before applying:
 
@@ -333,6 +378,8 @@ restricted container securityContext
 PodDisruptionBudget resources
 k8s-smoke-plan CLI
 k8s-smoke-report-template CLI
+k8s-smoke-run CLI
+automated offline / optional cluster smoke runner
 offline manifest tests
 ```
 
@@ -348,6 +395,5 @@ PostgreSQL StatefulSet
 Qdrant StatefulSet
 production Secret management
 Helm chart / Kustomize overlays
-real cluster smoke test
-automated cluster smoke runner
+real cluster smoke execution evidence
 ```
