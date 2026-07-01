@@ -204,11 +204,11 @@ Agent 与 RAG：
 - Task State 可恢复任务流
 - Session / Memory / Trace / Feedback
 - FastAPI / Docker / PostgreSQL / Qdrant / Milvus 本机验证
+- Milvus destructive operation guardrails
 - Prometheus / Alertmanager / K8s manifests 基础交付能力
 
 仍待推进：
 
-- Milvus destructive operation guardrails
 - Qdrant cron / Kubernetes CronJob 长期调度证据
 - K8s 真实集群 smoke test
 - 真实 Feishu / WeCom / email 通知提供方

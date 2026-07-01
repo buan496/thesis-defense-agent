@@ -91,6 +91,7 @@ updated: 2026-07-01
 - [x] Milvus Compose service / import CLI / optional benchmark entry
 - [x] Milvus runtime benchmark report
 - [x] Milvus backup / restore SOP
+- [x] Milvus destructive operation guardrails
 
 基础知识：
 
@@ -263,7 +264,7 @@ updated: 2026-07-01
 
 ## 阶段 10：服务化与界面
 
-> 当前机器已经完成 FastAPI 服务化、静态 Web 前端增强、stdio MCP Server、stdio MCP Client、MCP resource / prompt 能力、Docker Compose、Prometheus 本地验证、Alertmanager 本机路由、外部通知路由本地可审计版本、K8s 基础 manifests、生产化基础字段、smoke test 计划 CLI 与执行记录模板 CLI、Docker 镜像 CI 构建、GHCR 镜像发布、PostgreSQL runtime smoke、Qdrant 最小后端、Vector DB 生产化治理报告、Qdrant backup retention policy CLI、Qdrant snapshot API runner、Windows Task Scheduler 本机实验、Milvus runtime benchmark 和 Milvus backup / restore SOP。K8s 真实集群 smoke test 执行、cron / Kubernetes CronJob 调度证据、Qdrant 长期运行验证、Milvus destructive operation guardrails 和服务器长期运行继续作为后续阶段。
+> 当前机器已经完成 FastAPI 服务化、静态 Web 前端增强、stdio MCP Server、stdio MCP Client、MCP resource / prompt 能力、Docker Compose、Prometheus 本地验证、Alertmanager 本机路由、外部通知路由本地可审计版本、K8s 基础 manifests、生产化基础字段、smoke test 计划 CLI 与执行记录模板 CLI、Docker 镜像 CI 构建、GHCR 镜像发布、PostgreSQL runtime smoke、Qdrant 最小后端、Vector DB 生产化治理报告、Qdrant backup retention policy CLI、Qdrant snapshot API runner、Windows Task Scheduler 本机实验、Milvus runtime benchmark、Milvus backup / restore SOP 和 Milvus destructive operation guardrails。K8s 真实集群 smoke test 执行、cron / Kubernetes CronJob 调度证据、Qdrant 长期运行验证和服务器长期运行继续作为后续阶段。
 
 - [x] FastAPI
 - [x] Pydantic 请求模型
@@ -334,6 +335,7 @@ updated: 2026-07-01
 - [x] Milvus Compose service / import CLI / optional benchmark entry
 - [x] Milvus runtime benchmark report
 - [x] Milvus backup / restore SOP
+- [x] Milvus destructive operation guardrails
 - [x] K8s 基础 manifests
 - [x] K8s 生产化基础字段
 - [x] K8s smoke test 计划生成 CLI
@@ -810,15 +812,15 @@ PostgreSQL runtime smoke test。
 
 - LangGraph 后续只做旁路迁移，不覆盖当前手写 Task State / Agent Harness 源码。
 - FastAPI、静态 Web 前端、stdio MCP Server、Dockerfile、docker-compose、Prometheus、Alertmanager 本机路由、外部通知路由本地可审计版本、K8s 基础 manifests、生产化基础字段、smoke test 计划 CLI 与执行记录模板 CLI、本机 PostgreSQL runtime smoke、Qdrant 最小后端、Vector DB 生产化治理报告、Qdrant backup retention policy CLI、Qdrant snapshot API runner 和 Windows Task Scheduler 本机实验已完成。
-- K8s 真实集群 smoke test 执行、cron / Kubernetes CronJob 调度证据、Qdrant 长期运行验证、Milvus destructive operation guardrails、私有化部署、服务器长期运行和真实 Feishu / WeCom / email 通知提供方继续作为后续阶段。Milvus repository、Compose 服务、导入 CLI、本机 runtime benchmark 和 backup / restore SOP 已完成。
+- K8s 真实集群 smoke test 执行、cron / Kubernetes CronJob 调度证据、Qdrant 长期运行验证、私有化部署、服务器长期运行和真实 Feishu / WeCom / email 通知提供方继续作为后续阶段。Milvus repository、Compose 服务、导入 CLI、本机 runtime benchmark、backup / restore SOP 和 destructive operation guardrails 已完成。
 
 ## 下一步学习重点
 
 当前已经完成本机 Agent Harness、RAG、Tool Calling、Memory、Trace、Sub-Agent、LangGraph 旁路迁移、FastAPI / Web / Docker / Prometheus / PostgreSQL / Qdrant 基础治理、Qdrant snapshot 手动 API runner 和 Windows Task Scheduler 本机实验。下一阶段按交付治理补齐：
 
-1. Milvus destructive operation guardrails
-2. Qdrant cron / Kubernetes CronJob 调度证据或长期运行验证
-3. K8s 真实集群 smoke test 执行 / 生产化部署验证
+1. Qdrant cron / Kubernetes CronJob 调度证据或长期运行验证
+2. K8s 真实集群 smoke test 执行 / 生产化部署验证
+3. Milvus Backup Tool / 集群级 restore drill 边界学习
 
 ## 最终简历能力目标
 
@@ -3162,9 +3164,41 @@ volume tar.gz 只作为本机 standalone 学习备份，不作为生产集群备
 下一步学习：
 
 ```text
-1. Milvus collection delete / recreate 显式确认保护
-2. Milvus Backup Tool / 集群级 restore drill 边界学习
-3. Qdrant cron / Kubernetes CronJob 长期调度证据
+1. Milvus Backup Tool / 集群级 restore drill 边界学习
+2. Qdrant cron / Kubernetes CronJob 长期调度证据
+3. K8s 真实集群 smoke test 执行
+```
+
+<!-- roadmap-update-2026-07-01-milvus-destructive-guardrails -->
+
+## 2026-07-01 路线同步：Milvus Destructive Operation Guardrails 已完成
+
+本阶段给 Milvus collection 删除操作补齐显式确认保护，避免误删活动 collection。
+
+已完成：
+
+- [x] `delete-milvus-collection` CLI
+- [x] `--confirm-collection` 必填
+- [x] confirmation 必须和 `--collection` 完全一致
+- [x] repository 错误标准化输出
+- [x] fake repository CLI 测试
+- [x] `docs/deployment/milvus.md` 更新危险操作说明
+- [x] `docs/deployment/milvus-backup-restore.md` 更新 restore smoke 后清理命令
+
+当前边界：
+
+```text
+Milvus collection 删除已有显式确认保护。
+仍不自动执行 volume restore 或生产 collection 切换。
+Milvus Backup Tool / 集群级 restore drill 尚未接入。
+```
+
+下一步学习：
+
+```text
+1. Qdrant cron / Kubernetes CronJob 长期调度证据
+2. K8s 真实集群 smoke test 执行
+3. Milvus Backup Tool / 集群级 restore drill 边界学习
 ```
 
 <!-- roadmap-update-2026-06-30-qdrant-snapshot-api-runner -->

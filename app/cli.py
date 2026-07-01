@@ -2459,6 +2459,45 @@ def main():
         ),
     )
 
+    delete_milvus_collection_parser = subparsers.add_parser(
+        "delete-milvus-collection",
+        help="Delete a Milvus collection with explicit confirmation",
+    )
+    delete_milvus_collection_parser.add_argument(
+        "--uri",
+        default=MILVUS_URI,
+        help="Milvus URI",
+    )
+    delete_milvus_collection_parser.add_argument(
+        "--collection",
+        default=MILVUS_COLLECTION,
+        help="Milvus collection name",
+    )
+    delete_milvus_collection_parser.add_argument(
+        "--vector-size",
+        type=int,
+        default=MILVUS_VECTOR_SIZE,
+        help="Milvus vector size",
+    )
+    delete_milvus_collection_parser.add_argument(
+        "--metric-type",
+        default=MILVUS_METRIC_TYPE,
+        help="Milvus metric type",
+    )
+    delete_milvus_collection_parser.add_argument(
+        "--token",
+        default=None,
+        help="Optional Milvus token. Defaults to MILVUS_TOKEN.",
+    )
+    delete_milvus_collection_parser.add_argument(
+        "--confirm-collection",
+        required=True,
+        help=(
+            "Required destructive confirmation. Must exactly match "
+            "--collection."
+        ),
+    )
+
     vector_db_governance_parser = subparsers.add_parser(
         "vector-db-governance-report",
         help="Generate an offline vector database governance and comparison report",
@@ -6093,6 +6132,36 @@ def main():
 
         print("QDRANT COLLECTION DELETE")
         print("QDRANT URL:", args.url)
+        print("COLLECTION:", args.collection)
+        print("DELETED:", deleted)
+
+    elif args.command == "delete-milvus-collection":
+        if args.confirm_collection != args.collection:
+            print(
+                "MILVUS DELETE ERROR: --confirm-collection must exactly "
+                "match --collection"
+            )
+            raise SystemExit(1)
+
+        try:
+            repository = MilvusVectorStoreRepository(
+                uri=args.uri,
+                collection_name=args.collection,
+                vector_size=args.vector_size,
+                metric_type=args.metric_type,
+                token=(
+                    args.token
+                    if args.token is not None
+                    else MILVUS_TOKEN
+                ),
+            )
+            deleted = repository.delete_collection()
+        except (ValueError, RuntimeError) as error:
+            print(f"MILVUS DELETE ERROR: {error}")
+            raise SystemExit(1) from error
+
+        print("MILVUS COLLECTION DELETE")
+        print("MILVUS URI:", args.uri)
         print("COLLECTION:", args.collection)
         print("DELETED:", deleted)
 

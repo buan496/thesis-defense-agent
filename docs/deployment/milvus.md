@@ -108,6 +108,26 @@ Milvus average duration: about 1231 ms
 The Milvus average latency was dominated by first-query warm-up. Later Milvus
 queries were about 7-11 ms in the local smoke run.
 
+## Destructive Operation Guardrails
+
+Delete a Milvus collection only with explicit confirmation:
+
+```powershell
+uv run python -m app.cli delete-milvus-collection `
+  --uri http://127.0.0.1:19530 `
+  --collection thesis_chunks_restore `
+  --confirm-collection thesis_chunks_restore
+```
+
+Safety rules:
+
+```text
+--confirm-collection is required.
+--confirm-collection must exactly match --collection.
+Use a disposable restore collection for restore drills.
+Do not delete the active production collection during local smoke tests.
+```
+
 ## Current Boundary
 
 Completed:
@@ -128,6 +148,7 @@ JSON / Qdrant / Milvus benchmark result report
 Milvus backup / restore SOP document
 milvus-backup-restore-plan CLI
 milvus-restore-report-template CLI
+delete-milvus-collection CLI with explicit confirmation
 ```
 
 Not completed:

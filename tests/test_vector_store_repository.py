@@ -855,6 +855,149 @@ def test_delete_qdrant_collection_cli_requires_matching_confirmation(
     assert "must exactly match" in output
 
 
+def test_delete_milvus_collection_cli(
+    monkeypatch,
+    capsys,
+):
+    created_repositories = []
+
+    class FakeMilvusVectorStoreRepository:
+        def __init__(
+            self,
+            uri,
+            collection_name,
+            vector_size,
+            metric_type,
+            token,
+        ):
+            created_repositories.append(
+                {
+                    "uri": uri,
+                    "collection_name": collection_name,
+                    "vector_size": vector_size,
+                    "metric_type": metric_type,
+                    "token": token,
+                    "deleted": False,
+                }
+            )
+
+        def delete_collection(self):
+            created_repositories[-1]["deleted"] = True
+            return True
+
+    monkeypatch.setattr(
+        cli,
+        "MilvusVectorStoreRepository",
+        FakeMilvusVectorStoreRepository,
+    )
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "app.cli",
+            "delete-milvus-collection",
+            "--uri",
+            "http://127.0.0.1:19530",
+            "--collection",
+            "test_chunks_restore",
+            "--vector-size",
+            "3",
+            "--metric-type",
+            "COSINE",
+            "--token",
+            "secret",
+            "--confirm-collection",
+            "test_chunks_restore",
+        ],
+    )
+
+    cli.main()
+    output = capsys.readouterr().out
+
+    assert "MILVUS COLLECTION DELETE" in output
+    assert "COLLECTION: test_chunks_restore" in output
+    assert "DELETED: True" in output
+    assert created_repositories == [
+        {
+            "uri": "http://127.0.0.1:19530",
+            "collection_name": "test_chunks_restore",
+            "vector_size": 3,
+            "metric_type": "COSINE",
+            "token": "secret",
+            "deleted": True,
+        }
+    ]
+
+
+def test_delete_milvus_collection_cli_requires_matching_confirmation(
+    monkeypatch,
+    capsys,
+):
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "app.cli",
+            "delete-milvus-collection",
+            "--collection",
+            "test_chunks_restore",
+            "--confirm-collection",
+            "wrong_chunks",
+        ],
+    )
+
+    with pytest.raises(SystemExit) as error:
+        cli.main()
+
+    output = capsys.readouterr().out
+
+    assert error.value.code == 1
+    assert "MILVUS DELETE ERROR" in output
+    assert "must exactly match" in output
+
+
+def test_delete_milvus_collection_cli_reports_repository_error(
+    monkeypatch,
+    capsys,
+):
+    class FailingMilvusVectorStoreRepository:
+        def __init__(
+            self,
+            uri,
+            collection_name,
+            vector_size,
+            metric_type,
+            token,
+        ):
+            pass
+
+        def delete_collection(self):
+            raise RuntimeError("milvus unavailable")
+
+    monkeypatch.setattr(
+        cli,
+        "MilvusVectorStoreRepository",
+        FailingMilvusVectorStoreRepository,
+    )
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "app.cli",
+            "delete-milvus-collection",
+            "--collection",
+            "test_chunks_restore",
+            "--confirm-collection",
+            "test_chunks_restore",
+        ],
+    )
+
+    with pytest.raises(SystemExit) as error:
+        cli.main()
+
+    output = capsys.readouterr().out
+
+    assert error.value.code == 1
+    assert "MILVUS DELETE ERROR: milvus unavailable" in output
+
+
 def test_create_vector_store_repository_rejects_unknown_backend(tmp_path):
     with pytest.raises(ValueError, match="Unsupported VECTOR_STORE_BACKEND"):
         create_vector_store_repository(
