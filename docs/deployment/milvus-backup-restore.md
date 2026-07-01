@@ -92,6 +92,16 @@ Average benchmark score does not regress against the JSON baseline.
 No production collection is overwritten.
 ```
 
+After the restore smoke test, delete only the disposable restore collection with
+explicit confirmation:
+
+```powershell
+uv run python -m app.cli delete-milvus-collection `
+  --uri http://127.0.0.1:19530 `
+  --collection thesis_chunks_restore `
+  --confirm-collection thesis_chunks_restore
+```
+
 ## Optional Local Volume Backup
 
 For the local standalone Milvus Compose service, the persistent data lives in the
@@ -117,6 +127,7 @@ milvus-backup-restore-plan CLI
 milvus-restore-report-template CLI
 safe restore path through JSON baseline rebuild
 optional local Docker volume backup command preview
+delete-milvus-collection CLI with explicit confirmation
 ```
 
 Not completed:

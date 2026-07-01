@@ -27,6 +27,7 @@
 - 支持 RAG benchmark，统计 Top-K 召回关键字覆盖率
 - 支持 JSON 与 Qdrant 向量库后端 benchmark 对比，记录质量和延迟差异
 - 支持 Vector DB 生产化治理报告，明确 JSON / Qdrant / Milvus 的角色、风险和上线门禁
+- 支持 Milvus collection 删除显式确认保护
 - 支持 BM25 关键词检索、Vector 语义检索和 Hybrid 融合检索
 - 支持检索器对比和 Hybrid 权重扫描，用 benchmark 自动选择检索参数
 - 支持规则版 reranker，并可用 benchmark 对比 rerank 前后效果
@@ -264,6 +265,15 @@ python -m app.cli chat --message "测试本轮不压缩 session" --disable-sessi
 
 ```powershell
 python -m app.cli memory-show
+```
+
+删除 disposable Milvus collection：
+
+```powershell
+uv run python -m app.cli delete-milvus-collection `
+  --uri http://127.0.0.1:19530 `
+  --collection thesis_chunks_restore `
+  --confirm-collection thesis_chunks_restore
 ```
 
 写入长期记忆：
