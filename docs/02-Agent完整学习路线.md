@@ -210,6 +210,7 @@ updated: 2026-07-01
 - [ ] 并发限制
 - [x] 超时和取消
 - [x] 后台任务基础 runner
+- [x] FastAPI 后台任务 API：create / status / cancel
 - [x] 向量库构建 checkpoint
 - [x] 向量库构建断点恢复
 - [ ] 幂等性
@@ -2709,6 +2710,39 @@ Milvus 只作为未来对比候选，尚未实现 MilvusVectorStoreRepository。
 1. Qdrant 定时 snapshot / restore drill 自动调度
 2. MilvusVectorStoreRepository / Milvus runtime benchmark
 3. K8s 真实集群 smoke test 执行 / 生产化部署验证
+```
+
+<!-- roadmap-update-2026-07-01-async-task-api -->
+
+## 2026-07-01 路线同步：AsyncTaskRunner FastAPI API 已完成
+
+本阶段完成的是把内存型 `AsyncTaskRunner` 暴露为 FastAPI 后台任务 API，用于学习 HTTP 层如何创建、查询和取消长任务。
+
+已完成：
+
+- [x] `app/api/routes/async_tasks.py`
+- [x] `POST /async-tasks`
+- [x] `GET /async-tasks/{task_id}`
+- [x] `DELETE /async-tasks/{task_id}`
+- [x] demo sleep job
+- [x] 依赖注入覆盖测试
+- [x] `tests/test_api_async_tasks.py`
+
+当前边界：
+
+```text
+当前只接入 fake long-running job。
+任务状态保存在进程内存中，进程重启后会丢失。
+尚未接入真实 DefenseTask 步骤执行。
+尚未实现并发限制、幂等请求和持久化恢复。
+```
+
+下一步学习：
+
+```text
+1. AsyncTaskRunner 并发限制
+2. 异步 DefenseTask step execution API
+3. 异步 LLM / 工具调用边界
 ```
 
 <!-- roadmap-update-2026-07-01-qdrant-snapshot-drill-plan -->

@@ -213,6 +213,26 @@ http://127.0.0.1:8000/docs
 docs/deployment/local-fastapi.md
 ```
 
+创建异步后台任务：
+
+```powershell
+curl.exe -X POST http://127.0.0.1:8000/async-tasks `
+  -H "Content-Type: application/json" `
+  -d "{\"name\":\"demo\",\"delay_seconds\":1,\"result\":\"ok\"}"
+```
+
+查询异步后台任务：
+
+```powershell
+curl.exe http://127.0.0.1:8000/async-tasks/<TASK_ID>
+```
+
+取消异步后台任务：
+
+```powershell
+curl.exe -X DELETE http://127.0.0.1:8000/async-tasks/<TASK_ID>
+```
+
 上传论文文档：
 
 ```powershell
