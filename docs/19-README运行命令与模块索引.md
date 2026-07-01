@@ -29,6 +29,7 @@
 - 支持 Vector DB 生产化治理报告，明确 JSON / Qdrant / Milvus 的角色、风险和上线门禁
 - 支持 Qdrant Kubernetes CronJob manifest 生成和 client-side dry-run 验证
 - 支持 Qdrant Kubernetes StatefulSet / Service / PVC / PDB 本机 kind 运行验证
+- 支持 Qdrant Kubernetes CronJob apply / manual Job smoke 运行验证
 - 支持 Milvus collection 删除显式确认保护
 - 支持 BM25 关键词检索、Vector 语义检索和 Hybrid 融合检索
 - 支持检索器对比和 Hybrid 权重扫描，用 benchmark 自动选择检索参数
@@ -257,6 +258,18 @@ uv run python -m app.cli qdrant-snapshot-cronjob-manifest `
   --namespace thesis-defense-agent `
   --cron-schedule "0 3 * * *" `
   --output data/reports/qdrant_snapshot_cronjob.yaml
+```
+
+运行 Qdrant Kubernetes CronJob smoke：
+
+```powershell
+uv run python -m app.cli qdrant-k8s-cronjob-smoke-run `
+  --namespace thesis-defense-agent `
+  --cron-schedule "*/10 * * * *" `
+  --cleanup-job `
+  --cleanup-cronjob `
+  --manifest-output data/reports/qdrant_k8s_cronjob_smoke.yaml `
+  --output data/reports/qdrant_k8s_cronjob_smoke.md
 ```
 
 上传论文文档：

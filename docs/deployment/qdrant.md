@@ -120,6 +120,8 @@ qdrant-snapshot-schedule-install-execute CLI
 qdrant-snapshot-cronjob-manifest CLI
 Kubernetes CronJob manifest client-side dry-run validation
 Kubernetes Qdrant StatefulSet / Service / PVC / PDB runtime validation
+qdrant-k8s-cronjob-smoke-run CLI
+Kubernetes CronJob manual Job smoke evidence
 ```
 
 Not completed:
@@ -128,8 +130,7 @@ Not completed:
 Automated scheduled Qdrant backup job
 Automated scheduled Qdrant snapshot creation
 Automated scheduled restore smoke drill
-Actual cron / Kubernetes CronJob installation
-Actual scheduled run evidence collection for cron / Kubernetes CronJob
+Actual Kubernetes CronJob periodic schedule evidence collection
 Kubernetes CronJob long-running schedule evidence
 ```
 
@@ -804,8 +805,82 @@ The manifest renderer is implemented.
 The generated manifest was validated with kubectl client-side dry-run.
 The CronJob has not been applied as a long-running cluster job.
 The current kind stack includes a Qdrant StatefulSet / Service / PVC / PDB.
-Real scheduled evidence still requires applying the CronJob, triggering a Job, and collecting sanitized logs.
+Manual Job smoke evidence has been collected.
+Real long-running evidence still requires observing a natural CronJob schedule and collecting sanitized logs.
 ```
+
+## Kubernetes CronJob Manual Job Smoke
+
+The project includes a smoke runner that renders the CronJob manifest, applies
+it to Kubernetes, creates one manual Job from the CronJob, waits for completion,
+collects status and logs, and can clean up the Job and CronJob afterwards.
+
+Seed the in-cluster Qdrant collection first:
+
+```powershell
+$process = Start-Process -FilePath kubectl `
+  -ArgumentList @("port-forward","service/qdrant","16333:6333","-n","thesis-defense-agent") `
+  -PassThru `
+  -WindowStyle Hidden
+
+try {
+  Start-Sleep -Seconds 5
+  uv run python -m app.cli import-vector-store-to-qdrant `
+    --source data/vector_store.json `
+    --url http://127.0.0.1:16333 `
+    --collection thesis_chunks `
+    --vector-size 1024 `
+    --distance Cosine
+}
+finally {
+  if ($process -and -not $process.HasExited) {
+    Stop-Process -Id $process.Id -Force
+  }
+}
+```
+
+Run the smoke:
+
+```powershell
+uv run python -m app.cli qdrant-k8s-cronjob-smoke-run `
+  --namespace thesis-defense-agent `
+  --cron-schedule "*/10 * * * *" `
+  --cleanup-job `
+  --cleanup-cronjob `
+  --manifest-output data/reports/qdrant_k8s_cronjob_smoke.yaml `
+  --output data/reports/qdrant_k8s_cronjob_smoke.md
+```
+
+Observed local kind result:
+
+```text
+Overall status: passed
+CronJob created
+Manual Job created
+Manual Job condition complete
+Job Pod Completed
+Job logs include:
+  Snapshot name: thesis_chunks-...snapshot
+  ensure_backup_dir completed
+  create_snapshot completed
+  download_snapshot completed
+  apply_retention completed
+Manual Job deleted
+CronJob deleted
+```
+
+Default smoke behavior:
+
+```text
+run_restore_drill=False
+run_compare=False
+apply_retention=False
+```
+
+This keeps the first Kubernetes smoke focused on snapshot create/download and
+failure visibility. Enable restore and compare only after preparing a
+disposable restore collection strategy and ensuring the image has any required
+baseline data.
 
 ## Kubernetes Qdrant Runtime Validation
 
@@ -1037,7 +1112,8 @@ Retention execution is implemented for local downloaded backup files.
 Qdrant snapshot creation / list / download / restore can be run through manual CLI commands.
 Windows Task Scheduler local experiment has been validated.
 Kubernetes CronJob YAML can be rendered and client-side dry-run validated.
-No cron or Kubernetes CronJob has been installed as a long-running scheduler yet.
+Kubernetes CronJob manual Job smoke has been validated.
+No cron or Kubernetes CronJob has been observed as a long-running scheduler yet.
 ```
 
 ## Current Runtime Boundary

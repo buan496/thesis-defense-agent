@@ -500,6 +500,7 @@ automated offline / optional cluster smoke runner
 offline manifest tests
 local kind real-cluster smoke execution evidence
 Qdrant StatefulSet / Service / PVC / PDB runtime validation
+Qdrant Kubernetes CronJob manual Job smoke evidence
 ```
 
 Not completed:
@@ -514,4 +515,78 @@ PostgreSQL StatefulSet
 production Secret management
 Helm chart / Kustomize overlays
 Qdrant Kubernetes CronJob long-running schedule evidence
+```
+
+## Qdrant Kubernetes CronJob Smoke
+
+Before running the CronJob smoke, seed the in-cluster Qdrant collection through
+a temporary port-forward:
+
+```powershell
+$process = Start-Process -FilePath kubectl `
+  -ArgumentList @("port-forward","service/qdrant","16333:6333","-n","thesis-defense-agent") `
+  -PassThru `
+  -WindowStyle Hidden
+
+try {
+  Start-Sleep -Seconds 5
+  uv run python -m app.cli import-vector-store-to-qdrant `
+    --source data/vector_store.json `
+    --url http://127.0.0.1:16333 `
+    --collection thesis_chunks `
+    --vector-size 1024 `
+    --distance Cosine
+}
+finally {
+  if ($process -and -not $process.HasExited) {
+    Stop-Process -Id $process.Id -Force
+  }
+}
+```
+
+Run one CronJob smoke cycle by manually triggering a Job:
+
+```powershell
+uv run python -m app.cli qdrant-k8s-cronjob-smoke-run `
+  --namespace thesis-defense-agent `
+  --cron-schedule "*/10 * * * *" `
+  --cleanup-job `
+  --cleanup-cronjob `
+  --manifest-output data/reports/qdrant_k8s_cronjob_smoke.yaml `
+  --output data/reports/qdrant_k8s_cronjob_smoke.md
+```
+
+The smoke runner executes:
+
+```text
+kubectl apply -f <generated-cronjob-yaml>
+kubectl get cronjob ...
+kubectl create job ... --from=cronjob/...
+kubectl wait --for=condition=complete job/...
+kubectl get job ...
+kubectl get pods -l job-name=...
+kubectl logs job/...
+optional cleanup job
+optional cleanup cronjob
+```
+
+Verified local kind result:
+
+```text
+Overall status: passed
+Manual Job status: Complete
+Job Pod status: Completed
+Job logs include Qdrant Snapshot Drill Report
+Snapshot create: completed
+Snapshot download: completed
+Retention: dry_run=True
+```
+
+Current boundary:
+
+```text
+This validates that the CronJob template can run a manually triggered Job.
+It does not prove natural schedule execution over time.
+Default smoke mode skips restore and JSON baseline compare.
+Use --run-restore-drill and --run-compare only after confirming the image has the required data and dependencies.
 ```

@@ -88,7 +88,8 @@ updated: 2026-07-01
 - [x] Qdrant Windows Task Scheduler 本机定时 snapshot 实验
 - [x] Qdrant Kubernetes CronJob manifest / client-side dry-run
 - [x] Qdrant Kubernetes StatefulSet / Service / PVC / PDB runtime validation
-- [ ] Qdrant cron / Kubernetes CronJob / 长期运行调度证据
+- [x] Qdrant Kubernetes CronJob apply / manual Job smoke evidence
+- [ ] Qdrant cron / Kubernetes CronJob / 周期性长期运行调度证据
 - [x] MilvusVectorStoreRepository skeleton
 - [x] Milvus Compose service / import CLI / optional benchmark entry
 - [x] Milvus runtime benchmark report
@@ -339,7 +340,8 @@ updated: 2026-07-01
 - [x] Qdrant Windows Task Scheduler 本机定时 snapshot 实验
 - [x] Qdrant Kubernetes CronJob manifest / client-side dry-run
 - [x] Qdrant Kubernetes StatefulSet / Service / PVC / PDB runtime validation
-- [ ] Qdrant cron / Kubernetes CronJob / 长期运行调度证据
+- [x] Qdrant Kubernetes CronJob apply / manual Job smoke evidence
+- [ ] Qdrant cron / Kubernetes CronJob / 周期性长期运行调度证据
 - [x] MilvusVectorStoreRepository skeleton
 - [x] Milvus Compose service / import CLI / optional benchmark entry
 - [x] Milvus runtime benchmark report
@@ -352,6 +354,7 @@ updated: 2026-07-01
 - [x] K8s smoke test runner CLI
 - [x] K8s 真实集群 smoke test 执行证据（kind 本机集群）
 - [x] Qdrant StatefulSet / Service / PVC / PDB 本机 kind 运行验证
+- [x] Qdrant Kubernetes CronJob apply / manual Job smoke evidence
 - [ ] 私有化配置和密钥管理
 
 ## 当前阶段：本机学习版 Agent Harness + 交付基础闭环
@@ -3716,15 +3719,72 @@ CronJob 尚未作为长期任务 apply 到集群。
 ```text
 这是本机 kind 集群的一次性 runtime validation。
 Qdrant StatefulSet / Service 已可被同 namespace 内 CronJob 使用。
-CronJob 尚未 apply 为长期运行调度。
-snapshot Job 状态、日志、产物和周期运行证据尚未采集。
+CronJob manual Job smoke 已完成。
+周期运行证据尚未采集。
 ```
 
 下一步学习：
 
 ```text
-1. 将 Qdrant Kubernetes CronJob apply 到测试 namespace
-2. 手动触发一次 Job
-3. 采集 Job 状态、日志、snapshot 产物和失败可见性证据
-4. 再决定是否进入长期周期运行观察
+1. 观察 CronJob 至少一个自然调度周期
+2. 采集 scheduled Job 状态、日志、snapshot 产物和失败可见性证据
+3. 验证 CronJob 回滚和清理命令
+4. 再决定是否保留长期运行任务
+```
+
+<!-- roadmap-update-2026-07-01-qdrant-k8s-cronjob-manual-smoke -->
+
+## 2026-07-01 路线同步：Qdrant Kubernetes CronJob Manual Job Smoke 已完成
+
+本阶段将 Qdrant CronJob 从 manifest dry-run 推进到本机 kind 集群中的一次性 Job 运行证据。
+该阶段验证的是 CronJob 能被 apply、能手动触发 Job、Job 能访问集群内 Qdrant 并完成 snapshot create / download。
+
+已完成：
+
+- [x] `app/qdrant_k8s_cronjob_smoke.py`
+- [x] `qdrant-k8s-cronjob-smoke-run` CLI
+- [x] CronJob YAML 生成后直接 apply
+- [x] `kubectl create job --from=cronjob/...` 手动触发
+- [x] `kubectl wait --for=condition=complete` 等待 Job 完成
+- [x] CronJob / Job / Pod / logs 证据采集
+- [x] 可选 `--cleanup-job`
+- [x] 可选 `--cleanup-cronjob`
+- [x] 可选 `--manifest-output`
+- [x] Markdown smoke report 输出
+- [x] 本机 kind 集群 smoke run 通过
+
+本机验证结果：
+
+```text
+qdrant-k8s-cronjob-smoke-run --namespace thesis-defense-agent --cleanup-job --cleanup-cronjob
+
+Overall status: passed
+CronJob created
+Manual Job created
+Manual Job condition complete
+Job Pod status Completed
+Job logs include Qdrant Snapshot Drill Report
+Snapshot create completed
+Snapshot download completed
+Retention dry-run completed
+Manual Job deleted
+CronJob deleted
+```
+
+当前边界：
+
+```text
+这是手动触发 Job 的 smoke evidence。
+默认不执行 restore drill，也不执行 JSON baseline compare。
+原始报告保存在 data/reports/，不提交到 Git。
+这还不是 CronJob 自然调度周期的长期运行证据。
+```
+
+下一步学习：
+
+```text
+1. 保留 CronJob 至少一个自然调度周期
+2. 采集 scheduled Job 状态、日志和 snapshot 产物
+3. 验证失败可见性和回滚清理命令
+4. 再进入跨平台 cron / 服务器长期运行验证
 ```
