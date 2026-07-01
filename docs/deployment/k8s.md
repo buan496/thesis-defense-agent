@@ -501,6 +501,7 @@ offline manifest tests
 local kind real-cluster smoke execution evidence
 Qdrant StatefulSet / Service / PVC / PDB runtime validation
 Qdrant Kubernetes CronJob manual Job smoke evidence
+Qdrant Kubernetes CronJob natural schedule one-cycle evidence
 ```
 
 Not completed:
@@ -514,7 +515,7 @@ PersistentVolumeClaim for /app/data
 PostgreSQL StatefulSet
 production Secret management
 Helm chart / Kustomize overlays
-Qdrant Kubernetes CronJob long-running schedule evidence
+Qdrant Kubernetes CronJob multi-cycle long-running schedule evidence
 ```
 
 ## Qdrant Kubernetes CronJob Smoke
@@ -589,4 +590,56 @@ This validates that the CronJob template can run a manually triggered Job.
 It does not prove natural schedule execution over time.
 Default smoke mode skips restore and JSON baseline compare.
 Use --run-restore-drill and --run-compare only after confirming the image has the required data and dependencies.
+```
+
+## Qdrant Kubernetes CronJob Natural Schedule Observe
+
+After manual Job smoke passes, observe one natural schedule cycle. This keeps
+the CronJob in the namespace until Kubernetes creates a Job from the schedule.
+
+```powershell
+uv run python -m app.cli qdrant-k8s-cronjob-schedule-observe `
+  --namespace thesis-defense-agent `
+  --cron-schedule "* * * * *" `
+  --cleanup-job `
+  --cleanup-cronjob `
+  --manifest-output data/reports/qdrant_k8s_cronjob_schedule_observe.yaml `
+  --output data/reports/qdrant_k8s_cronjob_schedule_observe.md
+```
+
+The observer executes:
+
+```text
+capture existing CronJob-owned Jobs
+kubectl apply -f <generated-cronjob-yaml>
+kubectl get cronjob ...
+poll kubectl get jobs -o json until a new CronJob-owned Job appears
+kubectl wait --for=condition=complete job/...
+kubectl get job ...
+kubectl get pods -l job-name=...
+kubectl logs job/...
+optional cleanup scheduled job
+optional cleanup cronjob
+```
+
+Verified local kind result:
+
+```text
+Overall status: passed
+Scheduled Job: thesis-defense-qdrant-snapshot-drill-29715246
+CronJob ownerReference detected
+Job status: Complete
+Job Pod status: Completed
+Job logs include Qdrant Snapshot Drill Report
+Snapshot create: completed
+Snapshot download: completed
+Retention: dry_run=True
+```
+
+Current boundary:
+
+```text
+This validates one natural CronJob schedule cycle.
+It does not prove multi-cycle long-running stability.
+Use a longer observation window before treating the schedule as persistent operations.
 ```
