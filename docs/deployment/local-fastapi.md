@@ -234,6 +234,7 @@ POST /tasks
 GET  /tasks/{task_id}
 POST /tasks/{task_id}/steps/start
 POST /tasks/{task_id}/steps/execute
+POST /tasks/{task_id}/steps/execute-async
 POST /tasks/{task_id}/answer
 POST /tasks/{task_id}/follow-up-answer
 GET  /tasks/{task_id}/analysis
@@ -277,6 +278,23 @@ Invoke-RestMethod `
   -Uri "http://127.0.0.1:8000/tasks/$taskId/steps/execute"
 ```
 
+后台执行当前自动步骤：
+
+```powershell
+$asyncExecution = Invoke-RestMethod `
+  -Method Post `
+  -Uri "http://127.0.0.1:8000/tasks/$taskId/steps/execute-async"
+
+$asyncTaskId = $asyncExecution.async_task.task_id
+$asyncTaskId
+```
+
+查询后台执行结果：
+
+```powershell
+Invoke-RestMethod "http://127.0.0.1:8000/async-tasks/$asyncTaskId"
+```
+
 提交学生回答：
 
 ```powershell
@@ -318,7 +336,7 @@ Invoke-RestMethod `
 ```text
 POST /tasks
 -> POST /tasks/{task_id}/steps/start
--> POST /tasks/{task_id}/steps/execute
+-> POST /tasks/{task_id}/steps/execute 或 POST /tasks/{task_id}/steps/execute-async
 -> 重复 start / execute，直到 wait_for_answer
 -> POST /tasks/{task_id}/answer
 -> 重复 start / execute，直到 wait_for_follow_up_answer
@@ -332,6 +350,7 @@ POST /tasks
 
 - `steps/start` 只创建下一步，不执行。
 - `steps/execute` 只执行当前自动步骤。
+- `steps/execute-async` 会创建后台任务，步骤结果需要通过 `/async-tasks/{async_task_id}` 查询。
 - 人工输入步骤必须通过 `answer` 或 `follow-up-answer` 提交。
 - 如果当前步骤类型不匹配，接口会返回 `400`。
 
@@ -341,18 +360,18 @@ POST /tasks
 
 - 未实现鉴权。
 - 未实现用户 / Workspace 隔离。
-- 未接 PostgreSQL。
-- 未接 Qdrant / Milvus。
-- 未实现 SSE / WebSocket 流式输出。
-- 未提供 Dockerfile / docker-compose。
-- 未提供生产级日志采集和指标监控。
+- 默认仍使用 JSON 本地存储，PostgreSQL 需要显式配置。
+- 默认 RAG 仍使用本地向量库，Qdrant / Milvus 需要显式配置和导入。
+- 后台任务状态保存在进程内存中，进程重启后会丢失。
+- 当前 `execute-async` 只是把同步 DefenseTask 执行放到后台线程，不代表底层 LLM / 工具调用已经原生异步。
+- 日志、metrics、Docker、Compose、K8s manifest 已有本机学习版配置，但仍未完成生产级鉴权、配额和多实例队列治理。
 
-下一阶段再进入容器化：
+后续生产化仍需补齐：
 
 ```text
-Dockerfile
--> docker-compose
--> 日志与 metrics
--> 服务器长期运行
--> K8s 样例
+鉴权 / 用户隔离
+后台任务持久化队列
+多实例任务调度
+异步 LLM / 工具调用
+服务器长期运行证据
 ```
