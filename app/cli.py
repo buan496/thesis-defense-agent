@@ -187,6 +187,10 @@ from app.qdrant_snapshot_client import QdrantSnapshotClient
 from app.qdrant_snapshot_cronjob_manifest import (
     render_qdrant_snapshot_cronjob_manifest,
 )
+from app.qdrant_k8s_cronjob_smoke import (
+    execute_qdrant_k8s_cronjob_smoke,
+    render_qdrant_k8s_cronjob_smoke_report,
+)
 from app.qdrant_snapshot_scheduler import (
     build_qdrant_snapshot_drill_plan,
     build_qdrant_snapshot_schedule_config,
@@ -2990,6 +2994,113 @@ def main():
         "--output",
         default=None,
         help="Optional YAML output path for the CronJob manifest",
+    )
+
+    qdrant_k8s_cronjob_smoke_parser = subparsers.add_parser(
+        "qdrant-k8s-cronjob-smoke-run",
+        help="Apply a Qdrant CronJob manifest, trigger one Job, and collect Kubernetes evidence",
+    )
+    qdrant_k8s_cronjob_smoke_parser.add_argument(
+        "--task-name",
+        default="thesis-defense-qdrant-snapshot-drill",
+        help="CronJob name",
+    )
+    qdrant_k8s_cronjob_smoke_parser.add_argument(
+        "--job-name",
+        default=None,
+        help="Optional manual Job name. Defaults to a timestamped name.",
+    )
+    qdrant_k8s_cronjob_smoke_parser.add_argument(
+        "--cron-schedule",
+        default="0 3 * * *",
+        help="Five-field cron schedule",
+    )
+    qdrant_k8s_cronjob_smoke_parser.add_argument(
+        "--namespace",
+        default="thesis-defense-agent",
+        help="Kubernetes namespace used by the generated CronJob",
+    )
+    qdrant_k8s_cronjob_smoke_parser.add_argument(
+        "--image",
+        default="ghcr.io/buan496/thesis-defense-agent:latest",
+        help="Container image used by the generated CronJob",
+    )
+    qdrant_k8s_cronjob_smoke_parser.add_argument(
+        "--config-map-name",
+        default="thesis-defense-agent-api-config",
+        help="ConfigMap used as envFrom source",
+    )
+    qdrant_k8s_cronjob_smoke_parser.add_argument(
+        "--secret-name",
+        default="thesis-defense-agent-api-secret",
+        help="Secret used as optional envFrom source",
+    )
+    qdrant_k8s_cronjob_smoke_parser.add_argument(
+        "--collection",
+        default=QDRANT_COLLECTION,
+        help="Source Qdrant collection name",
+    )
+    qdrant_k8s_cronjob_smoke_parser.add_argument(
+        "--restore-collection",
+        default=f"{QDRANT_COLLECTION}_restore",
+        help="Disposable Qdrant collection name used for restore drills",
+    )
+    qdrant_k8s_cronjob_smoke_parser.add_argument(
+        "--backup-dir",
+        default=QDRANT_BACKUP_DIR,
+        help="Container backup directory for downloaded snapshots",
+    )
+    qdrant_k8s_cronjob_smoke_parser.add_argument(
+        "--keep-last",
+        type=int,
+        default=5,
+        help="Number of newest backup files to retain",
+    )
+    qdrant_k8s_cronjob_smoke_parser.add_argument(
+        "--apply-retention",
+        action="store_true",
+        help="Configure retention as an apply step instead of dry-run preview",
+    )
+    qdrant_k8s_cronjob_smoke_parser.add_argument(
+        "--run-restore-drill",
+        action="store_true",
+        help="Run restore into the disposable collection during the Job.",
+    )
+    qdrant_k8s_cronjob_smoke_parser.add_argument(
+        "--run-compare",
+        action="store_true",
+        help="Run restored-collection benchmark comparison during the Job.",
+    )
+    qdrant_k8s_cronjob_smoke_parser.add_argument(
+        "--cleanup-job",
+        action="store_true",
+        help="Delete the manual Job after evidence collection.",
+    )
+    qdrant_k8s_cronjob_smoke_parser.add_argument(
+        "--cleanup-cronjob",
+        action="store_true",
+        help="Delete the CronJob after evidence collection.",
+    )
+    qdrant_k8s_cronjob_smoke_parser.add_argument(
+        "--timeout-seconds",
+        type=int,
+        default=180,
+        help="Timeout for kubectl commands.",
+    )
+    qdrant_k8s_cronjob_smoke_parser.add_argument(
+        "--manifest-output",
+        default=None,
+        help="Optional YAML output path for the generated CronJob manifest.",
+    )
+    qdrant_k8s_cronjob_smoke_parser.add_argument(
+        "--output",
+        default=None,
+        help="Optional Markdown output path for the smoke report.",
+    )
+    qdrant_k8s_cronjob_smoke_parser.add_argument(
+        "--allow-fail",
+        action="store_true",
+        help="Print failed report without exiting with status 1.",
     )
 
     qdrant_snapshot_schedule_install_plan_parser = subparsers.add_parser(
@@ -6494,6 +6605,54 @@ def main():
         if args.output is not None:
             save_text_output(args.output, yaml)
             print("OUTPUT:", args.output)
+
+    elif args.command == "qdrant-k8s-cronjob-smoke-run":
+        try:
+            config = build_qdrant_snapshot_schedule_config(
+                platform="kubernetes_cronjob",
+                task_name=args.task_name,
+                cron_schedule=args.cron_schedule,
+                namespace=args.namespace,
+                image=args.image,
+                collection=args.collection,
+                restore_collection=args.restore_collection,
+                backup_dir=args.backup_dir,
+                keep_last=args.keep_last,
+                apply_retention=args.apply_retention,
+                run_restore_drill=args.run_restore_drill,
+                run_compare=args.run_compare,
+            )
+            yaml = render_qdrant_snapshot_cronjob_manifest(
+                config,
+                config_map_name=args.config_map_name,
+                secret_name=args.secret_name,
+            )
+            report = execute_qdrant_k8s_cronjob_smoke(
+                manifest_yaml=yaml,
+                task_name=args.task_name,
+                namespace=args.namespace,
+                job_name=args.job_name,
+                timeout_seconds=args.timeout_seconds,
+                cleanup_job=args.cleanup_job,
+                cleanup_cronjob=args.cleanup_cronjob,
+            )
+            markdown = render_qdrant_k8s_cronjob_smoke_report(report)
+        except ValueError as error:
+            print(f"QDRANT K8S CRONJOB SMOKE ERROR: {error}")
+            raise SystemExit(2) from error
+
+        print(markdown, end="")
+
+        if args.manifest_output is not None:
+            save_text_output(args.manifest_output, yaml)
+            print("MANIFEST OUTPUT:", args.manifest_output)
+
+        if args.output is not None:
+            save_text_output(args.output, markdown)
+            print("OUTPUT:", args.output)
+
+        if report.overall_status != "passed" and not args.allow_fail:
+            raise SystemExit(1)
 
     elif args.command == "qdrant-snapshot-schedule-install-plan":
         try:
