@@ -51,6 +51,7 @@ PDF / TXT 论文
 → Qdrant snapshot schedule install plan
 → Qdrant snapshot schedule verification plan
 → Qdrant snapshot schedule evidence template
+→ Qdrant snapshot schedule install executor
 → K8s manifests / smoke plan / report template
 ```
 
@@ -194,6 +195,35 @@ uv run python -m app.cli qdrant-snapshot-schedule-evidence-template `
 不会查询调度器。
 不会验证粘贴的证据内容。
 真实命令输出需要人工脱敏后写入模板。
+```
+
+<!-- docs-update-2026-07-01-qdrant-snapshot-schedule-install-executor -->
+
+## 2026-07-01 Update: Qdrant Snapshot Schedule Install Executor
+
+项目新增受保护的 Qdrant snapshot drill 调度安装执行器：
+
+```text
+qdrant-snapshot-schedule-install-execute
+```
+
+示例：
+
+```powershell
+uv run python -m app.cli qdrant-snapshot-schedule-install-execute `
+  --platform cron `
+  --task-name thesis-defense-qdrant-snapshot-drill `
+  --confirm-task-name thesis-defense-qdrant-snapshot-drill
+```
+
+当前边界：
+
+```text
+这是第一个可以真实执行调度安装命令的 CLI。
+必须显式传入 --confirm-task-name。
+底层拒绝 --platform all。
+执行报告会记录 return code、stdout、stderr 和 success。
+真实启用前应先生成 install plan、verification plan 和 evidence template。
 ```
 
 <!-- docs-update-2026-06-29-postgres-compose -->
@@ -444,7 +474,7 @@ JSON remains the default session backend.
 最新本地测试基线：
 
 ```text
-1086 passed, 1 warning
+1093 passed, 1 warning
 ```
 
 本机学习版阶段已完成，阶段总复盘见：

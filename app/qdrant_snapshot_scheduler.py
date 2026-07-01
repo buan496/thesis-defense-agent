@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from pathlib import Path
+import subprocess
 from typing import Callable, Protocol
 
 from app.qdrant_backup_retention import (
@@ -83,6 +84,22 @@ class QdrantSnapshotScheduleVerificationPlan:
 
 
 @dataclass(frozen=True)
+class QdrantSnapshotScheduleInstallExecutionResult:
+    platform: str
+    command: str
+    return_code: int
+    stdout: str
+    stderr: str
+    success: bool
+
+
+@dataclass(frozen=True)
+class QdrantSnapshotScheduleInstallExecutionReport:
+    plan: QdrantSnapshotScheduleInstallPlan
+    result: QdrantSnapshotScheduleInstallExecutionResult
+
+
+@dataclass(frozen=True)
 class QdrantSnapshotDrillStepResult:
     name: str
     status: str
@@ -129,6 +146,10 @@ RetentionExecutor = Callable[
     QdrantBackupRetentionResult,
 ]
 CompareRestoredCollection = Callable[[str], dict]
+ScheduleCommandRunner = Callable[
+    [str, int],
+    QdrantSnapshotScheduleInstallExecutionResult,
+]
 
 
 def build_qdrant_snapshot_drill_plan(
@@ -439,6 +460,111 @@ def render_qdrant_snapshot_schedule_install_plan(
             "",
         ]
     )
+
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def execute_qdrant_snapshot_schedule_install_plan(
+    plan: QdrantSnapshotScheduleInstallPlan,
+    command_runner: ScheduleCommandRunner | None = None,
+    timeout_seconds: int = 120,
+) -> QdrantSnapshotScheduleInstallExecutionReport:
+    if not plan.apply:
+        raise ValueError("plan.apply must be true before executing install command")
+
+    if plan.config.platform == "all":
+        raise ValueError("platform must not be all when executing install command")
+
+    if len(plan.commands) != 1:
+        raise ValueError("install execution requires exactly one command")
+
+    command = plan.commands[0]
+
+    if not command.applies_system_change:
+        raise ValueError("install command must apply a system change")
+
+    if timeout_seconds <= 0:
+        raise ValueError("timeout_seconds must be greater than 0")
+
+    runner = command_runner or run_schedule_install_command
+    result = runner(command.command, timeout_seconds)
+
+    return QdrantSnapshotScheduleInstallExecutionReport(
+        plan=plan,
+        result=result,
+    )
+
+
+def run_schedule_install_command(
+    command: str,
+    timeout_seconds: int,
+) -> QdrantSnapshotScheduleInstallExecutionResult:
+    try:
+        completed = subprocess.run(
+            command,
+            shell=True,
+            capture_output=True,
+            text=True,
+            timeout=timeout_seconds,
+            check=False,
+        )
+    except subprocess.TimeoutExpired as error:
+        return QdrantSnapshotScheduleInstallExecutionResult(
+            platform="shell",
+            command=command,
+            return_code=-1,
+            stdout=error.stdout or "",
+            stderr=f"Command timed out after {timeout_seconds} seconds.",
+            success=False,
+        )
+
+    return QdrantSnapshotScheduleInstallExecutionResult(
+        platform="shell",
+        command=command,
+        return_code=completed.returncode,
+        stdout=completed.stdout,
+        stderr=completed.stderr,
+        success=completed.returncode == 0,
+    )
+
+
+def render_qdrant_snapshot_schedule_install_execution_report(
+    report: QdrantSnapshotScheduleInstallExecutionReport,
+) -> str:
+    result = report.result
+    lines = [
+        "# Qdrant Snapshot Schedule Install Execution Report",
+        "",
+        f"- Platform: `{report.plan.config.platform}`",
+        f"- Task name: `{report.plan.config.task_name}`",
+        f"- Success: `{result.success}`",
+        f"- Return code: `{result.return_code}`",
+        "",
+        "## Executed Command",
+        "",
+        "```powershell",
+        result.command,
+        "```",
+        "",
+        "## Stdout",
+        "",
+        "```text",
+        result.stdout.strip() or "<empty>",
+        "```",
+        "",
+        "## Stderr",
+        "",
+        "```text",
+        result.stderr.strip() or "<empty>",
+        "```",
+        "",
+        "## Follow-Up",
+        "",
+        "- Run `qdrant-snapshot-schedule-verify-plan` for the same platform.",
+        "- Paste sanitized status and log evidence into the evidence template.",
+        "- Run rollback command if the install result is wrong.",
+        "",
+    ]
 
     return "\n".join(lines).rstrip() + "\n"
 

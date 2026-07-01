@@ -172,10 +172,12 @@ from app.qdrant_snapshot_scheduler import (
     build_qdrant_snapshot_schedule_install_plan,
     build_qdrant_snapshot_schedule_verification_plan,
     execute_qdrant_snapshot_drill,
+    execute_qdrant_snapshot_schedule_install_plan,
     render_qdrant_snapshot_drill_plan,
     render_qdrant_snapshot_drill_report,
     render_qdrant_snapshot_schedule_config,
     render_qdrant_snapshot_schedule_evidence_template,
+    render_qdrant_snapshot_schedule_install_execution_report,
     render_qdrant_snapshot_schedule_install_plan,
     render_qdrant_snapshot_schedule_verification_plan,
 )
@@ -2889,6 +2891,103 @@ def main():
         "--output",
         default=None,
         help="Optional Markdown output path for the evidence report template",
+    )
+
+    qdrant_snapshot_schedule_install_execute_parser = subparsers.add_parser(
+        "qdrant-snapshot-schedule-install-execute",
+        help="Execute one confirmed Qdrant snapshot drill scheduler install command",
+    )
+    qdrant_snapshot_schedule_install_execute_parser.add_argument(
+        "--platform",
+        required=True,
+        help="Scheduler platform to install",
+    )
+    qdrant_snapshot_schedule_install_execute_parser.add_argument(
+        "--task-name",
+        default="thesis-defense-qdrant-snapshot-drill",
+        help="Schedule task name",
+    )
+    qdrant_snapshot_schedule_install_execute_parser.add_argument(
+        "--confirm-task-name",
+        required=True,
+        help="Must exactly match --task-name",
+    )
+    qdrant_snapshot_schedule_install_execute_parser.add_argument(
+        "--cron-schedule",
+        default="0 3 * * *",
+        help="Five-field cron schedule",
+    )
+    qdrant_snapshot_schedule_install_execute_parser.add_argument(
+        "--windows-start-time",
+        default="03:00",
+        help="Windows Task Scheduler start time in HH:MM format",
+    )
+    qdrant_snapshot_schedule_install_execute_parser.add_argument(
+        "--working-directory",
+        default=".",
+        help="Project working directory used by local schedulers",
+    )
+    qdrant_snapshot_schedule_install_execute_parser.add_argument(
+        "--log-path",
+        default="data/reports/qdrant_snapshot_drill_scheduled.log",
+        help="Local log path used by generated scheduler snippets",
+    )
+    qdrant_snapshot_schedule_install_execute_parser.add_argument(
+        "--namespace",
+        default="default",
+        help="Kubernetes namespace used by generated CronJob preview",
+    )
+    qdrant_snapshot_schedule_install_execute_parser.add_argument(
+        "--image",
+        default="ghcr.io/buan496/thesis-defense-agent:latest",
+        help="Container image used by generated Kubernetes CronJob preview",
+    )
+    qdrant_snapshot_schedule_install_execute_parser.add_argument(
+        "--collection",
+        default=QDRANT_COLLECTION,
+        help="Source Qdrant collection name",
+    )
+    qdrant_snapshot_schedule_install_execute_parser.add_argument(
+        "--restore-collection",
+        default=f"{QDRANT_COLLECTION}_restore",
+        help="Disposable Qdrant collection name used for restore drills",
+    )
+    qdrant_snapshot_schedule_install_execute_parser.add_argument(
+        "--backup-dir",
+        default=QDRANT_BACKUP_DIR,
+        help="Local backup directory for downloaded snapshots",
+    )
+    qdrant_snapshot_schedule_install_execute_parser.add_argument(
+        "--keep-last",
+        type=int,
+        default=5,
+        help="Number of newest backup files to retain",
+    )
+    qdrant_snapshot_schedule_install_execute_parser.add_argument(
+        "--apply-retention",
+        action="store_true",
+        help="Configure retention as an apply step instead of dry-run preview",
+    )
+    qdrant_snapshot_schedule_install_execute_parser.add_argument(
+        "--skip-restore-drill",
+        action="store_true",
+        help="Do not include restore in the scheduled runner command",
+    )
+    qdrant_snapshot_schedule_install_execute_parser.add_argument(
+        "--skip-compare",
+        action="store_true",
+        help="Do not include restored-collection comparison in the runner command",
+    )
+    qdrant_snapshot_schedule_install_execute_parser.add_argument(
+        "--timeout-seconds",
+        type=int,
+        default=120,
+        help="Maximum seconds allowed for the install command",
+    )
+    qdrant_snapshot_schedule_install_execute_parser.add_argument(
+        "--output",
+        default=None,
+        help="Optional Markdown output path for the execution report",
     )
 
     qdrant_snapshot_create_parser = subparsers.add_parser(
@@ -5933,6 +6032,47 @@ def main():
             )
         except ValueError as error:
             print(f"QDRANT SNAPSHOT SCHEDULE EVIDENCE TEMPLATE ERROR: {error}")
+            raise SystemExit(2) from error
+
+        print(markdown, end="")
+
+        if args.output is not None:
+            save_text_output(args.output, markdown)
+            print("OUTPUT:", args.output)
+
+    elif args.command == "qdrant-snapshot-schedule-install-execute":
+        try:
+            config = build_qdrant_snapshot_schedule_config(
+                platform=args.platform,
+                task_name=args.task_name,
+                cron_schedule=args.cron_schedule,
+                windows_start_time=args.windows_start_time,
+                working_directory=args.working_directory,
+                log_path=args.log_path,
+                namespace=args.namespace,
+                image=args.image,
+                collection=args.collection,
+                restore_collection=args.restore_collection,
+                backup_dir=args.backup_dir,
+                keep_last=args.keep_last,
+                apply_retention=args.apply_retention,
+                run_restore_drill=not args.skip_restore_drill,
+                run_compare=not args.skip_compare,
+            )
+            install_plan = build_qdrant_snapshot_schedule_install_plan(
+                config=config,
+                apply=True,
+                confirm_task_name=args.confirm_task_name,
+            )
+            report = execute_qdrant_snapshot_schedule_install_plan(
+                install_plan,
+                timeout_seconds=args.timeout_seconds,
+            )
+            markdown = render_qdrant_snapshot_schedule_install_execution_report(
+                report
+            )
+        except (OSError, TimeoutError, ValueError) as error:
+            print(f"QDRANT SNAPSHOT SCHEDULE INSTALL EXECUTE ERROR: {error}")
             raise SystemExit(2) from error
 
         print(markdown, end="")
