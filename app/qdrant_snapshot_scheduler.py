@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from pathlib import Path
+import shlex
 import subprocess
 import tempfile
 from typing import Callable, Protocol
@@ -932,7 +933,7 @@ def _build_qdrant_snapshot_drill_runner_command(
     if not run_compare:
         parts.append("--skip-compare")
 
-    return " ".join(parts)
+    return shlex.join(parts)
 
 
 def _render_cron_config(
