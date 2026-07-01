@@ -44,6 +44,7 @@ PDF / TXT 论文
 → Vector DB governance report
 → Qdrant backup retention policy
 → Qdrant snapshot smoke plan / report template
+→ Qdrant snapshot API runner
 → K8s manifests / smoke plan / report template
 ```
 
@@ -295,7 +296,7 @@ JSON remains the default session backend.
 最新本地测试基线：
 
 ```text
-1033 passed, 1 warning
+1045 passed, 1 warning
 ```
 
 本机学习版阶段已完成，阶段总复盘见：
@@ -433,9 +434,9 @@ retrieve_context
 
 ## 暂缓范围
 
-当前已经完成本机 FastAPI 服务化、静态 Web 前端增强、Docker Compose、Prometheus 本地验证、GHCR 镜像发布流程、PostgreSQL runtime smoke、Qdrant 最小后端和 Vector DB 生产化治理报告。以下内容暂缓到后续阶段：
+当前已经完成本机 FastAPI 服务化、静态 Web 前端增强、Docker Compose、Prometheus 本地验证、GHCR 镜像发布流程、PostgreSQL runtime smoke、Qdrant 最小后端、Vector DB 生产化治理报告、Qdrant 备份保留策略和 Qdrant snapshot 手动 API runner。以下内容暂缓到后续阶段：
 
-- Qdrant 自动备份任务 / 保留策略执行
+- Qdrant 定时备份任务 / restore drill 自动调度
 - MilvusVectorStoreRepository 与 Milvus runtime benchmark
 - K8s 真实集群 smoke test / 生产化部署验证
 - 服务器长期运行验证
@@ -769,7 +770,7 @@ retrieve_context
 
 1. 服务器长期运行验证：在服务器拉取 main，用 docker compose 运行 API 和 Prometheus。
 2. 对 README 和学习路线做周期性同步，避免文档落后于代码。
-3. 后续继续推进 K8s 真实集群 smoke test、真实通知提供方、Qdrant 自动备份任务 / 保留策略和 Milvus runtime benchmark。
+3. 后续继续推进 K8s 真实集群 smoke test、真实通知提供方、Qdrant 定时备份 / restore drill 自动调度和 Milvus runtime benchmark。
 
 ## 2026-06-30 Update: External Notification Routing
 
@@ -1351,7 +1352,7 @@ Milvus 只作为后续对比候选，尚未实现 MilvusVectorStoreRepository。
 下一步边界：
 
 ```text
-Qdrant 还缺自动 snapshot 创建任务和自动 restore smoke。
+Qdrant 已有手动 snapshot API runner，还缺定时 snapshot / restore drill 自动调度。
 Milvus 还缺本地环境、repository 实现和同 benchmark 对比。
 ```
 
@@ -1387,7 +1388,7 @@ uv run python -m app.cli qdrant-backup-retention `
 
 ```text
 该命令只管理已经下载到本地目录的 snapshot 文件。
-Qdrant snapshot 创建仍按 docs/deployment/qdrant.md 中的 SOP 手动执行。
+Qdrant snapshot 创建 / 列表 / 下载 / 恢复可通过手动 CLI runner 执行。
 尚未接入 cron、Windows Task Scheduler 或 Kubernetes CronJob。
 ```
 
@@ -1430,8 +1431,50 @@ retention dry-run
 
 ```text
 该能力只生成 smoke test 计划和执行记录模板。
-不会自动调用 Qdrant snapshot API。
-不会自动 restore 或删除 collection。
+真实 Qdrant snapshot API 调用已由手动 CLI runner 承担。
+不会自动定时创建 snapshot，也不会自动 restore 或删除 collection。
+```
+
+## 2026-06-30 Update: Qdrant Snapshot API Runner
+
+项目新增 Qdrant collection snapshot API runner：
+
+```text
+app/qdrant_snapshot_client.py
+tests/test_qdrant_snapshot_client.py
+```
+
+支持命令：
+
+```powershell
+uv run python -m app.cli qdrant-snapshot-create `
+  --url http://127.0.0.1:6333 `
+  --collection thesis_chunks
+
+uv run python -m app.cli qdrant-snapshot-list `
+  --url http://127.0.0.1:6333 `
+  --collection thesis_chunks
+
+uv run python -m app.cli qdrant-snapshot-download `
+  --url http://127.0.0.1:6333 `
+  --collection thesis_chunks `
+  --snapshot-name <snapshot_name> `
+  --backup-dir data/qdrant_backups
+
+uv run python -m app.cli qdrant-snapshot-restore `
+  --url http://127.0.0.1:6333 `
+  --restore-collection thesis_chunks_restore `
+  --confirm-restore-collection thesis_chunks_restore `
+  --snapshot-path data/qdrant_backups/<snapshot_name>
+```
+
+当前边界：
+
+```text
+该能力是手动 API runner，不是定时任务。
+restore 必须显式确认目标 collection。
+snapshot 文件仍保存到 data/qdrant_backups/，不提交到 Git。
+尚未接入 cron、Windows Task Scheduler 或 Kubernetes CronJob。
 ```
 
 ### LangGraph 旁路 Demo
