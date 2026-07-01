@@ -21,6 +21,7 @@ def test_build_k8s_smoke_plan_contains_offline_and_cluster_steps():
         "client_dry_run",
         "apply_manifests",
         "rollout_api",
+        "rollout_qdrant",
         "rollout_prometheus",
         "rollout_alertmanager",
         "inspect_workloads",
@@ -41,7 +42,8 @@ def test_build_k8s_smoke_plan_contains_offline_and_cluster_steps():
         "kubectl rollout status deployment/thesis-defense-agent-api "
         "-n thesis-defense-agent"
     ) in plan.steps[3].command
-    assert "curl.exe -f http://127.0.0.1:18000/health" in plan.steps[8].command
+    assert "kubectl rollout status statefulset/qdrant -n thesis-defense-agent" in plan.steps[4].command
+    assert "curl.exe -f http://127.0.0.1:18000/health" in plan.steps[9].command
 
 
 def test_build_k8s_smoke_plan_accepts_custom_values():
@@ -102,6 +104,7 @@ def test_render_k8s_smoke_report_template_contains_evidence_fields():
     assert "Evidence:" in rendered
     assert "Paste sanitized command output here." in rendered
     assert "kubectl rollout status deployment/thesis-defense-agent-api -n test-ns" in rendered
+    assert "kubectl rollout status statefulset/qdrant -n test-ns" in rendered
     assert "curl.exe -f http://127.0.0.1:19000/health" in rendered
 
 

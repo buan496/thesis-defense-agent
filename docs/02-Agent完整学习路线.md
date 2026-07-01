@@ -87,6 +87,7 @@ updated: 2026-07-01
 - [x] Qdrant snapshot schedule install executor
 - [x] Qdrant Windows Task Scheduler 本机定时 snapshot 实验
 - [x] Qdrant Kubernetes CronJob manifest / client-side dry-run
+- [x] Qdrant Kubernetes StatefulSet / Service / PVC / PDB runtime validation
 - [ ] Qdrant cron / Kubernetes CronJob / 长期运行调度证据
 - [x] MilvusVectorStoreRepository skeleton
 - [x] Milvus Compose service / import CLI / optional benchmark entry
@@ -337,6 +338,7 @@ updated: 2026-07-01
 - [x] Qdrant snapshot schedule install executor
 - [x] Qdrant Windows Task Scheduler 本机定时 snapshot 实验
 - [x] Qdrant Kubernetes CronJob manifest / client-side dry-run
+- [x] Qdrant Kubernetes StatefulSet / Service / PVC / PDB runtime validation
 - [ ] Qdrant cron / Kubernetes CronJob / 长期运行调度证据
 - [x] MilvusVectorStoreRepository skeleton
 - [x] Milvus Compose service / import CLI / optional benchmark entry
@@ -349,6 +351,7 @@ updated: 2026-07-01
 - [x] K8s smoke test 执行记录模板 CLI
 - [x] K8s smoke test runner CLI
 - [x] K8s 真实集群 smoke test 执行证据（kind 本机集群）
+- [x] Qdrant StatefulSet / Service / PVC / PDB 本机 kind 运行验证
 - [ ] 私有化配置和密钥管理
 
 ## 当前阶段：本机学习版 Agent Harness + 交付基础闭环
@@ -3668,7 +3671,7 @@ uv run pytest -q: 1182 passed, 1 warning
 
 ```text
 这是 manifest 渲染和 client-side dry-run 验证。
-当前 kind 集群没有 Qdrant StatefulSet / Service。
+当前 kind 集群已补齐 Qdrant StatefulSet / Service / PVC / PDB，并完成一次运行验证。
 CronJob 尚未作为长期任务 apply 到集群。
 真实调度证据仍需 Qdrant 在集群内可达后再采集。
 ```
@@ -3680,4 +3683,48 @@ CronJob 尚未作为长期任务 apply 到集群。
 2. 将 CronJob apply 到测试 namespace 并手动触发 Job
 3. 采集 Job 状态、日志、snapshot 产物和失败可见性证据
 4. 再进入长期周期运行观察
+```
+
+<!-- roadmap-update-2026-07-01-qdrant-k8s-service-runtime -->
+
+## 2026-07-01 路线同步：Qdrant Kubernetes StatefulSet / Service Runtime 已完成
+
+本阶段为本机 kind / Kubernetes 环境补齐 Qdrant 集群内可达性。
+目标不是启用长期 CronJob，而是先让 Qdrant 在 namespace 内以稳定 DNS、持久化卷和受保护 workload 的方式运行。
+
+已完成：
+
+- [x] `k8s/base/qdrant-statefulset.yaml`
+- [x] `k8s/base/qdrant-service.yaml`
+- [x] `k8s/base/qdrant-pod-disruption-budget.yaml`
+- [x] Qdrant `ClusterIP` Service 暴露 HTTP 6333 和 gRPC 6334
+- [x] Qdrant `StatefulSet` 挂载 `volumeClaimTemplates`
+- [x] Qdrant readiness / liveness probes
+- [x] Qdrant resources request / limit
+- [x] Qdrant PDB `minAvailable: 1`
+- [x] API ConfigMap 增加集群内 `QDRANT_URL=http://qdrant:6333`
+- [x] K8s smoke plan 增加 `rollout_qdrant`
+- [x] `kubectl apply --dry-run=client --validate=false -k k8s/base`
+- [x] 本机 kind 集群 `kubectl apply -k k8s/base`
+- [x] `kubectl rollout status statefulset/qdrant -n thesis-defense-agent`
+- [x] Qdrant Pod Running、PVC Bound、Service endpoints 可见
+- [x] Port-forward 验证 `/readyz` 返回 200
+- [x] `k8s-smoke-run --apply-cluster` 覆盖 Qdrant rollout 和 workload inspect
+
+当前边界：
+
+```text
+这是本机 kind 集群的一次性 runtime validation。
+Qdrant StatefulSet / Service 已可被同 namespace 内 CronJob 使用。
+CronJob 尚未 apply 为长期运行调度。
+snapshot Job 状态、日志、产物和周期运行证据尚未采集。
+```
+
+下一步学习：
+
+```text
+1. 将 Qdrant Kubernetes CronJob apply 到测试 namespace
+2. 手动触发一次 Job
+3. 采集 Job 状态、日志、snapshot 产物和失败可见性证据
+4. 再决定是否进入长期周期运行观察
 ```
