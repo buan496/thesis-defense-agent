@@ -513,6 +513,115 @@ def render_qdrant_snapshot_schedule_verification_plan(
     return "\n".join(lines).rstrip() + "\n"
 
 
+def render_qdrant_snapshot_schedule_evidence_template(
+    config: QdrantSnapshotScheduleConfig,
+    environment: str = "local-scheduler",
+    operator: str = "",
+) -> str:
+    normalized_environment = environment.strip()
+    operator_text = operator.strip() or "TBD"
+
+    if not normalized_environment:
+        raise ValueError("environment must not be empty")
+
+    install_plan = build_qdrant_snapshot_schedule_install_plan(
+        config=config,
+        apply=True,
+        confirm_task_name=config.task_name,
+    )
+    verification_plan = build_qdrant_snapshot_schedule_verification_plan(config)
+
+    lines = [
+        "# Qdrant Snapshot Schedule Evidence Report",
+        "",
+        f"- Environment: `{normalized_environment}`",
+        f"- Operator: `{operator_text}`",
+        f"- Platform: `{config.platform}`",
+        f"- Task name: `{config.task_name}`",
+        f"- Cron schedule: `{config.cron_schedule}`",
+        f"- Windows start time: `{config.windows_start_time}`",
+        f"- Working directory: `{config.working_directory}`",
+        f"- Log path: `{config.log_path}`",
+        f"- Namespace: `{config.namespace}`",
+        f"- Image: `{config.image}`",
+        "",
+        "Use this template after manually installing and verifying the scheduled snapshot drill.",
+        "Paste sanitized command output only. Do not paste API keys or secrets.",
+        "",
+        "## 1. Pre-Install Manual Drill",
+        "",
+        "- Result: `[ ] PASS  [ ] FAIL  [ ] SKIPPED`",
+        "- Evidence:",
+        "",
+        "```text",
+        "Paste output from qdrant-snapshot-drill-run or explain why skipped.",
+        "```",
+        "",
+        "## 2. Install Command",
+        "",
+        "- Result: `[ ] PASS  [ ] FAIL  [ ] SKIPPED`",
+        "",
+        "```powershell",
+        install_plan.commands[0].command,
+        "```",
+        "",
+        "- Evidence:",
+        "",
+        "```text",
+        "Paste sanitized install command output here.",
+        "```",
+        "",
+    ]
+
+    step_index = 3
+    for command in verification_plan.commands:
+        lines.extend(
+            [
+                f"## {step_index}. {command.purpose}",
+                "",
+                f"- Destructive: `{command.destructive}`",
+                "- Result: `[ ] PASS  [ ] FAIL  [ ] SKIPPED`",
+                "",
+                "```powershell",
+                command.command,
+                "```",
+                "",
+                "- Evidence:",
+                "",
+                "```text",
+                "Paste sanitized command output here.",
+                "```",
+                "",
+            ]
+        )
+        step_index += 1
+
+    lines.extend(
+        [
+            "## Final Decision",
+            "",
+            "- Scheduled drill enabled: `[ ] YES  [ ] NO`",
+            "- Rollback completed if needed: `[ ] YES  [ ] NO  [ ] NOT NEEDED`",
+            "- Follow-up actions:",
+            "",
+            "```text",
+            "List follow-up actions, owners, and deadlines.",
+            "```",
+            "",
+            "## Safety Checklist",
+            "",
+            "- [ ] Restore target is a disposable collection.",
+            "- [ ] Logs do not contain secrets.",
+            "- [ ] Retention behavior is understood before enabling deletion.",
+            "- [ ] Rollback command has been reviewed.",
+            "- [ ] Evidence is sufficient to reproduce the verification.",
+            "",
+        ]
+    )
+
+    return "\n".join(lines).rstrip() + "\n"
+
+
 def execute_qdrant_snapshot_drill(
     plan: QdrantSnapshotDrillPlan,
     snapshot_client: QdrantSnapshotDrillClient,
