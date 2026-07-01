@@ -211,6 +211,7 @@ updated: 2026-07-01
 - [x] 超时和取消
 - [x] 后台任务基础 runner
 - [x] FastAPI 后台任务 API：create / status / cancel
+- [x] 异步 DefenseTask step execution API
 - [x] 向量库构建 checkpoint
 - [x] 向量库构建断点恢复
 - [ ] 幂等性
@@ -817,11 +818,12 @@ PostgreSQL runtime smoke test。
 
 ## 下一步学习重点
 
-当前已经完成本机 Agent Harness、RAG、Tool Calling、Memory、Trace、Sub-Agent、LangGraph 旁路迁移、FastAPI / Web / Docker / Prometheus / PostgreSQL / Qdrant 基础治理、Qdrant snapshot 手动 API runner 和 Windows Task Scheduler 本机实验。下一阶段按交付治理补齐：
+当前已经完成本机 Agent Harness、RAG、Tool Calling、Memory、Trace、Sub-Agent、LangGraph 旁路迁移、FastAPI / Web / Docker / Prometheus / PostgreSQL / Qdrant / Milvus 基础治理、Qdrant Windows Task Scheduler 本机实验，以及 AsyncTaskRunner / FastAPI 后台任务 / DefenseTask 当前步骤后台执行。下一阶段按异步与长任务服务化继续补齐：
 
-1. Qdrant cron / Kubernetes CronJob 调度证据或长期运行验证
-2. K8s 真实集群 smoke test 执行 / 生产化部署验证
-3. Milvus Backup Tool / 集群级 restore drill 边界学习
+1. 异步 LLM / 工具调用边界
+2. 后台任务幂等请求
+3. 后台任务持久化恢复
+4. K8s 真实集群 smoke test 执行 / 生产化部署验证
 
 ## 最终简历能力目标
 
@@ -2776,6 +2778,39 @@ Milvus 只作为未来对比候选，尚未实现 MilvusVectorStoreRepository。
 1. 异步 DefenseTask step execution API
 2. 异步 LLM / 工具调用边界
 3. 幂等请求和后台任务持久化恢复
+```
+
+<!-- roadmap-update-2026-07-01-async-defense-task-step-api -->
+
+## 2026-07-01 路线同步：异步 DefenseTask Step Execution API 已完成
+
+本阶段把后台任务 API 从 demo sleep job 推进到真实 `DefenseTask` 当前步骤执行。
+
+已完成：
+
+- [x] `POST /tasks/{task_id}/steps/execute-async`
+- [x] 路由层校验 `task_id` 是否存在
+- [x] 后台执行复用 `execute_current_task_step`
+- [x] 阻塞同步执行通过 `asyncio.to_thread` 隔离到线程
+- [x] 后台任务结果通过 `/async-tasks/{async_task_id}` 查询
+- [x] 后台失败记录为 async task `failed`
+- [x] API 测试覆盖成功、失败和缺失任务
+
+当前边界：
+
+```text
+当前只把现有同步 DefenseTask step execution 放入后台任务。
+底层 RAG、LLM 和工具调用仍是同步函数。
+后台任务状态仍在进程内存中。
+尚未实现幂等请求，重复调用 execute-async 可能创建多个后台任务。
+```
+
+下一步学习：
+
+```text
+1. 异步 LLM / 工具调用边界
+2. 后台任务幂等请求
+3. 后台任务持久化恢复
 ```
 
 <!-- roadmap-update-2026-07-01-qdrant-snapshot-drill-plan -->

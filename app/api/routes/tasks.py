@@ -1,3 +1,4 @@
+import asyncio
 from dataclasses import asdict
 from pathlib import Path
 from typing import Any
@@ -6,6 +7,8 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from app.api.middleware import CORRELATION_ID_HEADER
+from app.api.routes.async_tasks import get_async_task_runner
+from app.async_task_runner import AsyncTaskRunner
 from app.task_store import DEFAULT_TASK_DIRECTORY
 
 
@@ -25,6 +28,10 @@ class TaskStepResponse(BaseModel):
     task: dict[str, Any]
     step: dict[str, Any] | None
     path: str | None = None
+
+
+class AsyncTaskStepResponse(BaseModel):
+    async_task: dict[str, Any]
 
 
 class TaskAnalysisResponse(BaseModel):
@@ -116,6 +123,25 @@ def execute_task_step_service(
         directory=directory,
         correlation_id=correlation_id,
     )
+
+
+async def execute_task_step_background_job(
+    task_id: str,
+    directory: Path,
+    correlation_id: str | None = None,
+) -> dict[str, Any]:
+    task, step, task_path = await asyncio.to_thread(
+        execute_task_step_service,
+        task_id=task_id,
+        directory=directory,
+        correlation_id=correlation_id,
+    )
+
+    return {
+        "task": asdict(task),
+        "step": asdict(step),
+        "path": str(task_path),
+    }
 
 
 def submit_task_answer_service(
@@ -293,6 +319,48 @@ def execute_task_step(
         task=asdict(task),
         step=asdict(step),
         path=str(task_path),
+    )
+
+
+@router.post("/{task_id}/steps/execute-async")
+async def execute_task_step_async(
+    task_id: str,
+    http_request: Request,
+    directory: Path = Depends(get_task_directory),
+    async_runner: AsyncTaskRunner = Depends(get_async_task_runner),
+) -> AsyncTaskStepResponse:
+    try:
+        get_task_service(
+            task_id=task_id,
+            directory=directory,
+        )
+    except FileNotFoundError as error:
+        raise HTTPException(
+            status_code=404,
+            detail=str(error),
+        ) from error
+    except ValueError as error:
+        raise HTTPException(
+            status_code=400,
+            detail=str(error),
+        ) from error
+
+    try:
+        async_task = async_runner.create_task(
+            name=f"execute_task_step:{task_id}",
+            coroutine_factory=execute_task_step_background_job,
+            task_id=task_id,
+            directory=directory,
+            correlation_id=get_request_correlation_id(http_request),
+        )
+    except (TypeError, ValueError) as error:
+        raise HTTPException(
+            status_code=422,
+            detail=str(error),
+        ) from error
+
+    return AsyncTaskStepResponse(
+        async_task=async_task.to_dict(),
     )
 
 

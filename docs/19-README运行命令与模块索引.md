@@ -234,6 +234,18 @@ curl.exe http://127.0.0.1:8000/async-tasks/<TASK_ID>
 curl.exe -X DELETE http://127.0.0.1:8000/async-tasks/<TASK_ID>
 ```
 
+后台执行当前答辩任务步骤：
+
+```powershell
+curl.exe -X POST http://127.0.0.1:8000/tasks/<TASK_ID>/steps/execute-async
+```
+
+查询后台执行结果：
+
+```powershell
+curl.exe http://127.0.0.1:8000/async-tasks/<ASYNC_TASK_ID>
+```
+
 上传论文文档：
 
 ```powershell

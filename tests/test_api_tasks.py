@@ -1,7 +1,11 @@
+import time
+
 from fastapi.testclient import TestClient
 
 from app.api.main import app
+from app.api.routes import async_tasks
 from app.api.routes import tasks
+from app.async_task_runner import AsyncTaskRunner
 from app.task_models import DefenseTask, TaskStep
 
 
@@ -196,6 +200,152 @@ def test_execute_task_step_returns_step_output(monkeypatch, tmp_path):
         "context": "系统架构上下文",
     }
     assert body["path"].endswith("task-1.json")
+
+
+def test_execute_task_step_async_creates_background_task(
+    monkeypatch,
+    tmp_path,
+):
+    runner = AsyncTaskRunner()
+    app.dependency_overrides[tasks.get_task_directory] = lambda: tmp_path
+    app.dependency_overrides[
+        tasks.get_async_task_runner
+    ] = lambda: runner
+    app.dependency_overrides[
+        async_tasks.get_async_task_runner
+    ] = lambda: runner
+
+    def fake_execute_task_step_service(
+        task_id,
+        directory,
+        correlation_id=None,
+    ):
+        assert directory == tmp_path
+        assert correlation_id
+
+        fake_task = DefenseTask(
+            topic="系统架构",
+            task_id=task_id,
+            status="running",
+        )
+        fake_step = TaskStep(
+            step_type="retrieve_context",
+            status="completed",
+            output={
+                "context": "系统架构上下文",
+            },
+        )
+        fake_task.add_step(fake_step)
+        return fake_task, fake_step, tmp_path / f"{task_id}.json"
+
+    monkeypatch.setattr(
+        tasks,
+        "execute_task_step_service",
+        fake_execute_task_step_service,
+    )
+
+    try:
+        create_response = client.post(
+            "/tasks",
+            json={
+                "topic": "系统架构",
+            },
+        )
+        task_id = create_response.json()["task"]["task_id"]
+
+        response = client.post(f"/tasks/{task_id}/steps/execute-async")
+        async_task_id = response.json()["async_task"]["task_id"]
+
+        status_response = None
+        for _ in range(20):
+            status_response = client.get(f"/async-tasks/{async_task_id}")
+            if status_response.json()["task"]["status"] == "completed":
+                break
+            time.sleep(0.01)
+    finally:
+        clear_overrides()
+
+    assert response.status_code == 200
+    async_task = response.json()["async_task"]
+    assert async_task["name"] == f"execute_task_step:{task_id}"
+    assert async_task["status"] in {"pending", "running", "completed"}
+
+    assert status_response is not None
+    assert status_response.status_code == 200
+    completed_task = status_response.json()["task"]
+    assert completed_task["status"] == "completed"
+    assert completed_task["result"]["task"]["task_id"] == task_id
+    assert completed_task["result"]["step"]["step_type"] == "retrieve_context"
+    assert completed_task["result"]["step"]["output"] == {
+        "context": "系统架构上下文",
+    }
+
+
+def test_execute_task_step_async_records_background_failure(
+    monkeypatch,
+    tmp_path,
+):
+    runner = AsyncTaskRunner()
+    app.dependency_overrides[tasks.get_task_directory] = lambda: tmp_path
+    app.dependency_overrides[
+        tasks.get_async_task_runner
+    ] = lambda: runner
+    app.dependency_overrides[
+        async_tasks.get_async_task_runner
+    ] = lambda: runner
+
+    def fake_execute_task_step_service(
+        task_id,
+        directory,
+        correlation_id=None,
+    ):
+        raise ValueError("invalid current step")
+
+    monkeypatch.setattr(
+        tasks,
+        "execute_task_step_service",
+        fake_execute_task_step_service,
+    )
+
+    try:
+        create_response = client.post(
+            "/tasks",
+            json={
+                "topic": "系统架构",
+            },
+        )
+        task_id = create_response.json()["task"]["task_id"]
+
+        response = client.post(f"/tasks/{task_id}/steps/execute-async")
+        async_task_id = response.json()["async_task"]["task_id"]
+
+        status_response = None
+        for _ in range(20):
+            status_response = client.get(f"/async-tasks/{async_task_id}")
+            if status_response.json()["task"]["status"] == "failed":
+                break
+            time.sleep(0.01)
+    finally:
+        clear_overrides()
+
+    assert response.status_code == 200
+    assert status_response is not None
+    failed_task = status_response.json()["task"]
+
+    assert failed_task["status"] == "failed"
+    assert failed_task["error_type"] == "ValueError"
+    assert failed_task["error_message"] == "invalid current step"
+
+
+def test_execute_task_step_async_returns_404_when_task_missing(tmp_path):
+    app.dependency_overrides[tasks.get_task_directory] = lambda: tmp_path
+
+    try:
+        response = client.post("/tasks/not-exist/steps/execute-async")
+    finally:
+        clear_overrides()
+
+    assert response.status_code == 404
 
 
 def test_execute_task_step_maps_value_error_to_400(monkeypatch, tmp_path):
