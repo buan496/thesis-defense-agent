@@ -767,6 +767,58 @@ Run qdrant-snapshot-schedule-verify-plan after execution.
 Paste sanitized evidence into qdrant-snapshot-schedule-evidence-template.
 ```
 
+### Windows Task Scheduler Local Experiment
+
+The local Windows Task Scheduler experiment was executed with a disposable test
+task:
+
+```text
+thesis-defense-qdrant-snapshot-drill-windows-test
+```
+
+The scheduled command used:
+
+```text
+--skip-restore-drill
+--skip-compare
+```
+
+This kept the scheduled run focused on snapshot creation, snapshot download,
+and retention dry-run. Restore behavior had already been validated by a manual
+drill before installing the scheduled task.
+
+Observed Windows-specific fixes:
+
+```text
+1. schtasks /TR has a 261-character limit.
+2. Nested quotes in /TR break when the project path contains spaces.
+3. The scheduler action now calls a short temporary .ps1 file with -File.
+4. The generated .ps1 file is written as UTF-8 with BOM so Windows PowerShell 5 reads Chinese paths correctly.
+```
+
+Successful verification evidence:
+
+```text
+Task creation: PASS
+Manual schtasks /Run trigger: PASS
+Last Result: 0
+Scheduled log written: PASS
+Snapshot create/download from scheduled task: PASS
+Rollback with schtasks /Delete: PASS
+```
+
+Evidence files generated locally under `data/reports/`:
+
+```text
+qdrant_snapshot_windows_manual_drill.md
+qdrant_snapshot_windows_install_execution.md
+qdrant_snapshot_windows_scheduled.log
+qdrant_snapshot_windows_schedule_evidence_template.md
+```
+
+These files are operational evidence and should not be committed unless a
+sanitized report is intentionally added.
+
 ## Snapshot Smoke Plan
 
 The project provides an offline snapshot smoke-test plan generator. It does not

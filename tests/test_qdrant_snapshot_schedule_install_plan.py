@@ -39,6 +39,26 @@ def test_build_qdrant_snapshot_schedule_install_plan_apply_single_platform():
     assert not plan.commands[0].command.startswith("echo")
 
 
+def test_build_qdrant_snapshot_schedule_install_plan_uses_script_file_for_windows():
+    config = build_qdrant_snapshot_schedule_config(
+        platform="windows_task_scheduler",
+        working_directory="E:/project with spaces",
+    )
+    plan = build_qdrant_snapshot_schedule_install_plan(
+        config,
+        apply=True,
+        confirm_task_name=config.task_name,
+    )
+
+    command = plan.commands[0].command
+
+    assert "powershell.exe -NoProfile -ExecutionPolicy Bypass -File" in command
+    assert "thesis-defense-agent" in command
+    assert "scheduled_tasks" in command
+    assert " -Command " not in command
+    assert "Set-Location" not in command
+
+
 def test_build_qdrant_snapshot_schedule_install_plan_rejects_apply_all():
     config = build_qdrant_snapshot_schedule_config(platform="all")
 

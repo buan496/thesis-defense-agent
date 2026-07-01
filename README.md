@@ -52,6 +52,7 @@ PDF / TXT 论文
 → Qdrant snapshot schedule verification plan
 → Qdrant snapshot schedule evidence template
 → Qdrant snapshot schedule install executor
+→ Qdrant Windows Task Scheduler local experiment
 → K8s manifests / smoke plan / report template
 ```
 
@@ -224,6 +225,39 @@ uv run python -m app.cli qdrant-snapshot-schedule-install-execute `
 底层拒绝 --platform all。
 执行报告会记录 return code、stdout、stderr 和 success。
 真实启用前应先生成 install plan、verification plan 和 evidence template。
+```
+
+<!-- docs-update-2026-07-01-qdrant-windows-scheduler-experiment -->
+
+## 2026-07-01 Update: Qdrant Windows Scheduler Experiment
+
+本机 Windows Task Scheduler 实验已完成。
+
+验证范围：
+
+```text
+创建测试计划任务
+手动触发 schtasks /Run
+Qdrant snapshot 创建
+snapshot 下载到 data/qdrant_backups
+retention dry-run
+写入调度日志
+删除测试计划任务
+```
+
+本次实验修复了 Windows 平台两个真实问题：
+
+```text
+1. schtasks /TR 参数有 261 字符限制，长命令不能直接放进 /TR。
+2. Windows PowerShell 5 读取无 BOM UTF-8 脚本时会导致中文路径乱码。
+```
+
+当前实现：
+
+```text
+Windows Task Scheduler 动作调用临时目录下的 .ps1 文件。
+.ps1 文件使用 UTF-8 with BOM 写入。
+测试任务已回滚删除。
 ```
 
 <!-- docs-update-2026-06-29-postgres-compose -->
@@ -474,7 +508,7 @@ JSON remains the default session backend.
 最新本地测试基线：
 
 ```text
-1093 passed, 1 warning
+1095 passed, 1 warning
 ```
 
 本机学习版阶段已完成，阶段总复盘见：

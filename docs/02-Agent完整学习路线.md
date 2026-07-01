@@ -85,7 +85,8 @@ updated: 2026-07-01
 - [x] Qdrant snapshot schedule verification plan
 - [x] Qdrant snapshot schedule evidence template
 - [x] Qdrant snapshot schedule install executor
-- [ ] Qdrant 定时 snapshot / restore drill 自动调度
+- [x] Qdrant Windows Task Scheduler 本机定时 snapshot 实验
+- [ ] Qdrant cron / Kubernetes CronJob / 长期运行调度证据
 - [ ] MilvusVectorStoreRepository / Milvus runtime benchmark
 
 基础知识：
@@ -259,7 +260,7 @@ updated: 2026-07-01
 
 ## 阶段 10：服务化与界面
 
-> 当前机器已经完成 FastAPI 服务化、静态 Web 前端增强、stdio MCP Server、stdio MCP Client、MCP resource / prompt 能力、Docker Compose、Prometheus 本地验证、Alertmanager 本机路由、外部通知路由本地可审计版本、K8s 基础 manifests、生产化基础字段、smoke test 计划 CLI 与执行记录模板 CLI、Docker 镜像 CI 构建、GHCR 镜像发布、PostgreSQL runtime smoke、Qdrant 最小后端、Vector DB 生产化治理报告、Qdrant backup retention policy CLI 和 Qdrant snapshot API runner。K8s 真实集群 smoke test 执行、Qdrant 定时 snapshot / restore drill 自动调度、Milvus runtime benchmark 和服务器长期运行继续作为后续阶段。
+> 当前机器已经完成 FastAPI 服务化、静态 Web 前端增强、stdio MCP Server、stdio MCP Client、MCP resource / prompt 能力、Docker Compose、Prometheus 本地验证、Alertmanager 本机路由、外部通知路由本地可审计版本、K8s 基础 manifests、生产化基础字段、smoke test 计划 CLI 与执行记录模板 CLI、Docker 镜像 CI 构建、GHCR 镜像发布、PostgreSQL runtime smoke、Qdrant 最小后端、Vector DB 生产化治理报告、Qdrant backup retention policy CLI、Qdrant snapshot API runner 和 Windows Task Scheduler 本机实验。K8s 真实集群 smoke test 执行、cron / Kubernetes CronJob 调度证据、Qdrant 长期运行验证、Milvus runtime benchmark 和服务器长期运行继续作为后续阶段。
 
 - [x] FastAPI
 - [x] Pydantic 请求模型
@@ -324,7 +325,8 @@ updated: 2026-07-01
 - [x] Qdrant snapshot schedule verification plan
 - [x] Qdrant snapshot schedule evidence template
 - [x] Qdrant snapshot schedule install executor
-- [ ] Qdrant 定时 snapshot / restore drill 自动调度
+- [x] Qdrant Windows Task Scheduler 本机定时 snapshot 实验
+- [ ] Qdrant cron / Kubernetes CronJob / 长期运行调度证据
 - [ ] MilvusVectorStoreRepository / Milvus runtime benchmark
 - [x] K8s 基础 manifests
 - [x] K8s 生产化基础字段
@@ -801,14 +803,14 @@ PostgreSQL runtime smoke test。
 边界说明：
 
 - LangGraph 后续只做旁路迁移，不覆盖当前手写 Task State / Agent Harness 源码。
-- FastAPI、静态 Web 前端、stdio MCP Server、Dockerfile、docker-compose、Prometheus、Alertmanager 本机路由、外部通知路由本地可审计版本、K8s 基础 manifests、生产化基础字段、smoke test 计划 CLI 与执行记录模板 CLI、本机 PostgreSQL runtime smoke、Qdrant 最小后端、Vector DB 生产化治理报告、Qdrant backup retention policy CLI 和 Qdrant snapshot API runner 已完成。
-- K8s 真实集群 smoke test 执行、Qdrant 定时 snapshot / restore drill 自动调度、Milvus runtime benchmark、私有化部署、服务器长期运行和真实 Feishu / WeCom / email 通知提供方继续作为后续阶段。
+- FastAPI、静态 Web 前端、stdio MCP Server、Dockerfile、docker-compose、Prometheus、Alertmanager 本机路由、外部通知路由本地可审计版本、K8s 基础 manifests、生产化基础字段、smoke test 计划 CLI 与执行记录模板 CLI、本机 PostgreSQL runtime smoke、Qdrant 最小后端、Vector DB 生产化治理报告、Qdrant backup retention policy CLI、Qdrant snapshot API runner 和 Windows Task Scheduler 本机实验已完成。
+- K8s 真实集群 smoke test 执行、cron / Kubernetes CronJob 调度证据、Qdrant 长期运行验证、Milvus runtime benchmark、私有化部署、服务器长期运行和真实 Feishu / WeCom / email 通知提供方继续作为后续阶段。
 
 ## 下一步学习重点
 
-当前已经完成本机 Agent Harness、RAG、Tool Calling、Memory、Trace、Sub-Agent、LangGraph 旁路迁移、FastAPI / Web / Docker / Prometheus / PostgreSQL / Qdrant 基础治理和 Qdrant snapshot 手动 API runner。下一阶段按交付治理补齐：
+当前已经完成本机 Agent Harness、RAG、Tool Calling、Memory、Trace、Sub-Agent、LangGraph 旁路迁移、FastAPI / Web / Docker / Prometheus / PostgreSQL / Qdrant 基础治理、Qdrant snapshot 手动 API runner 和 Windows Task Scheduler 本机实验。下一阶段按交付治理补齐：
 
-1. Qdrant snapshot drill 一次性 runner
+1. Qdrant cron / Kubernetes CronJob 调度证据或长期运行验证
 2. MilvusVectorStoreRepository / Milvus runtime benchmark
 3. K8s 真实集群 smoke test 执行 / 生产化部署验证
 
@@ -1978,8 +1980,8 @@ Spec -> Permission -> Plan -> Dry-Run -> Execute -> Trace -> Comparison -> Quali
 
 ```text
 LangGraph 后续只做旁路迁移，不覆盖现有手写 Agent Harness。
-FastAPI、静态 Web 前端、stdio MCP Server、stdio MCP Client、MCP resource / prompt 能力、Dockerfile、docker-compose、Prometheus、Alertmanager 本机路由、外部通知路由本地可审计版本、K8s 基础 manifests、生产化基础字段、smoke test 计划 CLI 与执行记录模板 CLI、本机 PostgreSQL runtime smoke、Qdrant 最小后端、Vector DB 生产化治理报告、Qdrant backup retention policy CLI 和 Qdrant snapshot API runner 已完成。
-K8s 真实集群 smoke test 执行、Qdrant 定时 snapshot / restore drill 自动调度、Milvus runtime benchmark、私有化部署、服务器长期运行和真实 Feishu / WeCom / email 通知提供方继续作为后续阶段。
+FastAPI、静态 Web 前端、stdio MCP Server、stdio MCP Client、MCP resource / prompt 能力、Dockerfile、docker-compose、Prometheus、Alertmanager 本机路由、外部通知路由本地可审计版本、K8s 基础 manifests、生产化基础字段、smoke test 计划 CLI 与执行记录模板 CLI、本机 PostgreSQL runtime smoke、Qdrant 最小后端、Vector DB 生产化治理报告、Qdrant backup retention policy CLI、Qdrant snapshot API runner 和 Windows Task Scheduler 本机实验已完成。
+K8s 真实集群 smoke test 执行、cron / Kubernetes CronJob 调度证据、Qdrant 长期运行验证、Milvus runtime benchmark、私有化部署、服务器长期运行和真实 Feishu / WeCom / email 通知提供方继续作为后续阶段。
 ```
 
 <!-- roadmap-update-2026-06-25-trace-replay-feedback -->
@@ -2514,7 +2516,7 @@ docs/17-本机学习版阶段总复盘.md
 
 ```text
 1. K8s 真实集群 smoke test 执行 / 生产化部署验证
-2. Qdrant 定时 snapshot / restore drill 自动调度
+2. cron / Kubernetes CronJob 调度证据和 Qdrant 长期运行验证
 3. MilvusVectorStoreRepository / Milvus runtime benchmark
 4. 服务器长期运行验证
 5. 真实 Feishu / WeCom / email 通知提供方
@@ -2589,7 +2591,7 @@ Prometheus 告警规则已完成；Alertmanager 本机路由已完成；外部�
 
 ```text
 1. K8s 真实集群 smoke test 执行 / 生产化部署验证
-2. Qdrant 定时 snapshot / restore drill 自动调度
+2. cron / Kubernetes CronJob 调度证据和 Qdrant 长期运行验证
 3. MilvusVectorStoreRepository / Milvus runtime benchmark
 4. 服务器长期运行验证
 5. 真实 Feishu / WeCom / email 通知提供方
@@ -2665,7 +2667,7 @@ API 仍保持 replicas=1，因为默认 JSON / emptyDir 后端不适合多副本
 
 ```text
 如果继续 K8s：执行真实集群 smoke test，并将脱敏输出写入验证记录模板。
-如果暂不接服务器：继续 Qdrant 定时 snapshot / restore drill 自动调度，或进入 Milvus runtime benchmark。
+如果暂不接服务器：继续 cron / Kubernetes CronJob 调度证据，或进入 Milvus runtime benchmark。
 ```
 
 <!-- roadmap-update-2026-06-30-vector-db-governance -->
@@ -2965,6 +2967,54 @@ CLI 不验证粘贴的证据内容。
 1. Qdrant 定时 snapshot / restore drill 真实运行证据采集
 2. MilvusVectorStoreRepository / Milvus runtime benchmark
 3. K8s 真实集群 smoke test 执行 / 生产化部署验证
+```
+
+<!-- roadmap-update-2026-07-01-qdrant-windows-scheduler-experiment -->
+
+## 2026-07-01 路线同步：Qdrant Windows Task Scheduler 本机实验已完成
+
+本阶段选择 Windows 本机平台先验证 Qdrant 定时 snapshot 运行链路。
+验证对象是一次可回滚的 disposable scheduled task，不是长期生产任务。
+
+已完成：
+
+- [x] 启动本机 Qdrant Compose 服务
+- [x] 手动执行 snapshot drill，并恢复到 disposable collection
+- [x] 通过 `qdrant-snapshot-schedule-install-execute` 创建 Windows Task Scheduler 测试任务
+- [x] 手动 `schtasks /Run` 触发测试任务
+- [x] 验证 scheduled task 日志写入
+- [x] 验证 snapshot create / download 在 scheduled task 中成功执行
+- [x] 验证 `Last Result: 0`
+- [x] 生成 evidence template
+- [x] 使用 `schtasks /Delete` 回滚测试任务
+- [x] 修复 Windows Task Scheduler `/TR` 261 字符限制导致的长命令失败
+- [x] 修复项目路径包含空格时 `/TR` 嵌套引号失败
+- [x] 修复 Windows PowerShell 5 读取无 BOM UTF-8 脚本导致中文路径乱码
+
+当前实现策略：
+
+```text
+Windows scheduled task 不再直接执行长 runner 命令。
+系统先生成一个短路径临时 .ps1 文件。
+Task Scheduler action 使用 powershell.exe -File 调用该脚本。
+.ps1 使用 UTF-8 with BOM 写入，保证 Windows PowerShell 5 可以正确读取中文路径。
+```
+
+当前边界：
+
+```text
+本阶段只验证 Windows 本机 Task Scheduler。
+测试任务已经回滚删除。
+data/reports/ 和 data/qdrant_backups/ 下的运行证据不提交到 Git，除非后续整理为脱敏报告。
+cron、Kubernetes CronJob、长期运行和服务器常驻验证尚未完成。
+```
+
+下一步学习：
+
+```text
+1. MilvusVectorStoreRepository / Milvus runtime benchmark
+2. K8s 真实集群 smoke test 执行 / 生产化部署验证
+3. cron / Kubernetes CronJob 调度证据和长期运行验证
 ```
 
 <!-- roadmap-update-2026-06-30-qdrant-snapshot-api-runner -->
