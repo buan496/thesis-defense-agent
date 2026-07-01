@@ -170,11 +170,13 @@ from app.qdrant_snapshot_scheduler import (
     build_qdrant_snapshot_drill_plan,
     build_qdrant_snapshot_schedule_config,
     build_qdrant_snapshot_schedule_install_plan,
+    build_qdrant_snapshot_schedule_verification_plan,
     execute_qdrant_snapshot_drill,
     render_qdrant_snapshot_drill_plan,
     render_qdrant_snapshot_drill_report,
     render_qdrant_snapshot_schedule_config,
     render_qdrant_snapshot_schedule_install_plan,
+    render_qdrant_snapshot_schedule_verification_plan,
 )
 from app.session_store import DEFAULT_SESSION_DIRECTORY
 from app.feedback_store import (
@@ -2704,6 +2706,92 @@ def main():
         "--output",
         default=None,
         help="Optional Markdown output path for the install plan",
+    )
+
+    qdrant_snapshot_schedule_verify_plan_parser = subparsers.add_parser(
+        "qdrant-snapshot-schedule-verify-plan",
+        help="Generate status, log, and rollback commands for an installed Qdrant snapshot drill schedule",
+    )
+    qdrant_snapshot_schedule_verify_plan_parser.add_argument(
+        "--platform",
+        required=True,
+        help="Installed scheduler platform to verify",
+    )
+    qdrant_snapshot_schedule_verify_plan_parser.add_argument(
+        "--task-name",
+        default="thesis-defense-qdrant-snapshot-drill",
+        help="Schedule task name",
+    )
+    qdrant_snapshot_schedule_verify_plan_parser.add_argument(
+        "--cron-schedule",
+        default="0 3 * * *",
+        help="Five-field cron schedule",
+    )
+    qdrant_snapshot_schedule_verify_plan_parser.add_argument(
+        "--windows-start-time",
+        default="03:00",
+        help="Windows Task Scheduler start time in HH:MM format",
+    )
+    qdrant_snapshot_schedule_verify_plan_parser.add_argument(
+        "--working-directory",
+        default=".",
+        help="Project working directory used by local schedulers",
+    )
+    qdrant_snapshot_schedule_verify_plan_parser.add_argument(
+        "--log-path",
+        default="data/reports/qdrant_snapshot_drill_scheduled.log",
+        help="Local log path used by generated scheduler snippets",
+    )
+    qdrant_snapshot_schedule_verify_plan_parser.add_argument(
+        "--namespace",
+        default="default",
+        help="Kubernetes namespace used by generated CronJob preview",
+    )
+    qdrant_snapshot_schedule_verify_plan_parser.add_argument(
+        "--image",
+        default="ghcr.io/buan496/thesis-defense-agent:latest",
+        help="Container image used by generated Kubernetes CronJob preview",
+    )
+    qdrant_snapshot_schedule_verify_plan_parser.add_argument(
+        "--collection",
+        default=QDRANT_COLLECTION,
+        help="Source Qdrant collection name",
+    )
+    qdrant_snapshot_schedule_verify_plan_parser.add_argument(
+        "--restore-collection",
+        default=f"{QDRANT_COLLECTION}_restore",
+        help="Disposable Qdrant collection name used for restore drills",
+    )
+    qdrant_snapshot_schedule_verify_plan_parser.add_argument(
+        "--backup-dir",
+        default=QDRANT_BACKUP_DIR,
+        help="Local backup directory for downloaded snapshots",
+    )
+    qdrant_snapshot_schedule_verify_plan_parser.add_argument(
+        "--keep-last",
+        type=int,
+        default=5,
+        help="Number of newest backup files to retain",
+    )
+    qdrant_snapshot_schedule_verify_plan_parser.add_argument(
+        "--apply-retention",
+        action="store_true",
+        help="Configure retention as an apply step instead of dry-run preview",
+    )
+    qdrant_snapshot_schedule_verify_plan_parser.add_argument(
+        "--skip-restore-drill",
+        action="store_true",
+        help="Do not include restore in the scheduled runner command",
+    )
+    qdrant_snapshot_schedule_verify_plan_parser.add_argument(
+        "--skip-compare",
+        action="store_true",
+        help="Do not include restored-collection comparison in the runner command",
+    )
+    qdrant_snapshot_schedule_verify_plan_parser.add_argument(
+        "--output",
+        default=None,
+        help="Optional Markdown output path for the verification plan",
     )
 
     qdrant_snapshot_create_parser = subparsers.add_parser(
@@ -5685,6 +5773,37 @@ def main():
             raise SystemExit(2) from error
 
         markdown = render_qdrant_snapshot_schedule_install_plan(plan)
+        print(markdown, end="")
+
+        if args.output is not None:
+            save_text_output(args.output, markdown)
+            print("OUTPUT:", args.output)
+
+    elif args.command == "qdrant-snapshot-schedule-verify-plan":
+        try:
+            config = build_qdrant_snapshot_schedule_config(
+                platform=args.platform,
+                task_name=args.task_name,
+                cron_schedule=args.cron_schedule,
+                windows_start_time=args.windows_start_time,
+                working_directory=args.working_directory,
+                log_path=args.log_path,
+                namespace=args.namespace,
+                image=args.image,
+                collection=args.collection,
+                restore_collection=args.restore_collection,
+                backup_dir=args.backup_dir,
+                keep_last=args.keep_last,
+                apply_retention=args.apply_retention,
+                run_restore_drill=not args.skip_restore_drill,
+                run_compare=not args.skip_compare,
+            )
+            plan = build_qdrant_snapshot_schedule_verification_plan(config)
+        except ValueError as error:
+            print(f"QDRANT SNAPSHOT SCHEDULE VERIFY PLAN ERROR: {error}")
+            raise SystemExit(2) from error
+
+        markdown = render_qdrant_snapshot_schedule_verification_plan(plan)
         print(markdown, end="")
 
         if args.output is not None:
