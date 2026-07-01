@@ -80,6 +80,7 @@ updated: 2026-07-01
 - [x] Qdrant snapshot API runner
 - [x] Qdrant snapshot drill plan
 - [x] Qdrant snapshot drill one-time runner
+- [x] Qdrant snapshot schedule config
 - [ ] Qdrant 定时 snapshot / restore drill 自动调度
 - [ ] MilvusVectorStoreRepository / Milvus runtime benchmark
 
@@ -314,6 +315,7 @@ updated: 2026-07-01
 - [x] Qdrant snapshot API runner
 - [x] Qdrant snapshot drill plan
 - [x] Qdrant snapshot drill one-time runner
+- [x] Qdrant snapshot schedule config
 - [ ] Qdrant 定时 snapshot / restore drill 自动调度
 - [ ] MilvusVectorStoreRepository / Milvus runtime benchmark
 - [x] K8s 基础 manifests
@@ -2760,6 +2762,44 @@ restore 必须确认 disposable collection。
 
 ```text
 1. Qdrant 定时 snapshot / restore drill 自动调度
+2. MilvusVectorStoreRepository / Milvus runtime benchmark
+3. K8s 真实集群 smoke test 执行 / 生产化部署验证
+```
+
+<!-- roadmap-update-2026-07-01-qdrant-snapshot-schedule-config -->
+
+## 2026-07-01 路线同步：Qdrant Snapshot Schedule Config 已完成
+
+本阶段继续推进 Qdrant 定时 snapshot / restore drill 自动调度，但只完成调度配置预览，不安装真实定时任务。
+
+已完成：
+
+- [x] `QdrantSnapshotScheduleConfig`
+- [x] `build_qdrant_snapshot_schedule_config()`
+- [x] `render_qdrant_snapshot_schedule_config()`
+- [x] `qdrant-snapshot-schedule-config` CLI
+- [x] cron 配置预览
+- [x] Windows Task Scheduler 命令预览
+- [x] Kubernetes CronJob manifest 预览
+- [x] 调度平台、cron 表达式、Windows 时间、restore collection 等参数校验
+- [x] Markdown 输出
+- [x] 单元测试覆盖 builder、renderer 和 CLI
+- [x] `docs/deployment/qdrant.md` 更新 schedule config 操作说明
+
+当前边界：
+
+```text
+这是调度配置预览。
+不会写入 crontab。
+不会创建 Windows scheduled task。
+不会 kubectl apply Kubernetes CronJob。
+不会实际启动后台定时任务。
+```
+
+下一步学习：
+
+```text
+1. Qdrant 定时 snapshot / restore drill 自动调度安装验证
 2. MilvusVectorStoreRepository / Milvus runtime benchmark
 3. K8s 真实集群 smoke test 执行 / 生产化部署验证
 ```
