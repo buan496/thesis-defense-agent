@@ -229,11 +229,12 @@ Agent 与 RAG：
 - FastAPI / Docker / PostgreSQL / Qdrant / Milvus 本机验证
 - Milvus destructive operation guardrails
 - Prometheus / Alertmanager / K8s manifests 基础交付能力
+- K8s smoke runner CLI
 
 仍待推进：
 
 - Qdrant cron / Kubernetes CronJob 长期调度证据
-- K8s 真实集群 smoke test
+- K8s 真实集群 smoke test 执行证据
 - 真实 Feishu / WeCom / email 通知提供方
 - 服务器长期运行验证
 - 用户认证和更完整的 Trace 查看器

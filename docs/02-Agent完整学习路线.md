@@ -345,7 +345,8 @@ updated: 2026-07-01
 - [x] K8s 生产化基础字段
 - [x] K8s smoke test 计划生成 CLI
 - [x] K8s smoke test 执行记录模板 CLI
-- [ ] K8s 真实集群 smoke test 执行 / 生产化部署验证
+- [x] K8s smoke test runner CLI
+- [ ] K8s 真实集群 smoke test 执行证据
 - [ ] 私有化配置和密钥管理
 
 ## 当前阶段：本机学习版 Agent Harness + 交付基础闭环
@@ -821,9 +822,9 @@ PostgreSQL runtime smoke test。
 
 ## 下一步学习重点
 
-当前已经完成本机 Agent Harness、RAG、Tool Calling、Memory、Trace、Sub-Agent、LangGraph 旁路迁移、FastAPI / Web / Docker / Prometheus / PostgreSQL / Qdrant / Milvus 基础治理、Qdrant Windows Task Scheduler 本机实验，以及 AsyncTaskRunner / FastAPI 后台任务 / DefenseTask 当前步骤后台执行 / 异步 LLM 与工具调用边界 / 原生异步 LLM SDK / async tool function 执行支持 / 后台任务幂等请求 / 后台任务持久化状态恢复。下一阶段进入生产化部署验证：
+当前已经完成本机 Agent Harness、RAG、Tool Calling、Memory、Trace、Sub-Agent、LangGraph 旁路迁移、FastAPI / Web / Docker / Prometheus / PostgreSQL / Qdrant / Milvus 基础治理、Qdrant Windows Task Scheduler 本机实验、K8s smoke runner CLI，以及 AsyncTaskRunner / FastAPI 后台任务 / DefenseTask 当前步骤后台执行 / 异步 LLM 与工具调用边界 / 原生异步 LLM SDK / async tool function 执行支持 / 后台任务幂等请求 / 后台任务持久化状态恢复。下一阶段进入生产化部署验证：
 
-1. K8s 真实集群 smoke test 执行 / 生产化部署验证
+1. K8s 真实集群 smoke test 执行证据
 2. Qdrant cron / Kubernetes CronJob 长期调度证据
 3. 服务器长期运行验证
 
@@ -2972,6 +2973,41 @@ stream_chat_with_llm() 仍是同步流式接口。
 
 ```text
 1. K8s 真实集群 smoke test 执行 / 生产化部署验证
+2. Qdrant cron / Kubernetes CronJob 长期调度证据
+3. 服务器长期运行验证
+```
+
+<!-- roadmap-update-2026-07-01-k8s-smoke-runner -->
+
+## 2026-07-01 路线同步：K8s Smoke Runner CLI 已完成
+
+本阶段把 K8s smoke test 从“计划和执行记录模板”推进到“可执行 runner”。runner 默认只运行 offline 步骤，避免误改集群；只有显式加 `--apply-cluster` 才执行 `kubectl apply`、rollout 和工作负载检查。
+
+已完成：
+
+- [x] `app/k8s_smoke_runner.py`
+- [x] `k8s-smoke-run` CLI
+- [x] 默认执行 offline validation：`kubectl kustomize` 和 `kubectl apply --dry-run=client`
+- [x] `--apply-cluster` 执行 cluster 步骤
+- [x] `--include-port-forward` 控制 port-forward 和 API health check
+- [x] `--include-rollback` 控制 rollback，默认跳过
+- [x] `--allow-fail` 支持采集失败证据
+- [x] Markdown 执行报告输出
+- [x] secret-like 输出脱敏
+- [x] 单元测试覆盖 runner、CLI、失败退出和输出脱敏
+
+当前边界：
+
+```text
+runner 已具备执行真实 kubectl 命令的能力。
+当前提交不包含真实集群执行结果。
+data/reports/ 下的真实执行报告默认不提交，除非后续整理为脱敏证据文档。
+```
+
+下一步学习：
+
+```text
+1. 使用真实 kubectl context 执行 k8s-smoke-run 并采集脱敏证据
 2. Qdrant cron / Kubernetes CronJob 长期调度证据
 3. 服务器长期运行验证
 ```

@@ -30,10 +30,13 @@ def test_build_k8s_smoke_plan_contains_offline_and_cluster_steps():
     ]
 
     assert plan.steps[0].requires_cluster is False
-    assert plan.steps[1].requires_cluster is False
-    assert all(step.requires_cluster for step in plan.steps[2:])
+    assert plan.steps[1].requires_cluster is True
+    assert all(step.requires_cluster for step in plan.steps[1:])
     assert "kubectl kustomize k8s/base" in plan.steps[0].command
-    assert "kubectl apply --dry-run=client -k k8s/base" in plan.steps[1].command
+    assert (
+        "kubectl apply --dry-run=client --validate=false -k k8s/base"
+        in plan.steps[1].command
+    )
     assert (
         "kubectl rollout status deployment/thesis-defense-agent-api "
         "-n thesis-defense-agent"

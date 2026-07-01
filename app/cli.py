@@ -154,6 +154,10 @@ from app.k8s_smoke_plan import (
     render_k8s_smoke_plan,
     render_k8s_smoke_report_template,
 )
+from app.k8s_smoke_runner import (
+    execute_k8s_smoke_plan,
+    render_k8s_smoke_run_report,
+)
 from app.vector_store_io import load_vector_store
 from app.vector_store_repository import (
     MilvusVectorStoreRepository,
@@ -2099,6 +2103,58 @@ def main():
         "--output",
         default=None,
         help="Optional Markdown output path for the smoke-test report template",
+    )
+
+    k8s_smoke_run_parser = subparsers.add_parser(
+        "k8s-smoke-run",
+        help="Run Kubernetes smoke-test steps and print an execution report",
+    )
+    k8s_smoke_run_parser.add_argument(
+        "--namespace",
+        default="thesis-defense-agent",
+        help="Kubernetes namespace used by the manifests",
+    )
+    k8s_smoke_run_parser.add_argument(
+        "--kustomize-dir",
+        default="k8s/base",
+        help="Kustomize directory to render and apply",
+    )
+    k8s_smoke_run_parser.add_argument(
+        "--api-local-port",
+        type=int,
+        default=18000,
+        help="Local port used in the API port-forward smoke test",
+    )
+    k8s_smoke_run_parser.add_argument(
+        "--apply-cluster",
+        action="store_true",
+        help="Run cluster-mutating steps such as kubectl apply",
+    )
+    k8s_smoke_run_parser.add_argument(
+        "--include-port-forward",
+        action="store_true",
+        help="Run port-forward and local health-check steps",
+    )
+    k8s_smoke_run_parser.add_argument(
+        "--include-rollback",
+        action="store_true",
+        help="Run the rollback step; skipped by default",
+    )
+    k8s_smoke_run_parser.add_argument(
+        "--timeout-seconds",
+        type=int,
+        default=120,
+        help="Maximum seconds allowed for each command",
+    )
+    k8s_smoke_run_parser.add_argument(
+        "--output",
+        default=None,
+        help="Optional Markdown output path for the smoke-test run report",
+    )
+    k8s_smoke_run_parser.add_argument(
+        "--allow-fail",
+        action="store_true",
+        help="Do not exit non-zero when one or more smoke steps fail",
     )
 
     postgres_migrations_parser = subparsers.add_parser(
@@ -5825,6 +5881,34 @@ def main():
         if args.output is not None:
             save_text_output(args.output, markdown)
             print("OUTPUT:", args.output)
+
+    elif args.command == "k8s-smoke-run":
+        try:
+            plan = build_k8s_smoke_plan(
+                namespace=args.namespace,
+                kustomize_dir=args.kustomize_dir,
+                api_local_port=args.api_local_port,
+            )
+            report = execute_k8s_smoke_plan(
+                plan,
+                apply_cluster=args.apply_cluster,
+                include_port_forward=args.include_port_forward,
+                include_rollback=args.include_rollback,
+                timeout_seconds=args.timeout_seconds,
+            )
+        except (OSError, TimeoutError, ValueError) as error:
+            print(f"K8S SMOKE RUN ERROR: {error}")
+            raise SystemExit(2) from error
+
+        markdown = render_k8s_smoke_run_report(report)
+        print(markdown, end="")
+
+        if args.output is not None:
+            save_text_output(args.output, markdown)
+            print("OUTPUT:", args.output)
+
+        if report.overall_status == "failed" and not args.allow_fail:
+            raise SystemExit(1)
 
     elif args.command == "postgres-migrations":
         try:
