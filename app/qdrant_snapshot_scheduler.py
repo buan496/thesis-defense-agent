@@ -54,6 +54,21 @@ class QdrantSnapshotScheduleConfig:
 
 
 @dataclass(frozen=True)
+class QdrantSnapshotScheduleInstallCommand:
+    platform: str
+    command: str
+    description: str
+    applies_system_change: bool
+
+
+@dataclass(frozen=True)
+class QdrantSnapshotScheduleInstallPlan:
+    config: QdrantSnapshotScheduleConfig
+    apply: bool
+    commands: list[QdrantSnapshotScheduleInstallCommand]
+
+
+@dataclass(frozen=True)
 class QdrantSnapshotDrillStepResult:
     name: str
     status: str
@@ -333,6 +348,87 @@ def render_qdrant_snapshot_schedule_config(
     return "\n".join(lines).rstrip() + "\n"
 
 
+def build_qdrant_snapshot_schedule_install_plan(
+    config: QdrantSnapshotScheduleConfig,
+    apply: bool = False,
+    confirm_task_name: str | None = None,
+) -> QdrantSnapshotScheduleInstallPlan:
+    if apply and config.platform == "all":
+        raise ValueError("platform must not be all when apply is true")
+
+    if apply and confirm_task_name != config.task_name:
+        raise ValueError("confirm_task_name must match task_name when apply is true")
+
+    commands = []
+
+    if config.platform in ("all", "cron"):
+        commands.append(_build_cron_install_command(config, apply))
+
+    if config.platform in ("all", "windows_task_scheduler"):
+        commands.append(_build_windows_install_command(config, apply))
+
+    if config.platform in ("all", "kubernetes_cronjob"):
+        commands.append(_build_kubernetes_install_command(config, apply))
+
+    return QdrantSnapshotScheduleInstallPlan(
+        config=config,
+        apply=apply,
+        commands=commands,
+    )
+
+
+def render_qdrant_snapshot_schedule_install_plan(
+    plan: QdrantSnapshotScheduleInstallPlan,
+) -> str:
+    mode = "apply" if plan.apply else "dry-run"
+    lines = [
+        "# Qdrant Snapshot Schedule Install Plan",
+        "",
+        f"- Mode: `{mode}`",
+        f"- Platform: `{plan.config.platform}`",
+        f"- Task name: `{plan.config.task_name}`",
+        f"- Cron schedule: `{plan.config.cron_schedule}`",
+        f"- Windows start time: `{plan.config.windows_start_time}`",
+        f"- Working directory: `{plan.config.working_directory}`",
+        f"- Log path: `{plan.config.log_path}`",
+        f"- Namespace: `{plan.config.namespace}`",
+        f"- Image: `{plan.config.image}`",
+        "",
+        "This plan shows install commands for the snapshot drill scheduler.",
+        "Dry-run mode does not modify cron, Windows Task Scheduler, or Kubernetes.",
+        "",
+    ]
+
+    for command in plan.commands:
+        lines.extend(
+            [
+                f"## {command.platform}",
+                "",
+                f"- Description: {command.description}",
+                f"- Applies system change: `{command.applies_system_change}`",
+                "",
+                "```powershell",
+                command.command,
+                "```",
+                "",
+            ]
+        )
+
+    lines.extend(
+        [
+            "## Safety Boundary",
+            "",
+            "- Review generated commands before applying them.",
+            "- Apply only one scheduler platform at a time.",
+            "- Keep restore target as a disposable collection.",
+            "- Run a manual drill successfully before installing a schedule.",
+            "",
+        ]
+    )
+
+    return "\n".join(lines).rstrip() + "\n"
+
+
 def execute_qdrant_snapshot_drill(
     plan: QdrantSnapshotDrillPlan,
     snapshot_client: QdrantSnapshotDrillClient,
@@ -596,6 +692,76 @@ def _render_kubernetes_cronjob_config(
 
     lines.extend(["```", ""])
     return lines
+
+
+def _build_cron_install_command(
+    config: QdrantSnapshotScheduleConfig,
+    apply: bool,
+) -> QdrantSnapshotScheduleInstallCommand:
+    cron_entry = (
+        f"{config.cron_schedule} cd {config.working_directory} "
+        f"&& {config.runner_command} >> {config.log_path} 2>&1"
+    )
+    command = f"(crontab -l 2>/dev/null; echo '{cron_entry}') | crontab -"
+
+    if not apply:
+        command = f"echo \"{command}\""
+
+    return QdrantSnapshotScheduleInstallCommand(
+        platform="cron",
+        command=command,
+        description="Install a local crontab entry for the snapshot drill runner.",
+        applies_system_change=apply,
+    )
+
+
+def _build_windows_install_command(
+    config: QdrantSnapshotScheduleConfig,
+    apply: bool,
+) -> QdrantSnapshotScheduleInstallCommand:
+    task_command = (
+        "powershell -NoProfile -ExecutionPolicy Bypass "
+        f"-Command \"Set-Location '{config.working_directory}'; "
+        f"{config.runner_command} *> '{config.log_path}'\""
+    )
+    command = (
+        f'schtasks /Create /F /TN "{config.task_name}" '
+        f"/SC DAILY /ST {config.windows_start_time} "
+        f'/TR "{task_command}"'
+    )
+
+    if not apply:
+        command = f'Write-Output "{command}"'
+
+    return QdrantSnapshotScheduleInstallCommand(
+        platform="windows_task_scheduler",
+        command=command,
+        description="Install a Windows Task Scheduler daily task.",
+        applies_system_change=apply,
+    )
+
+
+def _build_kubernetes_install_command(
+    config: QdrantSnapshotScheduleConfig,
+    apply: bool,
+) -> QdrantSnapshotScheduleInstallCommand:
+    command = (
+        "kubectl apply -f "
+        f"{config.task_name}-cronjob.yaml"
+    )
+
+    if not apply:
+        command = f'echo "{command}"'
+
+    return QdrantSnapshotScheduleInstallCommand(
+        platform="kubernetes_cronjob",
+        command=command,
+        description=(
+            "Apply a reviewed Kubernetes CronJob manifest generated from "
+            "the schedule config preview."
+        ),
+        applies_system_change=apply,
+    )
 
 
 def _validate_cron_schedule(cron_schedule: str) -> None:

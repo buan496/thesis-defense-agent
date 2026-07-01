@@ -81,6 +81,7 @@ updated: 2026-07-01
 - [x] Qdrant snapshot drill plan
 - [x] Qdrant snapshot drill one-time runner
 - [x] Qdrant snapshot schedule config
+- [x] Qdrant snapshot schedule install plan
 - [ ] Qdrant 定时 snapshot / restore drill 自动调度
 - [ ] MilvusVectorStoreRepository / Milvus runtime benchmark
 
@@ -316,6 +317,7 @@ updated: 2026-07-01
 - [x] Qdrant snapshot drill plan
 - [x] Qdrant snapshot drill one-time runner
 - [x] Qdrant snapshot schedule config
+- [x] Qdrant snapshot schedule install plan
 - [ ] Qdrant 定时 snapshot / restore drill 自动调度
 - [ ] MilvusVectorStoreRepository / Milvus runtime benchmark
 - [x] K8s 基础 manifests
@@ -2800,6 +2802,47 @@ restore 必须确认 disposable collection。
 
 ```text
 1. Qdrant 定时 snapshot / restore drill 自动调度安装验证
+2. MilvusVectorStoreRepository / Milvus runtime benchmark
+3. K8s 真实集群 smoke test 执行 / 生产化部署验证
+```
+
+<!-- roadmap-update-2026-07-01-qdrant-snapshot-schedule-install-plan -->
+
+## 2026-07-01 路线同步：Qdrant Snapshot Schedule Install Plan 已完成
+
+本阶段继续推进 Qdrant 定时 snapshot / restore drill 自动调度，但仍不直接修改本机或集群调度器。
+本阶段目标是把调度配置预览转成可审查的安装命令，并加入 apply 安全闸门。
+
+已完成：
+
+- [x] `QdrantSnapshotScheduleInstallCommand`
+- [x] `QdrantSnapshotScheduleInstallPlan`
+- [x] `build_qdrant_snapshot_schedule_install_plan()`
+- [x] `render_qdrant_snapshot_schedule_install_plan()`
+- [x] `qdrant-snapshot-schedule-install-plan` CLI
+- [x] cron install command 生成
+- [x] Windows Task Scheduler install command 生成
+- [x] Kubernetes CronJob apply command 生成
+- [x] 默认 dry-run
+- [x] `--apply` 安全闸门
+- [x] `--confirm-task-name` 显式确认
+- [x] 禁止 `--apply --platform all`
+- [x] 单元测试覆盖 builder、renderer 和 CLI
+
+当前边界：
+
+```text
+这是安装计划和命令生成器。
+CLI 不直接执行安装命令。
+不会写入 crontab。
+不会创建 Windows scheduled task。
+不会 kubectl apply Kubernetes CronJob。
+```
+
+下一步学习：
+
+```text
+1. Qdrant 定时 snapshot / restore drill 真实安装验证
 2. MilvusVectorStoreRepository / Milvus runtime benchmark
 3. K8s 真实集群 smoke test 执行 / 生产化部署验证
 ```
