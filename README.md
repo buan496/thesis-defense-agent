@@ -53,6 +53,7 @@ PDF / TXT 论文
 → Qdrant snapshot schedule evidence template
 → Qdrant snapshot schedule install executor
 → Qdrant Windows Task Scheduler local experiment
+→ MilvusVectorStoreRepository skeleton
 → K8s manifests / smoke plan / report template
 ```
 
@@ -508,7 +509,7 @@ JSON remains the default session backend.
 最新本地测试基线：
 
 ```text
-1095 passed, 1 warning
+1108 passed, 1 warning
 ```
 
 本机学习版阶段已完成，阶段总复盘见：
@@ -649,7 +650,7 @@ retrieve_context
 当前已经完成本机 FastAPI 服务化、静态 Web 前端增强、Docker Compose、Prometheus 本地验证、GHCR 镜像发布流程、PostgreSQL runtime smoke、Qdrant 最小后端、Vector DB 生产化治理报告、Qdrant 备份保留策略和 Qdrant snapshot 手动 API runner。以下内容暂缓到后续阶段：
 
 - Qdrant 定时备份任务 / restore drill 自动调度
-- MilvusVectorStoreRepository 与 Milvus runtime benchmark
+- Milvus runtime benchmark
 - K8s 真实集群 smoke test / 生产化部署验证
 - 服务器长期运行验证
 - 真实 Feishu / WeCom / email 通知提供方

@@ -92,8 +92,8 @@ def build_vector_db_governance_report(
         candidates.append(
             VectorDbCandidate(
                 name="milvus",
-                role="future comparison candidate, not current implementation target",
-                implementation_status="not implemented",
+                role="comparison backend candidate for production vector database learning",
+                implementation_status="repository skeleton implemented; runtime benchmark pending",
                 strengths=[
                     "designed for larger vector workloads",
                     "broader distributed deployment path",
@@ -102,11 +102,11 @@ def build_vector_db_governance_report(
                 risks=[
                     "heavier local and operational footprint",
                     "more moving parts than this project currently needs",
-                    "no repository implementation or benchmark path exists yet",
+                    "runtime benchmark and backup path are not validated yet",
                 ],
                 required_before_promotion=[
                     "add Milvus Compose or standalone local environment",
-                    "implement MilvusVectorStoreRepository behind existing protocol",
+                    "run repository smoke tests against a real Milvus service",
                     "run the same benchmark used by JSON and Qdrant",
                     "compare operational cost before considering migration",
                 ],
@@ -193,7 +193,7 @@ def _build_recommended_next_steps(
     else:
         steps = [
             "add a local Milvus environment without changing the default backend",
-            "implement MilvusVectorStoreRepository behind VectorStoreRepository",
+            "run MilvusVectorStoreRepository smoke tests against a real Milvus service",
             "import the same JSON vector store into Milvus",
             "run the same benchmark across JSON, Qdrant, and Milvus",
             "compare quality, latency, operational complexity, and rollback path",

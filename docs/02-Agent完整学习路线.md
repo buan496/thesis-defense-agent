@@ -87,7 +87,8 @@ updated: 2026-07-01
 - [x] Qdrant snapshot schedule install executor
 - [x] Qdrant Windows Task Scheduler 本机定时 snapshot 实验
 - [ ] Qdrant cron / Kubernetes CronJob / 长期运行调度证据
-- [ ] MilvusVectorStoreRepository / Milvus runtime benchmark
+- [x] MilvusVectorStoreRepository skeleton
+- [ ] Milvus runtime benchmark
 
 基础知识：
 
@@ -327,7 +328,8 @@ updated: 2026-07-01
 - [x] Qdrant snapshot schedule install executor
 - [x] Qdrant Windows Task Scheduler 本机定时 snapshot 实验
 - [ ] Qdrant cron / Kubernetes CronJob / 长期运行调度证据
-- [ ] MilvusVectorStoreRepository / Milvus runtime benchmark
+- [x] MilvusVectorStoreRepository skeleton
+- [ ] Milvus runtime benchmark
 - [x] K8s 基础 manifests
 - [x] K8s 生产化基础字段
 - [x] K8s smoke test 计划生成 CLI
@@ -804,14 +806,14 @@ PostgreSQL runtime smoke test。
 
 - LangGraph 后续只做旁路迁移，不覆盖当前手写 Task State / Agent Harness 源码。
 - FastAPI、静态 Web 前端、stdio MCP Server、Dockerfile、docker-compose、Prometheus、Alertmanager 本机路由、外部通知路由本地可审计版本、K8s 基础 manifests、生产化基础字段、smoke test 计划 CLI 与执行记录模板 CLI、本机 PostgreSQL runtime smoke、Qdrant 最小后端、Vector DB 生产化治理报告、Qdrant backup retention policy CLI、Qdrant snapshot API runner 和 Windows Task Scheduler 本机实验已完成。
-- K8s 真实集群 smoke test 执行、cron / Kubernetes CronJob 调度证据、Qdrant 长期运行验证、Milvus runtime benchmark、私有化部署、服务器长期运行和真实 Feishu / WeCom / email 通知提供方继续作为后续阶段。
+- K8s 真实集群 smoke test 执行、cron / Kubernetes CronJob 调度证据、Qdrant 长期运行验证、Milvus runtime benchmark、私有化部署、服务器长期运行和真实 Feishu / WeCom / email 通知提供方继续作为后续阶段。Milvus repository 骨架已完成，真实 runtime benchmark 尚未完成。
 
 ## 下一步学习重点
 
 当前已经完成本机 Agent Harness、RAG、Tool Calling、Memory、Trace、Sub-Agent、LangGraph 旁路迁移、FastAPI / Web / Docker / Prometheus / PostgreSQL / Qdrant 基础治理、Qdrant snapshot 手动 API runner 和 Windows Task Scheduler 本机实验。下一阶段按交付治理补齐：
 
 1. Qdrant cron / Kubernetes CronJob 调度证据或长期运行验证
-2. MilvusVectorStoreRepository / Milvus runtime benchmark
+2. Milvus runtime benchmark
 3. K8s 真实集群 smoke test 执行 / 生产化部署验证
 
 ## 最终简历能力目标
@@ -3012,9 +3014,42 @@ cron、Kubernetes CronJob、长期运行和服务器常驻验证尚未完成。
 下一步学习：
 
 ```text
-1. MilvusVectorStoreRepository / Milvus runtime benchmark
+1. Milvus runtime benchmark
 2. K8s 真实集群 smoke test 执行 / 生产化部署验证
 3. cron / Kubernetes CronJob 调度证据和长期运行验证
+```
+
+<!-- roadmap-update-2026-07-01-milvus-vector-store-repository-skeleton -->
+
+## 2026-07-01 路线同步：MilvusVectorStoreRepository 骨架已完成
+
+本阶段开始补齐第二个 Vector DB 后端。目标不是马上替换 Qdrant，而是验证现有 `VectorStoreRepository` 协议能否适配 Milvus。
+
+已完成：
+
+- [x] Milvus 环境变量配置
+- [x] `MilvusVectorStoreRepository`
+- [x] `create_milvus_client()` 懒加载真实 `pymilvus`
+- [x] `parse_milvus_metric_type()`
+- [x] `create_vector_store_repository("milvus", ...)`
+- [x] save / search / delete / collection_exists 行为
+- [x] fake-client 单元测试，不依赖真实 Milvus 服务
+
+当前边界：
+
+```text
+Milvus repository 可以被实例化。
+真实 pymilvus 只在实际连接 Milvus 时才需要。
+本阶段没有启动 Milvus 服务。
+本阶段没有跑 JSON / Qdrant / Milvus 三方 runtime benchmark。
+```
+
+下一步学习：
+
+```text
+1. Docker Compose Milvus 服务
+2. Milvus import-vector-store CLI 或 repository runtime smoke
+3. JSON / Qdrant / Milvus benchmark 对比报告
 ```
 
 <!-- roadmap-update-2026-06-30-qdrant-snapshot-api-runner -->

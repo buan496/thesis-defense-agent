@@ -38,6 +38,22 @@ def test_build_vector_db_governance_report_supports_milvus_target():
     assert any(candidate.name == "milvus" for candidate in report.candidates)
 
 
+def test_build_vector_db_governance_report_marks_milvus_skeleton_done():
+    report = build_vector_db_governance_report(target_backend="milvus")
+    milvus = next(
+        candidate
+        for candidate in report.candidates
+        if candidate.name == "milvus"
+    )
+
+    assert "repository skeleton implemented" in milvus.implementation_status
+    assert "runtime benchmark" in milvus.implementation_status
+    assert any(
+        "real Milvus service" in item
+        for item in milvus.required_before_promotion
+    )
+
+
 def test_build_vector_db_governance_report_rejects_invalid_backends():
     with pytest.raises(ValueError, match="current_backend"):
         build_vector_db_governance_report(current_backend="unknown")
