@@ -46,8 +46,20 @@ class AsyncTaskRecord:
 
 
 class AsyncTaskRunner:
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        max_concurrent_tasks: int | None = None,
+    ) -> None:
+        if max_concurrent_tasks is not None and max_concurrent_tasks <= 0:
+            raise ValueError("max_concurrent_tasks must be greater than 0")
+
         self._records: dict[str, AsyncTaskRecord] = {}
+        self.max_concurrent_tasks = max_concurrent_tasks
+        self._semaphore = (
+            asyncio.Semaphore(max_concurrent_tasks)
+            if max_concurrent_tasks is not None
+            else None
+        )
 
     def create_task(
         self,
@@ -137,6 +149,38 @@ class AsyncTaskRunner:
             raise KeyError(f"task not found: {task_id}") from error
 
     async def _run_record(
+        self,
+        record: AsyncTaskRecord,
+        coroutine_factory: AsyncCallable,
+        *args: Any,
+        **kwargs: Any,
+    ) -> None:
+        try:
+            if self._semaphore is not None:
+                async with self._semaphore:
+                    await self._execute_record(
+                        record,
+                        coroutine_factory,
+                        *args,
+                        **kwargs,
+                    )
+                return
+
+            await self._execute_record(
+                record,
+                coroutine_factory,
+                *args,
+                **kwargs,
+            )
+        except asyncio.CancelledError:
+            if record.status != "cancelled":
+                record.status = "cancelled"
+                record.error_type = "CancelledError"
+                record.error_message = "task was cancelled"
+                record.finished_at = time.monotonic()
+            raise
+
+    async def _execute_record(
         self,
         record: AsyncTaskRecord,
         coroutine_factory: AsyncCallable,
