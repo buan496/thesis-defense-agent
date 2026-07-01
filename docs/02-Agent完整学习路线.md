@@ -79,6 +79,7 @@ updated: 2026-07-01
 - [x] Qdrant snapshot smoke plan / report template
 - [x] Qdrant snapshot API runner
 - [x] Qdrant snapshot drill plan
+- [x] Qdrant snapshot drill one-time runner
 - [ ] Qdrant 定时 snapshot / restore drill 自动调度
 - [ ] MilvusVectorStoreRepository / Milvus runtime benchmark
 
@@ -312,6 +313,7 @@ updated: 2026-07-01
 - [x] Qdrant snapshot smoke plan / report template
 - [x] Qdrant snapshot API runner
 - [x] Qdrant snapshot drill plan
+- [x] Qdrant snapshot drill one-time runner
 - [ ] Qdrant 定时 snapshot / restore drill 自动调度
 - [ ] MilvusVectorStoreRepository / Milvus runtime benchmark
 - [x] K8s 基础 manifests
@@ -2722,6 +2724,44 @@ Milvus 只作为未来对比候选，尚未实现 MilvusVectorStoreRepository。
 1. Qdrant snapshot drill 一次性 runner
 2. Qdrant 定时 snapshot / restore drill 自动调度
 3. MilvusVectorStoreRepository / Milvus runtime benchmark
+```
+
+<!-- roadmap-update-2026-07-01-qdrant-snapshot-drill-runner -->
+
+## 2026-07-01 路线同步：Qdrant Snapshot Drill Runner 已完成
+
+本阶段把 drill plan 推进为一次性显式 runner，但仍不创建系统级定时任务。
+
+已完成：
+
+- [x] `execute_qdrant_snapshot_drill()`
+- [x] `render_qdrant_snapshot_drill_report()`
+- [x] `qdrant-snapshot-drill-run` CLI
+- [x] create snapshot
+- [x] download snapshot
+- [x] local retention policy
+- [x] restore 到 disposable collection
+- [x] restored collection compare hook
+- [x] restore collection 显式确认保护
+- [x] fake client 单元测试，不依赖真实 Qdrant 服务
+- [x] `docs/deployment/qdrant.md` 更新 runner 操作说明
+
+当前边界：
+
+```text
+这是一次性 runner。
+不是后台常驻任务。
+不创建 cron、Windows Task Scheduler 或 Kubernetes CronJob。
+retention 默认 dry-run，只有 --apply-retention 才删除本地旧备份。
+restore 必须确认 disposable collection。
+```
+
+下一步学习：
+
+```text
+1. Qdrant 定时 snapshot / restore drill 自动调度
+2. MilvusVectorStoreRepository / Milvus runtime benchmark
+3. K8s 真实集群 smoke test 执行 / 生产化部署验证
 ```
 
 <!-- roadmap-update-2026-06-30-qdrant-snapshot-api-runner -->

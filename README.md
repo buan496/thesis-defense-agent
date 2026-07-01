@@ -46,6 +46,7 @@ PDF / TXT 论文
 → Qdrant snapshot smoke plan / report template
 → Qdrant snapshot API runner
 → Qdrant snapshot drill plan
+→ Qdrant snapshot drill runner
 → K8s manifests / smoke plan / report template
 ```
 
@@ -297,7 +298,7 @@ JSON remains the default session backend.
 最新本地测试基线：
 
 ```text
-1052 passed, 1 warning
+1058 passed, 1 warning
 ```
 
 本机学习版阶段已完成，阶段总复盘见：
@@ -1506,6 +1507,46 @@ uv run python -m app.cli qdrant-snapshot-drill-plan `
 该能力只生成计划，不调用 Qdrant API。
 不会创建 snapshot、下载文件、restore collection 或删除旧备份。
 下一步才实现一次性 runner，再考虑 cron / Task Scheduler / Kubernetes CronJob。
+```
+
+## 2026-07-01 Update: Qdrant Snapshot Drill Runner
+
+项目新增一次性 Qdrant snapshot drill runner：
+
+```text
+qdrant-snapshot-drill-run
+```
+
+它把已有能力串成一条显式运维链路：
+
+```text
+create snapshot
+-> download snapshot
+-> retention policy
+-> optional restore into disposable collection
+-> optional restored-collection benchmark comparison
+-> Markdown report
+```
+
+示例：
+
+```powershell
+uv run python -m app.cli qdrant-snapshot-drill-run `
+  --collection thesis_chunks `
+  --restore-collection thesis_chunks_restore `
+  --confirm-restore-collection thesis_chunks_restore `
+  --backup-dir data/qdrant_backups `
+  --keep-last 5 `
+  --skip-compare
+```
+
+当前边界：
+
+```text
+这是一次性显式 runner，不是后台定时任务。
+restore 必须显式确认目标 collection。
+retention 默认 dry-run，只有传入 --apply-retention 才删除旧备份。
+尚未创建 cron、Windows Task Scheduler 或 Kubernetes CronJob。
 ```
 
 ### LangGraph 旁路 Demo
