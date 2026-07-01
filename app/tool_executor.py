@@ -6,6 +6,7 @@ from app.config import (
     TOOL_RESULT_MAX_CHARACTERS,
     TOOL_TIMEOUT_SECONDS,
 )
+from app.async_boundary import run_sync_in_thread
 from app.tool_registry import (
     REGISTERED_TOOLS,
     ToolMetadata,
@@ -216,3 +217,17 @@ def execute_tool_call_safely(tool_call) -> str:
             error,
             tool_name=tool_name,
         )
+
+
+async def execute_tool_call_async(tool_call) -> str:
+    return await run_sync_in_thread(
+        execute_tool_call,
+        tool_call,
+    )
+
+
+async def execute_tool_call_safely_async(tool_call) -> str:
+    return await run_sync_in_thread(
+        execute_tool_call_safely,
+        tool_call,
+    )

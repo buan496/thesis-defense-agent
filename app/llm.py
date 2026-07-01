@@ -7,6 +7,7 @@ from app.config import (
     LLM_MAX_TOKENS,
     LLM_TEMPERATURE,
 )
+from app.async_boundary import run_sync_in_thread
 from app.prompts import DEFENSE_ASSISTANT_SYSTEM_PROMPT
 from openai import OpenAI
 
@@ -44,6 +45,13 @@ def chat_with_llm(user_message: str) -> str:
     )
 
     return response.choices[0].message.content
+
+
+async def async_chat_with_llm(user_message: str) -> str:
+    return await run_sync_in_thread(
+        chat_with_llm,
+        user_message,
+    )
 
 
 def stream_chat_with_llm(user_message: str) -> Iterator[str]:

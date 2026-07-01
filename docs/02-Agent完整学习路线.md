@@ -206,7 +206,8 @@ updated: 2026-07-01
 ## 阶段 7：异步与长任务
 
 - [x] `async` / `await`
-- [ ] 异步 LLM 和工具调用
+- [x] 异步 LLM / 工具调用边界
+- [ ] 原生异步 LLM 和工具 SDK 调用
 - [x] 并发限制
 - [x] 超时和取消
 - [x] 后台任务基础 runner
@@ -818,11 +819,11 @@ PostgreSQL runtime smoke test。
 
 ## 下一步学习重点
 
-当前已经完成本机 Agent Harness、RAG、Tool Calling、Memory、Trace、Sub-Agent、LangGraph 旁路迁移、FastAPI / Web / Docker / Prometheus / PostgreSQL / Qdrant / Milvus 基础治理、Qdrant Windows Task Scheduler 本机实验，以及 AsyncTaskRunner / FastAPI 后台任务 / DefenseTask 当前步骤后台执行。下一阶段按异步与长任务服务化继续补齐：
+当前已经完成本机 Agent Harness、RAG、Tool Calling、Memory、Trace、Sub-Agent、LangGraph 旁路迁移、FastAPI / Web / Docker / Prometheus / PostgreSQL / Qdrant / Milvus 基础治理、Qdrant Windows Task Scheduler 本机实验，以及 AsyncTaskRunner / FastAPI 后台任务 / DefenseTask 当前步骤后台执行 / 异步 LLM 与工具调用边界。下一阶段按异步与长任务服务化继续补齐：
 
-1. 异步 LLM / 工具调用边界
-2. 后台任务幂等请求
-3. 后台任务持久化恢复
+1. 后台任务幂等请求
+2. 后台任务持久化恢复
+3. 原生异步 LLM / 工具 SDK 调用
 4. K8s 真实集群 smoke test 执行 / 生产化部署验证
 
 ## 最终简历能力目标
@@ -2811,6 +2812,39 @@ Milvus 只作为未来对比候选，尚未实现 MilvusVectorStoreRepository。
 1. 异步 LLM / 工具调用边界
 2. 后台任务幂等请求
 3. 后台任务持久化恢复
+```
+
+<!-- roadmap-update-2026-07-01-async-llm-tool-boundary -->
+
+## 2026-07-01 路线同步：异步 LLM / 工具调用边界已完成
+
+本阶段不是把所有 SDK 替换为原生异步版本，而是先建立清晰的同步阻塞隔离边界。
+
+已完成：
+
+- [x] `app/async_boundary.py`
+- [x] `run_sync_in_thread()`
+- [x] `async_chat_with_llm()`
+- [x] `execute_tool_call_async()`
+- [x] `execute_tool_call_safely_async()`
+- [x] `execute_task_step_background_job()` 改为复用统一异步边界
+- [x] 单元测试覆盖线程隔离、LLM 包装、工具异步执行和安全失败包装
+
+当前边界：
+
+```text
+底层 LLM SDK 仍是同步 OpenAI-compatible client。
+底层工具函数仍是同步 Python 函数。
+当前通过 asyncio.to_thread 隔离阻塞调用，避免阻塞 FastAPI 事件循环。
+尚未切换到原生 async LLM SDK 或 async tool registry。
+```
+
+下一步学习：
+
+```text
+1. 后台任务幂等请求
+2. 后台任务持久化恢复
+3. 原生异步 LLM / 工具 SDK 调用
 ```
 
 <!-- roadmap-update-2026-07-01-qdrant-snapshot-drill-plan -->

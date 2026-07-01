@@ -1,4 +1,3 @@
-import asyncio
 from dataclasses import asdict
 from pathlib import Path
 from typing import Any
@@ -8,6 +7,7 @@ from pydantic import BaseModel, Field
 
 from app.api.middleware import CORRELATION_ID_HEADER
 from app.api.routes.async_tasks import get_async_task_runner
+from app.async_boundary import run_sync_in_thread
 from app.async_task_runner import AsyncTaskRunner
 from app.task_store import DEFAULT_TASK_DIRECTORY
 
@@ -130,7 +130,7 @@ async def execute_task_step_background_job(
     directory: Path,
     correlation_id: str | None = None,
 ) -> dict[str, Any]:
-    task, step, task_path = await asyncio.to_thread(
+    task, step, task_path = await run_sync_in_thread(
         execute_task_step_service,
         task_id=task_id,
         directory=directory,
