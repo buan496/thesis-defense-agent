@@ -136,6 +136,16 @@ curl.exe -X POST http://127.0.0.1:8000/tasks/<TASK_ID>/steps/execute-async
 uv run python -m app.cli local-quality-gate
 ```
 
+生成服务器长期运行前置检查：
+
+```powershell
+uv run python -m app.cli server-long-run-preflight `
+  --environment server-docker `
+  --runtime docker_compose `
+  --operator "<your-name>" `
+  --output data/reports/server_long_run_preflight.md
+```
+
 生成 Milvus 备份 / 恢复计划：
 
 ```powershell
@@ -246,6 +256,7 @@ Agent 与 RAG：
 - [Docker](docs/deployment/docker.md)
 - [Docker CI](docs/deployment/docker-ci.md)
 - [FastAPI 本机服务](docs/deployment/local-fastapi.md)
+- [服务器长期运行前置检查](docs/deployment/server-long-run-preflight.md)
 - [PostgreSQL](docs/deployment/postgresql.md)
 - [Qdrant](docs/deployment/qdrant.md)
 - [Milvus](docs/deployment/milvus.md)
@@ -282,6 +293,7 @@ Agent 与 RAG：
 - Qdrant Kubernetes CronJob apply / manual Job smoke run 验证
 - Qdrant Kubernetes CronJob natural schedule one-cycle 验证
 - Qdrant Kubernetes CronJob multi-cycle schedule 验证
+- 服务器长期运行前置检查和证据索引
 
 仍待推进：
 

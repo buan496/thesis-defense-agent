@@ -91,6 +91,7 @@ updated: 2026-07-01
 - [x] Qdrant Kubernetes CronJob apply / manual Job smoke evidence
 - [x] Qdrant Kubernetes CronJob natural schedule one-cycle evidence
 - [x] Qdrant cron / Kubernetes CronJob / 多周期长期运行调度证据
+- [x] 服务器长期运行前置检查和证据索引
 - [x] MilvusVectorStoreRepository skeleton
 - [x] Milvus Compose service / import CLI / optional benchmark entry
 - [x] Milvus runtime benchmark report
@@ -836,8 +837,8 @@ PostgreSQL runtime smoke test。
 
 当前已经完成本机 Agent Harness、RAG、Tool Calling、Memory、Trace、Sub-Agent、LangGraph 旁路迁移、FastAPI / Web / Docker / Prometheus / PostgreSQL / Qdrant / Milvus 基础治理、Qdrant Windows Task Scheduler 本机实验、Qdrant Kubernetes CronJob manifest dry-run、K8s smoke runner CLI、K8s kind 本机真实集群 smoke 验证，以及 AsyncTaskRunner / FastAPI 后台任务 / DefenseTask 当前步骤后台执行 / 异步 LLM 与工具调用边界 / 原生异步 LLM SDK / async tool function 执行支持 / 后台任务幂等请求 / 后台任务持久化状态恢复。下一阶段进入调度与长期运行验证：
 
-1. 服务器长期运行前置检查和证据索引整理
-2. 服务器长期运行验证
+1. 服务器长期运行验证
+2. 真实通知通道和更长观察窗口
 
 ## 最终简历能力目标
 
@@ -3655,6 +3656,54 @@ CronJob deleted
 1. 整理本机部署 / K8s / Qdrant 证据索引和运行命令索引
 2. 服务器长期运行前置检查
 3. 服务器长期运行验证
+```
+
+<!-- roadmap-update-2026-07-02-server-long-run-preflight -->
+
+## 2026-07-02 路线同步：服务器长期运行前置检查和证据索引已完成
+
+本阶段没有直接把服务部署到服务器，而是先把长期运行前必须确认的证据、命令和验收标准固化为离线报告生成器。
+这一步的目标是避免“服务跑起来了但没有验收口径、没有证据、出了问题不知道看哪里”的情况。
+
+已完成：
+
+- [x] `app/server_long_run_preflight.py`
+- [x] `server-long-run-preflight` CLI
+- [x] Docker Compose runtime 前置检查清单
+- [x] Kubernetes runtime 前置检查清单
+- [x] release / secret / quality / data / runtime / observability / recovery 分类
+- [x] 长期运行观察窗口证据要求
+- [x] `docs/deployment/server-long-run-preflight.md`
+- [x] README 和命令索引同步
+
+核心原则：
+
+```text
+长期运行不是“把服务启动后不管”。
+长期运行必须先定义：
+1. 跑哪个 release commit
+2. secrets 是否只在运行环境
+3. 哪些服务必须健康
+4. 哪些日志和指标必须可见
+5. 备份 / snapshot / restore drill 是否有证据
+6. 故障时如何回滚
+7. 观察窗口多久，采样频率是多少
+```
+
+当前边界：
+
+```text
+当前完成的是前置检查和证据索引。
+还没有完成服务器多小时或多天运行观察。
+真实服务器运行还需要按报告逐项采集脱敏证据。
+```
+
+下一步学习：
+
+```text
+1. 选择 Docker Compose 或 Kubernetes runtime
+2. 按 server-long-run-preflight 报告启动长期运行观察窗口
+3. 采集 6h 或 24h 健康、日志、指标、调度和恢复证据
 ```
 
 下一步学习：

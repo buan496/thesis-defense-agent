@@ -340,6 +340,22 @@ docs/deployment/docker.md
 docs/deployment/server.md
 ```
 
+生成服务器长期运行前置检查：
+
+```powershell
+uv run python -m app.cli server-long-run-preflight `
+  --environment server-docker `
+  --runtime docker_compose `
+  --operator "<your-name>" `
+  --output data/reports/server_long_run_preflight.md
+```
+
+服务器长期运行前置检查说明：
+
+```text
+docs/deployment/server-long-run-preflight.md
+```
+
 关闭 Session 压缩：
 
 ```powershell
@@ -449,6 +465,7 @@ app/faithfulness_evaluator.py    Faithfulness Judge
 app/evaluation_report.py         评估报告生成
 app/evaluation_report_comparator.py 评估报告回归对比
 app/cli.py                       统一 CLI
+app/server_long_run_preflight.py 服务器长期运行前置检查和证据索引生成
 docs/05-Task-State工作流复盘.md   Task State 状态机、节点、边和 LangGraph 旁路迁移前复盘
 docs/06-MCP与Sub-Agent前置概念.md MCP / Sub-Agent 概念映射和后续学习边界
 docs/07-Sub-Agent阶段复盘.md     Sub-Agent 本地学习版 Harness、dry-run、plan replay 和执行边界

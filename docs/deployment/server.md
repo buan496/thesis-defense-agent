@@ -29,6 +29,36 @@ Docker Compose
 
 不要求服务器安装 Python 开发环境。
 
+## 长期运行前置检查
+
+开始服务器长期运行前，先生成前置检查和证据索引。
+
+Docker Compose runtime：
+
+```powershell
+uv run python -m app.cli server-long-run-preflight `
+  --environment server-docker `
+  --runtime docker_compose `
+  --operator "<your-name>" `
+  --output data/reports/server_long_run_preflight.md
+```
+
+Kubernetes runtime：
+
+```powershell
+uv run python -m app.cli server-long-run-preflight `
+  --environment server-k8s `
+  --runtime kubernetes `
+  --operator "<your-name>" `
+  --output data/reports/server_long_run_preflight_k8s.md
+```
+
+详细说明见：
+
+```text
+docs/deployment/server-long-run-preflight.md
+```
+
 ## 首次部署
 
 克隆仓库：
@@ -197,12 +227,13 @@ docker compose down
 ```text
 PostgreSQL 本机 Compose 和 runtime smoke 已完成
 Qdrant 本机最小后端已完成
+server-long-run-preflight 前置检查和证据索引已完成
 未做用户鉴权
 未做 HTTPS / 反向代理
 Prometheus 告警规则和 Alertmanager 本机路由已完成
 未接外部通知渠道 / on-call routing
 未做日志集中采集
-未做 K8s
+K8s 本机 kind 验证已完成，但服务器 K8s 长期运行尚未完成
 ```
 
 后续服务器阶段按顺序推进：

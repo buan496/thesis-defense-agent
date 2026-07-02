@@ -145,6 +145,10 @@ from app.local_quality_gate import (
     save_local_quality_gate_markdown,
     save_local_quality_gate_report,
 )
+from app.server_long_run_preflight import (
+    build_server_long_run_preflight,
+    render_server_long_run_preflight_report,
+)
 from app.postgres_migrations import build_postgres_migration_plan
 from app.postgres_migration_runner import run_postgres_migrations
 from app.postgres_json_importer import import_json_storage_to_repositories
@@ -2052,6 +2056,32 @@ def main():
         "--markdown-output",
         default=None,
         help="Optional Markdown output path for the quality gate report",
+    )
+
+    server_long_run_preflight_parser = subparsers.add_parser(
+        "server-long-run-preflight",
+        help="Generate a server long-run preflight checklist and evidence index",
+    )
+    server_long_run_preflight_parser.add_argument(
+        "--environment",
+        default="server",
+        help="Target environment label used in the report",
+    )
+    server_long_run_preflight_parser.add_argument(
+        "--runtime",
+        default="docker_compose",
+        choices=["docker_compose", "kubernetes"],
+        help="Target runtime checklist to render",
+    )
+    server_long_run_preflight_parser.add_argument(
+        "--operator",
+        default="operator",
+        help="Operator name or role recorded in the report",
+    )
+    server_long_run_preflight_parser.add_argument(
+        "--output",
+        default=None,
+        help="Optional Markdown output path for the preflight report",
     )
 
     k8s_smoke_plan_parser = subparsers.add_parser(
@@ -6257,6 +6287,24 @@ def main():
 
         if not report.passed and not args.allow_fail:
             raise SystemExit(1)
+
+    elif args.command == "server-long-run-preflight":
+        try:
+            report = build_server_long_run_preflight(
+                environment=args.environment,
+                runtime=args.runtime,
+                operator=args.operator,
+            )
+            markdown = render_server_long_run_preflight_report(report)
+        except ValueError as error:
+            print(f"SERVER LONG RUN PREFLIGHT ERROR: {error}")
+            raise SystemExit(2) from error
+
+        print(markdown, end="")
+
+        if args.output is not None:
+            save_text_output(args.output, markdown)
+            print("OUTPUT:", args.output)
 
     elif args.command == "k8s-smoke-plan":
         try:
