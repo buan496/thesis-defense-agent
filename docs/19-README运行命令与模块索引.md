@@ -285,6 +285,19 @@ uv run python -m app.cli qdrant-k8s-cronjob-schedule-observe `
   --output data/reports/qdrant_k8s_cronjob_schedule_observe.md
 ```
 
+观察 Qdrant Kubernetes CronJob 多个自然调度周期：
+
+```powershell
+uv run python -m app.cli qdrant-k8s-cronjob-multi-cycle-observe `
+  --namespace thesis-defense-agent `
+  --cron-schedule "* * * * *" `
+  --expected-cycles 2 `
+  --cleanup-jobs `
+  --cleanup-cronjob `
+  --manifest-output data/reports/qdrant_k8s_cronjob_multi_cycle_observe.yaml `
+  --output data/reports/qdrant_k8s_cronjob_multi_cycle_observe.md
+```
+
 上传论文文档：
 
 ```powershell

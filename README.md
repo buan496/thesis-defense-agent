@@ -40,6 +40,7 @@ PDF / TXT 论文
 -> K8s manifests / smoke plan / Qdrant StatefulSet runtime validation
 -> Qdrant Kubernetes CronJob manual Job smoke evidence
 -> Qdrant Kubernetes CronJob natural schedule one-cycle evidence
+-> Qdrant Kubernetes CronJob multi-cycle schedule evidence
 ```
 
 最新主线能力包括：
@@ -49,7 +50,7 @@ PDF / TXT 论文
 - Agent 治理：工具权限、超时、重试、错误标准化、trace 审计、Sub-Agent dry-run 和 replay
 - Memory 治理：长期记忆、薄弱点记录、训练总结沉淀、记忆注入和污染治理
 - 存储治理：JSON 默认后端、PostgreSQL runtime smoke、Qdrant benchmark 与 snapshot SOP、Milvus runtime benchmark 与 backup / restore SOP
-- 交付基础：FastAPI、静态 Web、Docker Compose、GHCR、Prometheus、Alertmanager、K8s manifests、Qdrant StatefulSet / Service / PVC / PDB、Qdrant CronJob manual Job smoke、Qdrant CronJob natural schedule observe
+- 交付基础：FastAPI、静态 Web、Docker Compose、GHCR、Prometheus、Alertmanager、K8s manifests、Qdrant StatefulSet / Service / PVC / PDB、Qdrant CronJob manual Job smoke、Qdrant CronJob natural schedule observe、Qdrant CronJob multi-cycle observe
 
 当前测试基线见 [当前进度](docs/01-当前进度.md)。
 
@@ -172,6 +173,18 @@ uv run python -m app.cli qdrant-k8s-cronjob-schedule-observe `
   --output data/reports/qdrant_k8s_cronjob_schedule_observe.md
 ```
 
+观察 Qdrant Kubernetes CronJob 多个自然调度周期：
+
+```powershell
+uv run python -m app.cli qdrant-k8s-cronjob-multi-cycle-observe `
+  --namespace thesis-defense-agent `
+  --cron-schedule "* * * * *" `
+  --expected-cycles 2 `
+  --cleanup-jobs `
+  --cleanup-cronjob `
+  --output data/reports/qdrant_k8s_cronjob_multi_cycle_observe.md
+```
+
 完整命令列表和模块索引见 [README 运行命令与模块索引](docs/19-README运行命令与模块索引.md)。
 
 ## 技术栈
@@ -268,10 +281,10 @@ Agent 与 RAG：
 - Qdrant Kubernetes StatefulSet / Service / PVC / PDB 本机 kind 运行验证
 - Qdrant Kubernetes CronJob apply / manual Job smoke run 验证
 - Qdrant Kubernetes CronJob natural schedule one-cycle 验证
+- Qdrant Kubernetes CronJob multi-cycle schedule 验证
 
 仍待推进：
 
-- Qdrant cron / Kubernetes CronJob 多周期长期运行调度证据
 - 真实 Feishu / WeCom / email 通知提供方
 - 服务器长期运行验证
 - 用户认证和更完整的 Trace 查看器

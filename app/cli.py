@@ -188,8 +188,10 @@ from app.qdrant_snapshot_cronjob_manifest import (
     render_qdrant_snapshot_cronjob_manifest,
 )
 from app.qdrant_k8s_cronjob_smoke import (
+    execute_qdrant_k8s_cronjob_multi_cycle_observe,
     execute_qdrant_k8s_cronjob_smoke,
     execute_qdrant_k8s_cronjob_schedule_observe,
+    render_qdrant_k8s_cronjob_multi_cycle_observe_report,
     render_qdrant_k8s_cronjob_schedule_observe_report,
     render_qdrant_k8s_cronjob_smoke_report,
 )
@@ -3208,6 +3210,120 @@ def main():
         help="Optional Markdown output path for the observe report.",
     )
     qdrant_k8s_cronjob_observe_parser.add_argument(
+        "--allow-fail",
+        action="store_true",
+        help="Print failed report without exiting with status 1.",
+    )
+
+    qdrant_k8s_cronjob_multi_cycle_observe_parser = subparsers.add_parser(
+        "qdrant-k8s-cronjob-multi-cycle-observe",
+        help="Apply a Qdrant CronJob and observe multiple naturally scheduled Jobs",
+    )
+    qdrant_k8s_cronjob_multi_cycle_observe_parser.add_argument(
+        "--task-name",
+        default="thesis-defense-qdrant-snapshot-drill",
+        help="CronJob name",
+    )
+    qdrant_k8s_cronjob_multi_cycle_observe_parser.add_argument(
+        "--cron-schedule",
+        default="* * * * *",
+        help="Five-field cron schedule. Defaults to every minute for multi-cycle observation.",
+    )
+    qdrant_k8s_cronjob_multi_cycle_observe_parser.add_argument(
+        "--namespace",
+        default="thesis-defense-agent",
+        help="Kubernetes namespace used by the generated CronJob",
+    )
+    qdrant_k8s_cronjob_multi_cycle_observe_parser.add_argument(
+        "--image",
+        default="ghcr.io/buan496/thesis-defense-agent:latest",
+        help="Container image used by the generated CronJob",
+    )
+    qdrant_k8s_cronjob_multi_cycle_observe_parser.add_argument(
+        "--config-map-name",
+        default="thesis-defense-agent-api-config",
+        help="ConfigMap used as envFrom source",
+    )
+    qdrant_k8s_cronjob_multi_cycle_observe_parser.add_argument(
+        "--secret-name",
+        default="thesis-defense-agent-api-secret",
+        help="Secret used as optional envFrom source",
+    )
+    qdrant_k8s_cronjob_multi_cycle_observe_parser.add_argument(
+        "--collection",
+        default=QDRANT_COLLECTION,
+        help="Source Qdrant collection name",
+    )
+    qdrant_k8s_cronjob_multi_cycle_observe_parser.add_argument(
+        "--restore-collection",
+        default=f"{QDRANT_COLLECTION}_restore",
+        help="Disposable Qdrant collection name used for restore drills",
+    )
+    qdrant_k8s_cronjob_multi_cycle_observe_parser.add_argument(
+        "--backup-dir",
+        default=QDRANT_BACKUP_DIR,
+        help="Container backup directory for downloaded snapshots",
+    )
+    qdrant_k8s_cronjob_multi_cycle_observe_parser.add_argument(
+        "--keep-last",
+        type=int,
+        default=5,
+        help="Number of newest backup files to retain",
+    )
+    qdrant_k8s_cronjob_multi_cycle_observe_parser.add_argument(
+        "--apply-retention",
+        action="store_true",
+        help="Configure retention as an apply step instead of dry-run preview",
+    )
+    qdrant_k8s_cronjob_multi_cycle_observe_parser.add_argument(
+        "--run-restore-drill",
+        action="store_true",
+        help="Run restore into the disposable collection during scheduled Jobs.",
+    )
+    qdrant_k8s_cronjob_multi_cycle_observe_parser.add_argument(
+        "--run-compare",
+        action="store_true",
+        help="Run restored-collection benchmark comparison during scheduled Jobs.",
+    )
+    qdrant_k8s_cronjob_multi_cycle_observe_parser.add_argument(
+        "--expected-cycles",
+        type=int,
+        default=2,
+        help="Number of naturally scheduled Jobs to observe.",
+    )
+    qdrant_k8s_cronjob_multi_cycle_observe_parser.add_argument(
+        "--cleanup-jobs",
+        action="store_true",
+        help="Delete observed scheduled Jobs after evidence collection.",
+    )
+    qdrant_k8s_cronjob_multi_cycle_observe_parser.add_argument(
+        "--cleanup-cronjob",
+        action="store_true",
+        help="Delete the CronJob after evidence collection.",
+    )
+    qdrant_k8s_cronjob_multi_cycle_observe_parser.add_argument(
+        "--timeout-seconds",
+        type=int,
+        default=420,
+        help="Timeout for waiting on scheduled Job creation and completion.",
+    )
+    qdrant_k8s_cronjob_multi_cycle_observe_parser.add_argument(
+        "--poll-interval-seconds",
+        type=float,
+        default=5,
+        help="Polling interval while waiting for Kubernetes to create scheduled Jobs.",
+    )
+    qdrant_k8s_cronjob_multi_cycle_observe_parser.add_argument(
+        "--manifest-output",
+        default=None,
+        help="Optional YAML output path for the generated CronJob manifest.",
+    )
+    qdrant_k8s_cronjob_multi_cycle_observe_parser.add_argument(
+        "--output",
+        default=None,
+        help="Optional Markdown output path for the observe report.",
+    )
+    qdrant_k8s_cronjob_multi_cycle_observe_parser.add_argument(
         "--allow-fail",
         action="store_true",
         help="Print failed report without exiting with status 1.",
@@ -6797,6 +6913,55 @@ def main():
             markdown = render_qdrant_k8s_cronjob_schedule_observe_report(report)
         except ValueError as error:
             print(f"QDRANT K8S CRONJOB SCHEDULE OBSERVE ERROR: {error}")
+            raise SystemExit(2) from error
+
+        print(markdown, end="")
+
+        if args.manifest_output is not None:
+            save_text_output(args.manifest_output, yaml)
+            print("MANIFEST OUTPUT:", args.manifest_output)
+
+        if args.output is not None:
+            save_text_output(args.output, markdown)
+            print("OUTPUT:", args.output)
+
+        if report.overall_status != "passed" and not args.allow_fail:
+            raise SystemExit(1)
+
+    elif args.command == "qdrant-k8s-cronjob-multi-cycle-observe":
+        try:
+            config = build_qdrant_snapshot_schedule_config(
+                platform="kubernetes_cronjob",
+                task_name=args.task_name,
+                cron_schedule=args.cron_schedule,
+                namespace=args.namespace,
+                image=args.image,
+                collection=args.collection,
+                restore_collection=args.restore_collection,
+                backup_dir=args.backup_dir,
+                keep_last=args.keep_last,
+                apply_retention=args.apply_retention,
+                run_restore_drill=args.run_restore_drill,
+                run_compare=args.run_compare,
+            )
+            yaml = render_qdrant_snapshot_cronjob_manifest(
+                config,
+                config_map_name=args.config_map_name,
+                secret_name=args.secret_name,
+            )
+            report = execute_qdrant_k8s_cronjob_multi_cycle_observe(
+                manifest_yaml=yaml,
+                task_name=args.task_name,
+                namespace=args.namespace,
+                expected_cycles=args.expected_cycles,
+                timeout_seconds=args.timeout_seconds,
+                poll_interval_seconds=args.poll_interval_seconds,
+                cleanup_jobs=args.cleanup_jobs,
+                cleanup_cronjob=args.cleanup_cronjob,
+            )
+            markdown = render_qdrant_k8s_cronjob_multi_cycle_observe_report(report)
+        except ValueError as error:
+            print(f"QDRANT K8S CRONJOB MULTI-CYCLE OBSERVE ERROR: {error}")
             raise SystemExit(2) from error
 
         print(markdown, end="")
