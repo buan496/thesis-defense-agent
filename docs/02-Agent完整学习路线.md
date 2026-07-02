@@ -90,7 +90,7 @@ updated: 2026-07-01
 - [x] Qdrant Kubernetes StatefulSet / Service / PVC / PDB runtime validation
 - [x] Qdrant Kubernetes CronJob apply / manual Job smoke evidence
 - [x] Qdrant Kubernetes CronJob natural schedule one-cycle evidence
-- [ ] Qdrant cron / Kubernetes CronJob / 多周期长期运行调度证据
+- [x] Qdrant cron / Kubernetes CronJob / 多周期长期运行调度证据
 - [x] MilvusVectorStoreRepository skeleton
 - [x] Milvus Compose service / import CLI / optional benchmark entry
 - [x] Milvus runtime benchmark report
@@ -343,7 +343,7 @@ updated: 2026-07-01
 - [x] Qdrant Kubernetes StatefulSet / Service / PVC / PDB runtime validation
 - [x] Qdrant Kubernetes CronJob apply / manual Job smoke evidence
 - [x] Qdrant Kubernetes CronJob natural schedule one-cycle evidence
-- [ ] Qdrant cron / Kubernetes CronJob / 多周期长期运行调度证据
+- [x] Qdrant cron / Kubernetes CronJob / 多周期长期运行调度证据
 - [x] MilvusVectorStoreRepository skeleton
 - [x] Milvus Compose service / import CLI / optional benchmark entry
 - [x] Milvus runtime benchmark report
@@ -358,6 +358,7 @@ updated: 2026-07-01
 - [x] Qdrant StatefulSet / Service / PVC / PDB 本机 kind 运行验证
 - [x] Qdrant Kubernetes CronJob apply / manual Job smoke evidence
 - [x] Qdrant Kubernetes CronJob natural schedule one-cycle evidence
+- [x] Qdrant Kubernetes CronJob multi-cycle schedule evidence
 - [ ] 私有化配置和密钥管理
 
 ## 当前阶段：本机学习版 Agent Harness + 交付基础闭环
@@ -835,7 +836,7 @@ PostgreSQL runtime smoke test。
 
 当前已经完成本机 Agent Harness、RAG、Tool Calling、Memory、Trace、Sub-Agent、LangGraph 旁路迁移、FastAPI / Web / Docker / Prometheus / PostgreSQL / Qdrant / Milvus 基础治理、Qdrant Windows Task Scheduler 本机实验、Qdrant Kubernetes CronJob manifest dry-run、K8s smoke runner CLI、K8s kind 本机真实集群 smoke 验证，以及 AsyncTaskRunner / FastAPI 后台任务 / DefenseTask 当前步骤后台执行 / 异步 LLM 与工具调用边界 / 原生异步 LLM SDK / async tool function 执行支持 / 后台任务幂等请求 / 后台任务持久化状态恢复。下一阶段进入调度与长期运行验证：
 
-1. Qdrant cron / Kubernetes CronJob 长期调度证据
+1. 服务器长期运行前置检查和证据索引整理
 2. 服务器长期运行验证
 
 ## 最终简历能力目标
@@ -3604,6 +3605,56 @@ JSON 仍是本地 fallback 和 rebuild baseline。
 只管理 data/qdrant_backups/ 等本地目录中已经下载的 snapshot 文件。
 不自动调用 Qdrant create snapshot API。
 不创建 cron、Windows Task Scheduler 或 Kubernetes CronJob。
+```
+
+<!-- roadmap-update-2026-07-02-qdrant-k8s-cronjob-multi-cycle -->
+
+## 2026-07-02 路线同步：Qdrant Kubernetes CronJob Multi-Cycle Observe 已完成
+
+本阶段将 Qdrant Kubernetes CronJob 从“一次自然调度周期”推进到“多个自然调度周期”的本机 kind 集群验证。
+该阶段验证的是 CronJob 不依赖 `kubectl create job` 手动触发，也能连续由 Kubernetes controller 按 cron schedule 创建多个 Job，并且每个 Job 都能访问集群内 Qdrant 完成 snapshot create / download。
+
+已完成：
+
+- [x] `qdrant-k8s-cronjob-multi-cycle-observe` CLI
+- [x] `execute_qdrant_k8s_cronjob_multi_cycle_observe`
+- [x] 多周期 scheduled Job 发现逻辑
+- [x] CronJob ownerReference / label 识别
+- [x] 每个 scheduled Job 的 wait / inspect / pod / logs 证据采集
+- [x] 可选 `--cleanup-jobs`
+- [x] 可选 `--cleanup-cronjob`
+- [x] Markdown evidence report
+- [x] 本机 kind 集群真实验证两个自然调度周期
+
+本机验证结果：
+
+```text
+qdrant-k8s-cronjob-multi-cycle-observe --expected-cycles 2
+
+Overall status: passed
+Observed scheduled Jobs: 2
+Job 1: Complete, pod Completed, snapshot create/download completed
+Job 2: Complete, pod Completed, snapshot create/download completed
+CronJob ownerReference detected
+Scheduled Jobs deleted
+CronJob deleted
+```
+
+当前边界：
+
+```text
+这是本机 kind 集群多周期调度证据。
+它证明 Kubernetes CronJob controller 可以连续调度并成功执行 snapshot drill。
+它不等于服务器多小时或多天长期运行验证。
+服务器长期运行仍需要更长时间窗口、失败告警、日志保留和真实通知通道。
+```
+
+下一步学习：
+
+```text
+1. 整理本机部署 / K8s / Qdrant 证据索引和运行命令索引
+2. 服务器长期运行前置检查
+3. 服务器长期运行验证
 ```
 
 下一步学习：

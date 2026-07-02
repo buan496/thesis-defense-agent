@@ -502,6 +502,7 @@ local kind real-cluster smoke execution evidence
 Qdrant StatefulSet / Service / PVC / PDB runtime validation
 Qdrant Kubernetes CronJob manual Job smoke evidence
 Qdrant Kubernetes CronJob natural schedule one-cycle evidence
+Qdrant Kubernetes CronJob multi-cycle schedule evidence
 ```
 
 Not completed:
@@ -515,7 +516,6 @@ PersistentVolumeClaim for /app/data
 PostgreSQL StatefulSet
 production Secret management
 Helm chart / Kustomize overlays
-Qdrant Kubernetes CronJob multi-cycle long-running schedule evidence
 ```
 
 ## Qdrant Kubernetes CronJob Smoke
@@ -640,6 +640,67 @@ Current boundary:
 
 ```text
 This validates one natural CronJob schedule cycle.
-It does not prove multi-cycle long-running stability.
-Use a longer observation window before treating the schedule as persistent operations.
+Use the multi-cycle observer before treating the schedule as persistent operations.
+```
+
+## Qdrant Kubernetes CronJob Multi-Cycle Observe
+
+After the one-cycle observer passes, observe multiple natural schedule cycles.
+This command does not create a manual Job. It waits until the Kubernetes
+CronJob controller creates the requested number of CronJob-owned Jobs, then
+collects wait / Job / Pod / log evidence for each one.
+
+```powershell
+uv run python -m app.cli qdrant-k8s-cronjob-multi-cycle-observe `
+  --namespace thesis-defense-agent `
+  --cron-schedule "* * * * *" `
+  --expected-cycles 2 `
+  --cleanup-jobs `
+  --cleanup-cronjob `
+  --manifest-output data/reports/qdrant_k8s_cronjob_multi_cycle_observe.yaml `
+  --output data/reports/qdrant_k8s_cronjob_multi_cycle_observe.md
+```
+
+The observer executes:
+
+```text
+capture existing CronJob-owned Jobs
+kubectl apply -f <generated-cronjob-yaml>
+kubectl get cronjob ...
+poll kubectl get jobs -o json until N new CronJob-owned Jobs appear
+for each observed Job:
+  kubectl wait --for=condition=complete job/...
+  kubectl get job ...
+  kubectl get pods -l job-name=...
+  kubectl logs job/...
+optional cleanup scheduled jobs
+optional cleanup cronjob
+```
+
+Verified local kind result:
+
+```text
+Overall status: passed
+Expected cycles: 2
+Observed scheduled Jobs: 2
+Scheduled Jobs:
+  thesis-defense-qdrant-snapshot-drill-29715907
+  thesis-defense-qdrant-snapshot-drill-29715908
+CronJob ownerReference detected
+Both Jobs status: Complete
+Both Job Pods status: Completed
+Both Job logs include Qdrant Snapshot Drill Report
+Snapshot create: completed
+Snapshot download: completed
+Retention: dry_run=True
+Observed Jobs deleted
+CronJob deleted
+```
+
+Current boundary:
+
+```text
+This validates multiple natural CronJob schedule cycles on local kind.
+It is stronger than a one-cycle observation but is still not a server multi-hour or multi-day soak test.
+Before server long-running use, add longer observation windows, log retention, failure alerts, and real notification routing.
 ```

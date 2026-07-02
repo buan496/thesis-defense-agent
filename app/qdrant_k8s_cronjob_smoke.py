@@ -50,6 +50,20 @@ class QdrantK8sCronJobScheduleObserveReport:
     results: list[QdrantK8sCronJobSmokeStepResult]
 
 
+@dataclass(frozen=True)
+class QdrantK8sCronJobMultiCycleObserveReport:
+    namespace: str
+    task_name: str
+    scheduled_job_names: list[str]
+    expected_cycles: int
+    cleanup_jobs: bool
+    cleanup_cronjob: bool
+    started_at: str
+    finished_at: str
+    overall_status: str
+    results: list[QdrantK8sCronJobSmokeStepResult]
+
+
 def run_command(
     command: str,
     timeout_seconds: int,
@@ -430,6 +444,184 @@ def render_qdrant_k8s_cronjob_schedule_observe_report(
     return "\n".join(lines).rstrip() + "\n"
 
 
+def execute_qdrant_k8s_cronjob_multi_cycle_observe(
+    manifest_yaml: str,
+    task_name: str,
+    namespace: str,
+    expected_cycles: int = 2,
+    timeout_seconds: int = 420,
+    poll_interval_seconds: float = 5,
+    cleanup_jobs: bool = False,
+    cleanup_cronjob: bool = False,
+    command_runner: CommandRunner = run_command,
+    sleeper: Sleeper = time.sleep,
+) -> QdrantK8sCronJobMultiCycleObserveReport:
+    normalized_manifest = manifest_yaml.strip()
+    normalized_task_name = _normalize_k8s_name(task_name, "task_name")
+    normalized_namespace = _normalize_k8s_name(namespace, "namespace")
+
+    if not normalized_manifest:
+        raise ValueError("manifest_yaml must not be empty")
+
+    if expected_cycles <= 0:
+        raise ValueError("expected_cycles must be greater than 0")
+
+    if timeout_seconds <= 0:
+        raise ValueError("timeout_seconds must be greater than 0")
+
+    if poll_interval_seconds <= 0:
+        raise ValueError("poll_interval_seconds must be greater than 0")
+
+    started_at = _now_iso()
+    results: list[QdrantK8sCronJobSmokeStepResult] = []
+    scheduled_job_names: list[str] = []
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        manifest_path = Path(temp_dir) / "qdrant-cronjob.yaml"
+        manifest_path.write_text(
+            normalized_manifest + "\n",
+            encoding="utf-8",
+        )
+
+        initial_job_names, capture_result = _capture_cronjob_job_names(
+            task_name=normalized_task_name,
+            namespace=normalized_namespace,
+            timeout_seconds=timeout_seconds,
+            command_runner=command_runner,
+            step_name="capture_existing_jobs",
+        )
+        results.append(capture_result)
+
+        results.append(
+            _run_smoke_step(
+                name="apply_cronjob",
+                command=f'kubectl apply -f "{manifest_path}"',
+                timeout_seconds=timeout_seconds,
+                command_runner=command_runner,
+            )
+        )
+
+        results.append(
+            _run_smoke_step(
+                name="inspect_cronjob",
+                command=(
+                    f"kubectl get cronjob {normalized_task_name} "
+                    f"-n {normalized_namespace} -o wide"
+                ),
+                timeout_seconds=timeout_seconds,
+                command_runner=command_runner,
+            )
+        )
+
+        scheduled_job_names, wait_created_result = _wait_for_scheduled_job_count(
+            task_name=normalized_task_name,
+            namespace=normalized_namespace,
+            ignored_job_names=initial_job_names,
+            expected_count=expected_cycles,
+            timeout_seconds=timeout_seconds,
+            poll_interval_seconds=poll_interval_seconds,
+            command_runner=command_runner,
+            sleeper=sleeper,
+        )
+        results.append(wait_created_result)
+
+        for scheduled_job_name in scheduled_job_names:
+            results.extend(
+                _build_scheduled_job_evidence_results(
+                    task_name=normalized_task_name,
+                    namespace=normalized_namespace,
+                    scheduled_job_name=scheduled_job_name,
+                    timeout_seconds=timeout_seconds,
+                    cleanup_job=cleanup_jobs,
+                    cleanup_cronjob=False,
+                    command_runner=command_runner,
+                )
+            )
+
+        if cleanup_cronjob:
+            results.append(
+                _run_smoke_step(
+                    name="cleanup_cronjob",
+                    command=(
+                        f"kubectl delete cronjob {normalized_task_name} "
+                        f"-n {normalized_namespace} --ignore-not-found=true"
+                    ),
+                    timeout_seconds=timeout_seconds,
+                    command_runner=command_runner,
+                )
+            )
+
+    finished_at = _now_iso()
+    overall_status = _calculate_overall_status(results)
+
+    return QdrantK8sCronJobMultiCycleObserveReport(
+        namespace=normalized_namespace,
+        task_name=normalized_task_name,
+        scheduled_job_names=scheduled_job_names,
+        expected_cycles=expected_cycles,
+        cleanup_jobs=cleanup_jobs,
+        cleanup_cronjob=cleanup_cronjob,
+        started_at=started_at,
+        finished_at=finished_at,
+        overall_status=overall_status,
+        results=results,
+    )
+
+
+def render_qdrant_k8s_cronjob_multi_cycle_observe_report(
+    report: QdrantK8sCronJobMultiCycleObserveReport,
+) -> str:
+    lines = [
+        "# Qdrant Kubernetes CronJob Multi-Cycle Observe Report",
+        "",
+        f"- Namespace: `{report.namespace}`",
+        f"- CronJob: `{report.task_name}`",
+        f"- Expected cycles: `{report.expected_cycles}`",
+        f"- Observed scheduled Jobs: `{len(report.scheduled_job_names)}`",
+        f"- Scheduled Job names: `{', '.join(report.scheduled_job_names) or 'None'}`",
+        f"- Cleanup Jobs: `{report.cleanup_jobs}`",
+        f"- Cleanup CronJob: `{report.cleanup_cronjob}`",
+        f"- Started at: `{report.started_at}`",
+        f"- Finished at: `{report.finished_at}`",
+        f"- Overall status: `{report.overall_status}`",
+        "",
+        "Do not paste real API keys, tokens, kubeconfig content, or other secrets into this report.",
+        "",
+    ]
+
+    for index, result in enumerate(report.results, start=1):
+        lines.extend(
+            [
+                f"## {index}. {result.name}",
+                "",
+                f"- Status: `{result.status}`",
+                f"- Return code: `{result.returncode}`",
+                f"- Notes: {result.notes or 'N/A'}",
+                "",
+                "Command:",
+                "",
+                "```powershell",
+                result.command,
+                "```",
+                "",
+                "Stdout:",
+                "",
+                "```text",
+                _sanitize_output(result.stdout),
+                "```",
+                "",
+                "Stderr:",
+                "",
+                "```text",
+                _sanitize_output(result.stderr),
+                "```",
+                "",
+            ]
+        )
+
+    return "\n".join(lines).rstrip() + "\n"
+
+
 def _run_smoke_step(
     name: str,
     command: str,
@@ -653,6 +845,100 @@ def _wait_for_new_scheduled_job(
                     stderr=last_stderr,
                     notes=(
                         "no new scheduled job created within "
+                        f"{timeout_seconds} seconds after {attempts} attempt(s)"
+                    ),
+                ),
+            )
+
+        sleeper(poll_interval_seconds)
+
+
+def _wait_for_scheduled_job_count(
+    task_name: str,
+    namespace: str,
+    ignored_job_names: set[str],
+    expected_count: int,
+    timeout_seconds: int,
+    poll_interval_seconds: float,
+    command_runner: CommandRunner,
+    sleeper: Sleeper,
+) -> tuple[list[str], QdrantK8sCronJobSmokeStepResult]:
+    command = f"kubectl get jobs -n {namespace} -o json"
+    deadline = time.monotonic() + timeout_seconds
+    attempts = 0
+    observed_job_names: list[str] = []
+    observed_job_name_set: set[str] = set()
+    last_stdout = ""
+    last_stderr = ""
+    last_returncode = None
+
+    while True:
+        attempts += 1
+        result = _run_smoke_step(
+            name="wait_scheduled_job_count",
+            command=command,
+            timeout_seconds=timeout_seconds,
+            command_runner=command_runner,
+        )
+        last_stdout = result.stdout
+        last_stderr = result.stderr
+        last_returncode = result.returncode
+
+        if result.status == "passed":
+            try:
+                job_names = _extract_cronjob_job_names(result.stdout, task_name)
+            except ValueError as error:
+                return (
+                    observed_job_names,
+                    QdrantK8sCronJobSmokeStepResult(
+                        name="wait_scheduled_job_count",
+                        command=command,
+                        status="failed",
+                        returncode=result.returncode,
+                        stdout=result.stdout,
+                        stderr=result.stderr,
+                        notes=str(error),
+                    ),
+                )
+
+            new_job_names = sorted(
+                job_names - ignored_job_names - observed_job_name_set
+            )
+
+            for job_name in new_job_names:
+                observed_job_names.append(job_name)
+                observed_job_name_set.add(job_name)
+
+            if len(observed_job_names) >= expected_count:
+                return (
+                    observed_job_names,
+                    QdrantK8sCronJobSmokeStepResult(
+                        name="wait_scheduled_job_count",
+                        command=command,
+                        status="passed",
+                        returncode=result.returncode,
+                        stdout=result.stdout,
+                        stderr=result.stderr,
+                        notes=(
+                            f"found {len(observed_job_names)} scheduled job(s) "
+                            f"after {attempts} attempt(s)"
+                        ),
+                    ),
+                )
+
+        if time.monotonic() >= deadline:
+            return (
+                observed_job_names,
+                QdrantK8sCronJobSmokeStepResult(
+                    name="wait_scheduled_job_count",
+                    command=command,
+                    status="failed",
+                    returncode=last_returncode,
+                    stdout=last_stdout,
+                    stderr=last_stderr,
+                    notes=(
+                        f"found {len(observed_job_names)} / {expected_count} "
+                        "scheduled job(s) within "
                         f"{timeout_seconds} seconds after {attempts} attempt(s)"
                     ),
                 ),
