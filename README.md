@@ -3,6 +3,18 @@
 [![CI](https://github.com/buan496/thesis-defense-agent/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/buan496/thesis-defense-agent/actions/workflows/ci.yml)
 [![Docker Build](https://github.com/buan496/thesis-defense-agent/actions/workflows/docker-build.yml/badge.svg?branch=main)](https://github.com/buan496/thesis-defense-agent/actions/workflows/docker-build.yml)
 
+## 仓库说明
+
+这是一个公开的 AI Agent 工程化学习仓库，核心目标是围绕“论文答辩训练”场景逐步实现 RAG、Tool Calling、Agent Harness、Memory、Trace、评估闭环、服务化和部署验证。
+
+协作与仓库规则见：
+
+- [CONTRIBUTING.md](CONTRIBUTING.md)：分支、提交、测试和 PR 规则
+- [SECURITY.md](SECURITY.md)：密钥、数据和安全问题处理规则
+- [docs/20-GitHub仓库规范.md](docs/20-GitHub仓库规范.md)：GitHub About、topics、模板和维护约定
+
+本仓库采用 [Apache License 2.0](LICENSE)。
+
 ## 项目目标
 
 本项目是一个面向学生本人使用的论文答辩训练 Agent，同时也是一个 AI Agent 工程化学习项目。

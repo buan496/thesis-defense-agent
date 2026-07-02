@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "论文答辩训练agent"
 readme = "README.md"
 requires-python = ">=3.13"
+license = "Apache-2.0"
 dependencies = [
     "fastapi",
     "langgraph>=1.2.6",
