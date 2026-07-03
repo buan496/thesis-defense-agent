@@ -160,6 +160,17 @@ uv run python -m app.cli server-long-run-preflight `
 
 生成 Milvus 备份 / 恢复计划：
 
+???? Docker Compose ???? smoke?
+
+```powershell
+uv run python -m app.cli local-long-run-smoke `
+  --duration-seconds 600 `
+  --interval-seconds 60 `
+  --markdown-output data/reports/local_long_run_smoke.md `
+  --output data/reports/local_long_run_smoke.json
+```
+
+
 ```powershell
 uv run python -m app.cli milvus-backup-restore-plan
 ```
@@ -208,6 +219,8 @@ uv run python -m app.cli qdrant-k8s-cronjob-multi-cycle-observe `
 ```
 
 完整命令列表和模块索引见 [README 运行命令与模块索引](docs/19-README运行命令与模块索引.md)。
+
+?????? smoke ? [Local Long-Run Smoke](docs/deployment/local-long-run-smoke.md)?
 
 ## 技术栈
 

@@ -356,6 +356,22 @@ uv run python -m app.cli server-long-run-preflight `
 docs/deployment/server-long-run-preflight.md
 ```
 
+?? Docker Compose ???? smoke?
+
+```powershell
+uv run python -m app.cli local-long-run-smoke `
+  --duration-seconds 600 `
+  --interval-seconds 60 `
+  --markdown-output data/reports/local_long_run_smoke.md `
+  --output data/reports/local_long_run_smoke.json
+```
+
+?????? smoke ???
+
+```text
+docs/deployment/local-long-run-smoke.md
+```
+
 关闭 Session 压缩：
 
 ```powershell
