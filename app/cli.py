@@ -149,6 +149,12 @@ from app.server_long_run_preflight import (
     build_server_long_run_preflight,
     render_server_long_run_preflight_report,
 )
+from app.local_long_run_smoke import (
+    render_local_long_run_smoke_markdown,
+    run_local_long_run_smoke,
+    save_local_long_run_smoke_markdown,
+    save_local_long_run_smoke_report,
+)
 from app.postgres_migrations import build_postgres_migration_plan
 from app.postgres_migration_runner import run_postgres_migrations
 from app.postgres_json_importer import import_json_storage_to_repositories
@@ -2082,6 +2088,68 @@ def main():
         "--output",
         default=None,
         help="Optional Markdown output path for the preflight report",
+    )
+
+    local_long_run_smoke_parser = subparsers.add_parser(
+        "local-long-run-smoke",
+        help="Run local Docker Compose long-run smoke probes",
+    )
+    local_long_run_smoke_parser.add_argument(
+        "--environment",
+        default="local-docker-compose",
+        help="Environment label written into the smoke report",
+    )
+    local_long_run_smoke_parser.add_argument(
+        "--duration-seconds",
+        type=int,
+        default=0,
+        help="Total observation window. 0 runs one immediate cycle.",
+    )
+    local_long_run_smoke_parser.add_argument(
+        "--interval-seconds",
+        type=int,
+        default=30,
+        help="Seconds between observation cycles.",
+    )
+    local_long_run_smoke_parser.add_argument(
+        "--api-url",
+        default="http://127.0.0.1:8000",
+        help="Base URL for the local API service",
+    )
+    local_long_run_smoke_parser.add_argument(
+        "--prometheus-url",
+        default="http://127.0.0.1:9090",
+        help="Base URL for local Prometheus",
+    )
+    local_long_run_smoke_parser.add_argument(
+        "--alertmanager-url",
+        default="http://127.0.0.1:9093",
+        help="Base URL for local Alertmanager",
+    )
+    local_long_run_smoke_parser.add_argument(
+        "--qdrant-url",
+        default="http://127.0.0.1:6333",
+        help="Base URL for local Qdrant",
+    )
+    local_long_run_smoke_parser.add_argument(
+        "--skip-compose-ps",
+        action="store_true",
+        help="Skip docker compose ps probing",
+    )
+    local_long_run_smoke_parser.add_argument(
+        "--allow-fail",
+        action="store_true",
+        help="Print the report without failing the command",
+    )
+    local_long_run_smoke_parser.add_argument(
+        "--output",
+        default=None,
+        help="Optional JSON output path for the smoke report",
+    )
+    local_long_run_smoke_parser.add_argument(
+        "--markdown-output",
+        default=None,
+        help="Optional Markdown output path for the smoke report",
     )
 
     k8s_smoke_plan_parser = subparsers.add_parser(
@@ -6305,6 +6373,42 @@ def main():
         if args.output is not None:
             save_text_output(args.output, markdown)
             print("OUTPUT:", args.output)
+
+    elif args.command == "local-long-run-smoke":
+        try:
+            report = run_local_long_run_smoke(
+                environment=args.environment,
+                duration_seconds=args.duration_seconds,
+                interval_seconds=args.interval_seconds,
+                api_url=args.api_url,
+                prometheus_url=args.prometheus_url,
+                alertmanager_url=args.alertmanager_url,
+                qdrant_url=args.qdrant_url,
+                include_compose_ps=not args.skip_compose_ps,
+            )
+        except ValueError as error:
+            print(f"LOCAL LONG RUN SMOKE ERROR: {error}")
+            raise SystemExit(2) from error
+
+        markdown = render_local_long_run_smoke_markdown(report)
+        print(markdown, end="")
+
+        if args.output is not None:
+            output_path = save_local_long_run_smoke_report(
+                report,
+                args.output,
+            )
+            print("OUTPUT:", output_path)
+
+        if args.markdown_output is not None:
+            markdown_path = save_local_long_run_smoke_markdown(
+                report,
+                args.markdown_output,
+            )
+            print("MARKDOWN OUTPUT:", markdown_path)
+
+        if not report.passed and not args.allow_fail:
+            raise SystemExit(1)
 
     elif args.command == "k8s-smoke-plan":
         try:
