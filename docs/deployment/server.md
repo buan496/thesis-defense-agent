@@ -168,6 +168,50 @@ http://127.0.0.1:9090/targets
 http://127.0.0.1:9093
 ```
 
+## 已验证状态
+
+2026-07-06 已在服务器 `home-server` 完成一次 Docker Compose runtime smoke。
+
+验证版本：
+
+```text
+5cba838 Fix local long-run smoke decoding on Windows (#135)
+```
+
+运行服务：
+
+```text
+api
+postgres
+qdrant
+milvus
+prometheus
+alertmanager
+```
+
+10 分钟 smoke 采样结果：
+
+```text
+采样窗口：2026-07-06T20:14:26+08:00 -> 2026-07-06T20:24:28+08:00
+采样间隔：60 秒
+采样轮数：11
+结果：Compose / API / Version / Prometheus / Alertmanager / Qdrant 全部 PASS
+```
+
+服务器报告路径：
+
+```text
+/home/server/apps/thesis-defense-agent/data/reports/server_long_run_smoke_10m.md
+```
+
+边界说明：
+
+```text
+这次验证是服务器短期 smoke。
+它证明服务能在服务器 Docker Compose runtime 中正常启动并连续通过基础健康检查。
+它还不是 6h / 24h 长期运行验证。
+```
+
 ## 更新版本
 
 本机完成开发并合并 PR 后，服务器执行：
