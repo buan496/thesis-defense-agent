@@ -17,6 +17,17 @@ Start the local stack first:
 docker compose up -d --build
 ```
 
+If host port `8000` is already used by another local service, start the API on
+another host port and pass the same URL to the smoke command:
+
+```powershell
+$env:API_PORT = "8001"
+docker compose up -d --build
+
+uv run python -m app.cli local-long-run-smoke `
+  --api-url http://127.0.0.1:8001
+```
+
 Recommended baseline checks:
 
 ```powershell

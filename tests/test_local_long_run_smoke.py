@@ -1,4 +1,5 @@
 import json
+import sys
 
 import pytest
 
@@ -8,6 +9,7 @@ from app.local_long_run_smoke import (
     HttpProbe,
     LocalLongRunSmokeReport,
     render_local_long_run_smoke_markdown,
+    run_command_probe,
     run_local_long_run_smoke,
     save_local_long_run_smoke_markdown,
     save_local_long_run_smoke_report,
@@ -117,6 +119,24 @@ def test_run_local_long_run_smoke_validates_inputs():
 
     with pytest.raises(ValueError, match="interval_seconds"):
         run_local_long_run_smoke(interval_seconds=0)
+
+
+def test_run_command_probe_handles_unicode_output():
+    probe = run_command_probe(
+        [
+            sys.executable,
+            "-c",
+            (
+                "import sys; "
+                "sys.stdout.buffer.write('✓ Docker 状态正常'.encode('utf-8'))"
+            ),
+        ],
+        timeout_seconds=10,
+        name="unicode_probe",
+    )
+
+    assert probe.passed is True
+    assert "Docker" in probe.stdout
 
 
 def test_run_local_long_run_smoke_runs_multiple_cycles_without_real_sleep():

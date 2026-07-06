@@ -181,6 +181,8 @@ def run_command_probe(
             command,
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=timeout_seconds,
         )
         returncode = completed.returncode
@@ -465,12 +467,23 @@ def _validate_non_negative_int(
 
 
 def _truncate_text(
-    text: str,
+    text: str | bytes | None,
     max_length: int = 2000,
 ) -> str:
-    if len(text) <= max_length:
-        return text
-    return text[:max_length] + "\n...[truncated]"
+    normalized = _coerce_text(text)
+    if len(normalized) <= max_length:
+        return normalized
+    return normalized[:max_length] + "\n...[truncated]"
+
+
+def _coerce_text(
+    value: str | bytes | None,
+) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, bytes):
+        return value.decode("utf-8", errors="replace")
+    return value
 
 
 def _command_name(command: list[str]) -> str:
