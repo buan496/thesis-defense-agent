@@ -274,7 +274,7 @@ updated: 2026-07-01
 
 ## 阶段 10：服务化与界面
 
-> 当前机器已经完成 FastAPI 服务化、静态 Web 前端增强、stdio MCP Server、stdio MCP Client、MCP resource / prompt 能力、Docker Compose、Prometheus 本地验证、Alertmanager 本机路由、外部通知路由本地可审计版本、K8s 基础 manifests、生产化基础字段、smoke test 计划 CLI 与执行记录模板 CLI、Docker 镜像 CI 构建、GHCR 镜像发布、PostgreSQL runtime smoke、Qdrant 最小后端、Vector DB 生产化治理报告、Qdrant backup retention policy CLI、Qdrant snapshot API runner、Windows Task Scheduler 本机实验、Milvus runtime benchmark、Milvus backup / restore SOP 和 Milvus destructive operation guardrails。K8s 真实集群 smoke test 执行证据已经在本机 kind 集群完成；cron / Kubernetes CronJob 调度证据、Qdrant 长期运行验证和服务器长期运行继续作为后续阶段。
+> 当前机器已经完成 FastAPI 服务化、静态 Web 前端增强、stdio MCP Server、stdio MCP Client、MCP resource / prompt 能力、Docker Compose、Prometheus 本地验证、Alertmanager 本机路由、外部通知路由本地可审计版本、K8s 基础 manifests、生产化基础字段、smoke test 计划 CLI 与执行记录模板 CLI、Docker 镜像 CI 构建、GHCR 镜像发布、PostgreSQL runtime smoke、Qdrant 最小后端、Vector DB 生产化治理报告、Qdrant backup retention policy CLI、Qdrant snapshot API runner、Windows Task Scheduler 本机实验、Milvus runtime benchmark、Milvus backup / restore SOP 和 Milvus destructive operation guardrails。K8s 真实集群 smoke test 执行证据已经在本机 kind 集群完成；cron / Kubernetes CronJob 多周期调度证据已完成；服务器 Docker Compose runtime 已完成 10 分钟 smoke 和 6 小时 long-run smoke，24h 观察窗口、告警触发和恢复演练仍是后续阶段。
 
 - [x] FastAPI
 - [x] Pydantic 请求模型
@@ -345,6 +345,9 @@ updated: 2026-07-01
 - [x] Qdrant Kubernetes CronJob apply / manual Job smoke evidence
 - [x] Qdrant Kubernetes CronJob natural schedule one-cycle evidence
 - [x] Qdrant cron / Kubernetes CronJob / 多周期长期运行调度证据
+- [x] 服务器 Docker Compose 10 分钟 smoke evidence
+- [x] 服务器 Docker Compose 6 小时 long-run smoke evidence
+- [ ] 服务器 24h long-run evidence
 - [x] MilvusVectorStoreRepository skeleton
 - [x] Milvus Compose service / import CLI / optional benchmark entry
 - [x] Milvus runtime benchmark report
@@ -3890,4 +3893,119 @@ CronJob deleted
 2. 采集 scheduled Job 状态、日志和 snapshot 产物
 3. 验证失败可见性和回滚清理命令
 4. 再进入跨平台 cron / 服务器长期运行验证
+```
+
+<!-- roadmap-update-2026-07-06-server-compose-smoke -->
+
+## 2026-07-06 路线同步：服务器 Docker Compose 10 分钟 Smoke 已完成
+
+本阶段将服务器运行从“前置检查和证据索引”推进到真实服务器 Docker Compose runtime smoke。
+验证对象是已经合并到 `main` 的稳定版本，不在服务器上进行开发。
+
+已完成：
+
+- [x] 服务器项目更新到 `main`
+- [x] 服务器运行 commit：`5cba838`
+- [x] Docker Compose 栈启动成功
+- [x] API 容器 healthy
+- [x] Postgres 容器 healthy
+- [x] Milvus 容器 healthy
+- [x] Qdrant / Prometheus / Alertmanager 容器 running
+- [x] API `/health` 和 `/version` 本机与服务器侧访问正常
+- [x] Prometheus `/-/ready` 正常
+- [x] Alertmanager `/-/ready` 正常
+- [x] Qdrant `/readyz` 正常
+- [x] 10 分钟 smoke 采样 11 轮，Compose / API / Version / Prometheus / Alertmanager / Qdrant 全部 PASS
+
+服务器证据：
+
+```text
+服务器报告路径：
+/home/server/apps/thesis-defense-agent/data/reports/server_long_run_smoke_10m.md
+
+采样窗口：
+2026-07-06T20:14:26+08:00 -> 2026-07-06T20:24:28+08:00
+
+采样频率：
+60 秒
+
+采样轮数：
+11
+```
+
+当前边界：
+
+```text
+这是服务器 Docker Compose 短期 smoke，不等于 6h / 24h 长期运行验证。
+当前尚未验证长窗口内的内存增长、日志轮转、告警触发、真实通知通道和故障恢复。
+服务器原始运行报告保存在服务器 data/reports/，不提交到 Git。
+```
+
+下一步学习：
+
+```text
+1. 启动服务器 6h 或 24h long-run 观察窗口
+2. 采集健康检查、容器状态、API 日志尾部、Prometheus readiness、Alertmanager readiness、Qdrant readiness
+3. 增加失败可见性证据：模拟一个可控失败或至少验证 Alertmanager 路由配置
+4. 再决定是否进入真实 Feishu / WeCom / email 通知提供方
+```
+
+<!-- roadmap-update-2026-07-07-server-compose-6h-long-run -->
+
+## 2026-07-07 路线同步：服务器 Docker Compose 6 小时 Long-Run Smoke 已完成
+
+本阶段将服务器验证从 10 分钟 smoke 推进到 6 小时观察窗口。
+验证对象仍是已经合并到 `main` 的稳定版本，服务器只运行稳定版本，不作为开发环境。
+
+已完成：
+
+- [x] 服务器运行 commit：`5cba838`
+- [x] 服务器 Docker Compose 栈持续运行超过 6 小时
+- [x] 采样窗口：`2026-07-06T22:28:14+08:00 -> 2026-07-07T04:28:38+08:00`
+- [x] 采样间隔：300 秒
+- [x] 采样轮数：73
+- [x] FAIL 数量：0
+- [x] Compose 状态持续 PASS
+- [x] API `/health` 持续 PASS
+- [x] API `/version` 持续 PASS
+- [x] Prometheus `/-/ready` 持续 PASS
+- [x] Alertmanager `/-/ready` 持续 PASS
+- [x] Qdrant `/readyz` 持续 PASS
+- [x] Milvus `/healthz` 持续 PASS
+- [x] Postgres `pg_isready` 持续 PASS
+- [x] 最终 Docker stats snapshot 已写入服务器报告
+
+服务器证据：
+
+```text
+服务器报告路径：
+/home/server/apps/thesis-defense-agent/data/reports/server_long_run_smoke_6h.md
+
+最终状态：
+completed
+
+采样轮数：
+73
+
+失败次数：
+0
+```
+
+当前边界：
+
+```text
+这是服务器 Docker Compose 6 小时 long-run smoke。
+它证明当前服务栈能在服务器上跨多个小时保持基础健康检查稳定。
+它还不是 24h 或多天运行验证。
+当前尚未覆盖真实告警触发、真实 Feishu / WeCom / email 通知、故障恢复演练和数据恢复 drill。
+服务器原始运行报告保存在服务器 data/reports/，不提交到 Git。
+```
+
+下一步学习：
+
+```text
+1. 选择是否启动 24h 观察窗口
+2. 设计可控失败演练，例如临时停止 API 或 Qdrant 后验证告警可见性
+3. 接入真实通知提供方之前，先完成 Alertmanager 路由和本地审计报告
+4. 再进入 Feishu / WeCom / email 通知通道验证
 ```
