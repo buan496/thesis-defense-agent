@@ -220,13 +220,32 @@ alertmanager
 /home/server/apps/thesis-defense-agent/data/reports/server_long_run_smoke_6h.md
 ```
 
+API Down 故障可见性演练：
+
+```text
+演练时间：2026-07-07T19:28:04+08:00 -> 2026-07-07T19:30:27+08:00
+故障动作：docker compose stop api
+故障观测：API health FAIL，Prometheus up=0
+告警观测：ThesisDefenseAgentApiDown firing，Alertmanager active alert count=1
+恢复动作：docker compose start api
+恢复观测：API health PASS，Prometheus up=1，rule inactive，Alertmanager alert count=0
+```
+
+服务器报告路径：
+
+```text
+/home/server/apps/thesis-defense-agent/data/reports/server_failure_visibility_api_down.md
+```
+
 边界说明：
 
 ```text
 10 分钟 smoke 证明服务能在服务器 Docker Compose runtime 中正常启动并连续通过基础健康检查。
 6 小时 long-run smoke 证明服务栈可以跨多个小时保持基础健康检查稳定。
+API Down 故障可见性演练证明 Prometheus 和 Alertmanager 能发现 API 不可用并在恢复后回正。
 当前还不是 24h 或多天运行验证。
-当前尚未覆盖真实告警触发、真实通知通道、故障恢复演练和数据恢复 drill。
+当前尚未覆盖真实 Feishu / WeCom / email 通知通道、Qdrant / Milvus / Postgres 故障演练和数据恢复 drill。
+当前 Alertmanager receiver 指向 API 本身；真实通知通道后续应独立于被监控服务。
 ```
 
 ## 更新版本
