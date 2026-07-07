@@ -274,7 +274,7 @@ updated: 2026-07-01
 
 ## 阶段 10：服务化与界面
 
-> 当前机器已经完成 FastAPI 服务化、静态 Web 前端增强、stdio MCP Server、stdio MCP Client、MCP resource / prompt 能力、Docker Compose、Prometheus 本地验证、Alertmanager 本机路由、外部通知路由本地可审计版本、K8s 基础 manifests、生产化基础字段、smoke test 计划 CLI 与执行记录模板 CLI、Docker 镜像 CI 构建、GHCR 镜像发布、PostgreSQL runtime smoke、Qdrant 最小后端、Vector DB 生产化治理报告、Qdrant backup retention policy CLI、Qdrant snapshot API runner、Windows Task Scheduler 本机实验、Milvus runtime benchmark、Milvus backup / restore SOP 和 Milvus destructive operation guardrails。K8s 真实集群 smoke test 执行证据已经在本机 kind 集群完成；cron / Kubernetes CronJob 多周期调度证据已完成；服务器 Docker Compose runtime 已完成 10 分钟 smoke 和 6 小时 long-run smoke，24h 观察窗口、告警触发和恢复演练仍是后续阶段。
+> 当前机器已经完成 FastAPI 服务化、静态 Web 前端增强、stdio MCP Server、stdio MCP Client、MCP resource / prompt 能力、Docker Compose、Prometheus 本地验证、Alertmanager 本机路由、外部通知路由本地可审计版本、K8s 基础 manifests、生产化基础字段、smoke test 计划 CLI 与执行记录模板 CLI、Docker 镜像 CI 构建、GHCR 镜像发布、PostgreSQL runtime smoke、Qdrant 最小后端、Vector DB 生产化治理报告、Qdrant backup retention policy CLI、Qdrant snapshot API runner、Windows Task Scheduler 本机实验、Milvus runtime benchmark、Milvus backup / restore SOP 和 Milvus destructive operation guardrails。K8s 真实集群 smoke test 执行证据已经在本机 kind 集群完成；cron / Kubernetes CronJob 多周期调度证据已完成；服务器 Docker Compose runtime 已完成 10 分钟 smoke、6 小时 long-run smoke 和 API Down 故障可见性演练，24h 观察窗口、数据恢复 drill 和真实通知通道仍是后续阶段。
 
 - [x] FastAPI
 - [x] Pydantic 请求模型
@@ -347,6 +347,7 @@ updated: 2026-07-01
 - [x] Qdrant cron / Kubernetes CronJob / 多周期长期运行调度证据
 - [x] 服务器 Docker Compose 10 分钟 smoke evidence
 - [x] 服务器 Docker Compose 6 小时 long-run smoke evidence
+- [x] 服务器 API Down failure visibility drill
 - [ ] 服务器 24h long-run evidence
 - [x] MilvusVectorStoreRepository skeleton
 - [x] Milvus Compose service / import CLI / optional benchmark entry
@@ -4008,4 +4009,72 @@ completed
 2. 设计可控失败演练，例如临时停止 API 或 Qdrant 后验证告警可见性
 3. 接入真实通知提供方之前，先完成 Alertmanager 路由和本地审计报告
 4. 再进入 Feishu / WeCom / email 通知通道验证
+```
+
+<!-- roadmap-update-2026-07-07-server-api-down-drill -->
+
+## 2026-07-07 路线同步：服务器 API Down 故障可见性演练已完成
+
+本阶段验证服务不是“只要运行不挂”，而是在 API 发生可控故障时，监控系统能发现、告警系统能接收、恢复后状态能回正。
+
+演练场景：
+
+```text
+停止 API 容器
+-> 等待 Prometheus target down
+-> 等待 ThesisDefenseAgentApiDown 告警 firing
+-> 查看 Alertmanager active alert
+-> 启动 API 容器
+-> 等待 API health 恢复
+-> 等待 Prometheus rule 回到 inactive
+-> 查看 Alertmanager alerts 清空
+```
+
+已完成：
+
+- [x] 故障前 API health = PASS
+- [x] 故障前 Prometheus `up` = 1
+- [x] 故障前 `ThesisDefenseAgentApiDown` = inactive
+- [x] 停止 API 后 API health = FAIL
+- [x] 停止 API 后 Prometheus `up` = 0
+- [x] 等待 1m 规则窗口后 `ThesisDefenseAgentApiDown` = firing
+- [x] Alertmanager active alerts 出现 `ThesisDefenseAgentApiDown`
+- [x] 启动 API 后 API health = PASS
+- [x] 启动 API 后 Prometheus `up` = 1
+- [x] 恢复窗口后 `ThesisDefenseAgentApiDown` = inactive
+- [x] Alertmanager alerts 清空
+- [x] 最终 Docker Compose 状态恢复正常
+
+服务器证据：
+
+```text
+服务器报告路径：
+/home/server/apps/thesis-defense-agent/data/reports/server_failure_visibility_api_down.md
+
+故障开始：
+2026-07-07T19:28:04+08:00
+
+告警 firing：
+2026-07-07T19:29:41+08:00
+
+恢复完成：
+2026-07-07T19:30:27+08:00
+```
+
+当前边界：
+
+```text
+本次演练验证的是 API Down 的可见性和恢复后状态回正。
+Alertmanager 当前 receiver 是 local webhook，真实 Feishu / WeCom / email 通知尚未接入。
+由于 receiver 指向 API，API Down 期间 webhook 发送路径本身可能不可用；这暴露了后续真实通知通道需要独立于被监控服务。
+本次没有执行 Qdrant / Milvus / Postgres 故障演练，也没有执行数据恢复 drill。
+```
+
+下一步学习：
+
+```text
+1. 修正或扩展 Alertmanager receiver，让真实通知通道不依赖被监控 API 自身
+2. 增加 Feishu / WeCom / email 之一的真实通知 provider
+3. 做 Qdrant 或 Milvus 的可控故障 / 恢复 drill
+4. 再进入 24h 观察窗口
 ```
