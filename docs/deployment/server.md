@@ -170,7 +170,7 @@ http://127.0.0.1:9093
 
 ## 已验证状态
 
-2026-07-06 至 2026-07-07 已在服务器 `home-server` 完成 Docker Compose runtime smoke 和 6 小时 long-run smoke。
+2026-07-06 至 2026-07-09 已在服务器 `home-server` 完成 Docker Compose runtime smoke、6 小时 long-run smoke、24 小时 long-run smoke 和 API Down 故障可见性演练。
 
 验证版本：
 
@@ -220,6 +220,24 @@ alertmanager
 /home/server/apps/thesis-defense-agent/data/reports/server_long_run_smoke_6h.md
 ```
 
+24 小时 long-run smoke 采样结果：
+
+```text
+采样窗口：2026-07-08T08:44:18+08:00 -> 2026-07-09T08:45:15+08:00
+采样间隔：600 秒
+采样轮数：145
+失败次数：0
+Prometheus active alerts：0
+Alertmanager active alerts：0
+结果：Compose / API / Version / Prometheus / Alertmanager / Qdrant / Milvus / Postgres 全部 PASS
+```
+
+服务器报告路径：
+
+```text
+/home/server/apps/thesis-defense-agent/data/reports/server_long_run_smoke_24h.md
+```
+
 API Down 故障可见性演练：
 
 ```text
@@ -242,8 +260,9 @@ API Down 故障可见性演练：
 ```text
 10 分钟 smoke 证明服务能在服务器 Docker Compose runtime 中正常启动并连续通过基础健康检查。
 6 小时 long-run smoke 证明服务栈可以跨多个小时保持基础健康检查稳定。
+24 小时 long-run smoke 证明服务栈可以跨单日窗口保持基础健康检查稳定。
 API Down 故障可见性演练证明 Prometheus 和 Alertmanager 能发现 API 不可用并在恢复后回正。
-当前还不是 24h 或多天运行验证。
+当前还不是多天运行验证。
 当前尚未覆盖真实 Feishu / WeCom / email 通知通道、Qdrant / Milvus / Postgres 故障演练和数据恢复 drill。
 当前 Alertmanager receiver 指向 API 本身；真实通知通道后续应独立于被监控服务。
 ```
@@ -319,9 +338,10 @@ K8s 本机 kind 验证已完成，但服务器 K8s 长期运行尚未完成
 后续服务器阶段按顺序推进：
 
 ```text
-服务器长期运行验证
--> 反向代理 / HTTPS
+数据恢复 drill
 -> 外部通知渠道
+-> 更长观察窗口
+-> 反向代理 / HTTPS
 -> Qdrant 生产化治理 / Milvus
--> K8s manifests
+-> K8s 服务器长期运行
 ```

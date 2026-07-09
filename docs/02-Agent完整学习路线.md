@@ -274,7 +274,7 @@ updated: 2026-07-01
 
 ## 阶段 10：服务化与界面
 
-> 当前机器已经完成 FastAPI 服务化、静态 Web 前端增强、stdio MCP Server、stdio MCP Client、MCP resource / prompt 能力、Docker Compose、Prometheus 本地验证、Alertmanager 本机路由、外部通知路由本地可审计版本、K8s 基础 manifests、生产化基础字段、smoke test 计划 CLI 与执行记录模板 CLI、Docker 镜像 CI 构建、GHCR 镜像发布、PostgreSQL runtime smoke、Qdrant 最小后端、Vector DB 生产化治理报告、Qdrant backup retention policy CLI、Qdrant snapshot API runner、Windows Task Scheduler 本机实验、Milvus runtime benchmark、Milvus backup / restore SOP 和 Milvus destructive operation guardrails。K8s 真实集群 smoke test 执行证据已经在本机 kind 集群完成；cron / Kubernetes CronJob 多周期调度证据已完成；服务器 Docker Compose runtime 已完成 10 分钟 smoke、6 小时 long-run smoke 和 API Down 故障可见性演练，24h 观察窗口、数据恢复 drill 和真实通知通道仍是后续阶段。
+> 当前机器已经完成 FastAPI 服务化、静态 Web 前端增强、stdio MCP Server、stdio MCP Client、MCP resource / prompt 能力、Docker Compose、Prometheus 本地验证、Alertmanager 本机路由、外部通知路由本地可审计版本、K8s 基础 manifests、生产化基础字段、smoke test 计划 CLI 与执行记录模板 CLI、Docker 镜像 CI 构建、GHCR 镜像发布、PostgreSQL runtime smoke、Qdrant 最小后端、Vector DB 生产化治理报告、Qdrant backup retention policy CLI、Qdrant snapshot API runner、Windows Task Scheduler 本机实验、Milvus runtime benchmark、Milvus backup / restore SOP 和 Milvus destructive operation guardrails。K8s 真实集群 smoke test 执行证据已经在本机 kind 集群完成；cron / Kubernetes CronJob 多周期调度证据已完成；服务器 Docker Compose runtime 已完成 10 分钟 smoke、6 小时 long-run smoke、24 小时 long-run smoke 和 API Down 故障可见性演练，数据恢复 drill 和真实通知通道仍是后续阶段。
 
 - [x] FastAPI
 - [x] Pydantic 请求模型
@@ -348,7 +348,7 @@ updated: 2026-07-01
 - [x] 服务器 Docker Compose 10 分钟 smoke evidence
 - [x] 服务器 Docker Compose 6 小时 long-run smoke evidence
 - [x] 服务器 API Down failure visibility drill
-- [ ] 服务器 24h long-run evidence
+- [x] 服务器 24h long-run evidence
 - [x] MilvusVectorStoreRepository skeleton
 - [x] Milvus Compose service / import CLI / optional benchmark entry
 - [x] Milvus runtime benchmark report
@@ -841,8 +841,8 @@ PostgreSQL runtime smoke test。
 
 当前已经完成本机 Agent Harness、RAG、Tool Calling、Memory、Trace、Sub-Agent、LangGraph 旁路迁移、FastAPI / Web / Docker / Prometheus / PostgreSQL / Qdrant / Milvus 基础治理、Qdrant Windows Task Scheduler 本机实验、Qdrant Kubernetes CronJob manifest dry-run、K8s smoke runner CLI、K8s kind 本机真实集群 smoke 验证，以及 AsyncTaskRunner / FastAPI 后台任务 / DefenseTask 当前步骤后台执行 / 异步 LLM 与工具调用边界 / 原生异步 LLM SDK / async tool function 执行支持 / 后台任务幂等请求 / 后台任务持久化状态恢复。下一阶段进入调度与长期运行验证：
 
-1. 服务器长期运行验证
-2. 真实通知通道和更长观察窗口
+1. 数据恢复 drill 和真实通知通道验证
+2. 更长观察窗口和多天稳定性证据
 
 ## 最终简历能力目标
 
@@ -4005,8 +4005,8 @@ completed
 下一步学习：
 
 ```text
-1. 选择是否启动 24h 观察窗口
-2. 设计可控失败演练，例如临时停止 API 或 Qdrant 后验证告警可见性
+1. 24h 观察窗口已完成，继续保留服务器报告作为证据
+2. 继续做可控数据恢复演练，例如 Qdrant / Milvus / Postgres 恢复 drill
 3. 接入真实通知提供方之前，先完成 Alertmanager 路由和本地审计报告
 4. 再进入 Feishu / WeCom / email 通知通道验证
 ```
@@ -4076,5 +4076,52 @@ Alertmanager 当前 receiver 是 local webhook，真实 Feishu / WeCom / email �
 1. 修正或扩展 Alertmanager receiver，让真实通知通道不依赖被监控 API 自身
 2. 增加 Feishu / WeCom / email 之一的真实通知 provider
 3. 做 Qdrant 或 Milvus 的可控故障 / 恢复 drill
-4. 再进入 24h 观察窗口
+4. 如需更强稳定性证据，再进入 72h 或多天观察窗口
+```
+
+<!-- roadmap-update-2026-07-09-server-compose-24h-long-run -->
+
+## 2026-07-09 路线同步：服务器 Docker Compose 24 小时 Long-Run Smoke 已完成
+
+本阶段将服务器验证从 6 小时观察窗口推进到 24 小时观察窗口。
+验证对象仍是已经合并到 `main` 的稳定版本；服务器只作为运行环境，不作为开发环境。
+
+已完成：
+
+- [x] 服务器运行 commit：`5cba838`
+- [x] 服务器 Docker Compose 栈持续运行超过 24 小时
+- [x] 采样窗口：`2026-07-08T08:44:18+08:00 -> 2026-07-09T08:45:15+08:00`
+- [x] 采样间隔：600 秒
+- [x] 采样轮数：145
+- [x] FAIL 数量：0
+- [x] Compose / API / Version / Prometheus / Alertmanager / Qdrant / Milvus / Postgres 全部 PASS
+- [x] Prometheus active alerts：每轮均为 0
+- [x] Alertmanager active alerts：每轮均为 0
+- [x] 验证结束后 compose 状态仍正常：API healthy，Postgres / Qdrant / Milvus / Prometheus / Alertmanager 均 running
+
+服务器证据：
+
+```text
+/home/server/apps/thesis-defense-agent/data/reports/server_long_run_smoke_24h.status
+/home/server/apps/thesis-defense-agent/data/reports/server_long_run_smoke_24h.md
+/home/server/apps/thesis-defense-agent/data/reports/server_long_run_smoke_24h.log
+```
+
+边界说明：
+
+```text
+这是服务器 Docker Compose 24 小时 long-run smoke。
+它证明当前服务栈能在 home-server 上跨单日窗口保持基础健康检查稳定。
+它不等于多天稳定性验证，也不等于数据恢复 drill。
+本次没有执行 Qdrant / Milvus / Postgres 数据损坏或恢复演练。
+真实 Feishu / WeCom / email 通知通道仍未接入。
+服务器原始运行报告保存在服务器 data/reports/，不提交到 Git。
+```
+
+下一步学习：
+
+```text
+1. Qdrant / Milvus / Postgres 数据恢复 drill 的服务器侧证据整理
+2. 真实 Feishu / WeCom / email 通知提供方
+3. 如果需要更强稳定性背书，再做 72h 或多天观察窗口
 ```
